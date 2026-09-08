@@ -194,6 +194,9 @@ export type ProductDetail = {
   seoTitle: string | null;
   seoDescription: string | null;
   currency: string;
+  /** Product-level lead-time window (variants may override; FR-304). */
+  leadTimeDaysMin: number;
+  leadTimeDaysMax: number;
   variants: VariantDto[];
   images: Array<{ url: string; alt: string }>;
   reviews: Array<{
@@ -296,6 +299,8 @@ export async function getProduct(
     seoTitle: row.product.seoTitle,
     seoDescription: row.product.seoDescription,
     currency,
+    leadTimeDaysMin: row.product.leadTimeDaysMin,
+    leadTimeDaysMax: row.product.leadTimeDaysMax,
     variants,
     images: imageRows,
     reviews: reviewRows,

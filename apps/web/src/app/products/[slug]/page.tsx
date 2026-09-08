@@ -38,7 +38,9 @@ export default async function ProductPage({ params }: { params: Params }) {
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
   if (!defaultVariant) notFound();
 
-  const leadTime = { min: 2, max: 4 }; // overridden per-variant on selection (client panel)
+  // Lead time from the product's own settings (FR-304: same source of truth
+  // as FR-207's inventory rollup); variants may override it client-side.
+  const leadTime = { min: product.leadTimeDaysMin, max: product.leadTimeDaysMax };
 
   const jsonLd = {
     "@context": "https://schema.org",

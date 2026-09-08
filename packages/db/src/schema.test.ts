@@ -20,11 +20,13 @@ import {
   fxRate,
   shippingRate,
   returnRequest,
-} from "./index";
+} from "./schema";
 
 /**
  * Schema-shape smoke (PRD §7): guards the contract columns the domain relies on.
- * Pure TypeScript — no database required.
+ * Pure TypeScript — no database required. Imports ./schema (not ./index) so
+ * the suite stays hermetic: ./index re-exports the pooled client, which
+ * asserts DATABASE_URL at import and would break env-less unit CI.
  */
 function indexColumns(table: Parameters<typeof getTableConfig>[0]): Array<{ name: string; unique: boolean; composite: boolean }> {
   const { indexes, primaryKeys } = getTableConfig(table);

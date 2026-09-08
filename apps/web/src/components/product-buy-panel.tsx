@@ -32,9 +32,17 @@ export function ProductBuyPanel({
   currency: string;
 }) {
   const router = useRouter();
-  const [selectedSku, setSelectedSku] = useState<string>(
-    () => variants.find((v) => v.isDefault)?.sku ?? variants[0]?.sku ?? "",
-  );
+  // Deep-link support (FR-302): honor ?variant=SKU on load, shareable via URL.
+  const [selectedSku, setSelectedSku] = useState<string>(() => {
+    const fromUrl =
+      typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("variant") : null;
+    return (
+      variants.find((v) => v.sku === fromUrl)?.sku ??
+      variants.find((v) => v.isDefault)?.sku ??
+      variants[0]?.sku ??
+      ""
+    );
+  });
   const [qty, setQty] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -46,6 +54,14 @@ export function ProductBuyPanel({
   );
 
   if (!selected) return null;
+
+  /** FR-302: selection is reflected in the URL (?variant=SKU) via replaceState. */
+  const onSelectVariant = (sku: string) => {
+    setSelectedSku(sku);
+    const url = new URL(window.location.href);
+    url.searchParams.set("variant", sku);
+    window.history.replaceState(null, "", url);
+  };
 
   const onAdd = () => {
     setError(null);
@@ -104,7 +120,7 @@ export function ProductBuyPanel({
               <button
                 key={variant.id}
                 type="button"
-                onClick={() => setSelectedSku(variant.sku)}
+                onClick={() => onSelectVariant(variant.sku)}
                 disabled={!isAvailable}
                 aria-pressed={isSelected}
                 title={

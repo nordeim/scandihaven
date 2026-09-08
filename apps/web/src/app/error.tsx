@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * 500 boundary (PRD FR-109): error surfaces name their FR ID and keep the
+ * site chrome (root layout) with a recovery affordance.
+ */
 export default function GlobalError({
   error,
   reset,
