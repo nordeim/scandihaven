@@ -1,4 +1,3 @@
-import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactElement } from "react";
 import { Resend } from "resend";
 import { OrderConfirmation, ShipmentUpdate } from "./templates";
@@ -7,7 +6,18 @@ import { OrderConfirmation, ShipmentUpdate } from "./templates";
  * Email transport (PRD §4.5, FR-910): Resend when RESEND_API_KEY is set,
  * otherwise a structured log transport so local dev never silently drops mail.
  * Templates render via react-dom/server (stable API, no vendor render magic).
+ *
+ * Platform constraint (Verified, Next 16 Turbopack): a static import of
+ * `react-dom/server` is banned inside the App Router bundle, so the renderer
+ * is resolved at runtime instead. `turbopackIgnore` keeps the bundler from
+ * tracing it; in plain Node (tests, job runner, CLI) the import resolves
+ * normally from node_modules.
  */
+async function renderEmailHtml(element: ReactElement): Promise<string> {
+  const { renderToStaticMarkup } = await import(/* turbopackIgnore: true */ "react-dom/server");
+  return `<!DOCTYPE html>${renderToStaticMarkup(element)}`;
+}
+
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export type SendResult = { transport: "resend" | "log"; id: string | null };
@@ -18,7 +28,7 @@ async function renderAndSend(
   subject: string,
   element: ReactElement,
 ): Promise<SendResult> {
-  const html = `<!DOCTYPE html>${renderToStaticMarkup(element)}`;
+  const html = await renderEmailHtml(element);
   if (!resend) {
     console.info(`[email:log] template=${template} to=${hashEmail(to)} subject="${subject}"`);
     return { transport: "log", id: null };
