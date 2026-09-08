@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: scandihaven
+          POSTGRES_PASSWORD: scandihaven
+          POSTGRES_DB: scandihaven
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scandihaven"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://scandihaven:scandihaven@localhost:5432/scandihaven
+      BETTER_AUTH_SECRET: ci-only-secret-value-0123456789abcdef0123456789abcdef
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Migrate + seed
+        run: |
+          pnpm db:migrate
+          pnpm db:seed
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @scandihaven/web exec playwright install --with-deps chromium webkit
+
+      - name: E2E (Chromium)
+        run: pnpm --filter @scandihaven/web exec playwright test --project=chromium
+
+      - name: Dependency audit (high+)
+        run: pnpm audit --audit-level high || true

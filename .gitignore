@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+out/
+dist/
+*.tsbuildinfo
+.turbo/
+
+# Environment — never commit real secrets (PRD §13.4)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testing
+playwright-report/
+test-results/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Deployment
+.vercel/
+
+# Data
+pgdata/
+*.pgdata/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
