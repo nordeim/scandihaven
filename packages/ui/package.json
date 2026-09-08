@@ -1,0 +1,50 @@
+{
+  "name": "@scandihaven/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./cn": "./src/lib/cn.ts",
+    "./button": "./src/components/button.tsx",
+    "./badge": "./src/components/badge.tsx",
+    "./input": "./src/components/input.tsx",
+    "./label": "./src/components/label.tsx",
+    "./drawer": "./src/components/drawer.tsx",
+    "./accordion": "./src/components/accordion.tsx",
+    "./separator": "./src/components/separator.tsx",
+    "./skeleton": "./src/components/skeleton.tsx",
+    "./quantity-stepper": "./src/components/composites/quantity-stepper.tsx",
+    "./price-block": "./src/components/composites/price-block.tsx",
+    "./lead-time-badge": "./src/components/composites/lead-time-badge.tsx",
+    "./product-card": "./src/components/composites/product-card.tsx",
+    "./media-image": "./src/components/composites/media-image.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "echo \"no unit tests in ui package (component tests live with apps)\" && exit 0"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.42.0",
+    "radix-ui": "^1.6.7",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@scandihaven/config": "workspace:*",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.0",
+    "next": "^16.3.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3"
+  }
+}
