@@ -121,3 +121,119 @@ describe("worked example (PRD §7.10)", () => {
     expect(totals.total).toBe(133_800);
   });
 });
+
+describe("promotion discount cap invariants (PRD v4 FR-810)", () => {
+  const kindArb = fc.constantFrom("fixed", "percent", "tiered") as fc.Arbitrary<
+    "fixed" | "percent" | "tiered"
+  >;
+
+  // Line ids are allocation keys — generators must produce unique ids (the
+  // domain asserts this precondition; see duplicate-id guard test below).
+  const uniqueLinesArb = (maxLength: number) =>
+    fc
+      .array(lineArb(), { minLength: 1, maxLength })
+      .map((lines) => lines.map((line, i) => ({ ...line, id: `line-${i}` })));
+
+  const promotionArb = fc
+    .record({
+      kind: kindArb,
+      value: fc.integer({ min: 0, max: 25_000 }),
+      tierDiscount: fc.integer({ min: 0, max: 500_000 }),
+      tierMin: fc.integer({ min: 0, max: 1_000 }),
+    })
+    .map((r) => {
+      if (r.kind === "fixed") {
+        return { promotionId: "p", kind: "fixed" as const, value: r.value };
+      }
+      if (r.kind === "percent") {
+        // value bp may exceed 10 000 (100 %) — the cap must hold anyway.
+        return { promotionId: "p", kind: "percent" as const, value: r.value };
+      }
+      return {
+        promotionId: "p",
+        kind: "tiered" as const,
+        value: 0,
+        tiers: [{ minSpendMinor: r.tierMin, discountMinor: r.tierDiscount }],
+      };
+    });
+
+  it("throws on duplicate line ids (allocation keys must be unique)", () => {
+    const lines: PriceLine[] = [
+      { id: "a", qty: 1, unitPriceMinor: 100, discountable: true },
+      { id: "a", qty: 2, unitPriceMinor: 100, discountable: true },
+    ];
+    expect(() =>
+      computeCartTotals({ lines, promotions: [], shippingMinor: 0 }),
+    ).toThrow(/duplicate line id/);
+  });
+
+  it("discount never exceeds subtotal and total never goes negative, for every kind", () => {
+    fc.assert(
+      fc.property(
+        uniqueLinesArb(10),
+        promotionArb,
+        fc.integer({ min: 0, max: 30_000 }),
+        (lines, promotion, shipping) => {
+          const totals = computeCartTotals({ lines, promotions: [promotion], shippingMinor: shipping });
+          return totals.discount <= totals.subtotal && totals.total >= 0;
+        },
+      ),
+    );
+  });
+
+  it("conservation: subtotal − discount + shipping + tax = total", () => {
+    fc.assert(
+      fc.property(
+        uniqueLinesArb(10),
+        promotionArb,
+        fc.integer({ min: 0, max: 30_000 }),
+        fc.integer({ min: 0, max: 20_000 }),
+        (lines, promotion, shipping, tax) => {
+          const totals = computeCartTotals({
+            lines,
+            promotions: [promotion],
+            shippingMinor: shipping,
+            taxMinor: tax,
+          });
+          return totals.subtotal - totals.discount + shipping + tax === totals.total;
+        },
+      ),
+    );
+  });
+
+  it("tiered promotion resolves its matching tier discount", () => {
+    const lines: PriceLine[] = [
+      { id: "a", qty: 1, unitPriceMinor: 600_00, discountable: true },
+    ];
+    const totals = computeCartTotals({
+      lines,
+      promotions: [
+        {
+          promotionId: "p",
+          kind: "tiered",
+          value: 0,
+          tiers: [{ minSpendMinor: 500_00, discountMinor: 50_00 }],
+        },
+      ],
+      shippingMinor: 0,
+    });
+    expect(totals.discount).toBe(50_00);
+  });
+
+  it("tiered promotion with no qualifying tier discounts nothing", () => {
+    const lines: PriceLine[] = [{ id: "a", qty: 1, unitPriceMinor: 100_00, discountable: true }];
+    const totals = computeCartTotals({
+      lines,
+      promotions: [
+        {
+          promotionId: "p",
+          kind: "tiered",
+          value: 0,
+          tiers: [{ minSpendMinor: 500_00, discountMinor: 50_00 }],
+        },
+      ],
+      shippingMinor: 0,
+    });
+    expect(totals.discount).toBe(0);
+  });
+});

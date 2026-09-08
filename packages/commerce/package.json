@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./cart-service": "./src/cart-service.ts",
+    "./catalog": "./src/catalog.ts",
+    "./checkout-service": "./src/checkout-service.ts",
+    "./dto": "./src/dto.ts",
+    "./jobs": "./src/jobs.ts",
     "./money": "./src/money.ts",
+    "./order-state": "./src/order-state.ts",
     "./pricing": "./src/pricing.ts",
     "./promotions": "./src/promotions.ts",
-    "./order-state": "./src/order-state.ts",
-    "./dto": "./src/dto.ts",
+    "./providers": "./src/providers.ts",
+    "./request-dedupe": "./src/request-dedupe.ts",
     "./result": "./src/result.ts",
-    "./catalog": "./src/catalog.ts",
-    "./cart-service": "./src/cart-service.ts",
-    "./checkout-service": "./src/checkout-service.ts"
+    "./search-provider": "./src/search-provider.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

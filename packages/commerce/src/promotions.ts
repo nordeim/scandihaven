@@ -4,6 +4,7 @@
  * order-placement transaction.
  */
 import { z } from "zod";
+import { resolveTierValue } from "./pricing";
 
 export const promotionConditionsSchema = z.object({
   minSpendMinor: z.number().int().nonnegative().optional(),
@@ -106,9 +107,6 @@ export function resolveTier(
   subtotalMinor: number,
 ): number | null {
   if (promotion.kind !== "tiered" || !promotion.tiers) return null;
-  const qualifying = promotion.tiers
-    .filter((tier) => subtotalMinor >= tier.minSpendMinor)
-    .sort((a, b) => b.minSpendMinor - a.minSpendMinor);
-  const tier = qualifying[0];
-  return tier ? tier.discountMinor : null;
+  // Single tier-resolution implementation lives in pricing (FR-810).
+  return resolveTierValue(promotion.tiers, subtotalMinor);
 }

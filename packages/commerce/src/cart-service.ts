@@ -17,6 +17,14 @@ import {
 import type { CartDto, CartLineDto } from "./dto";
 import { computeCartTotals, type PriceLine } from "./pricing";
 import { evaluatePromotion, type PromotionInput } from "./promotions";
+import { createRequestDedupe } from "./request-dedupe";
+
+/**
+ * Idempotency for addLine (PRD §8.3): the same (cart, requestId) pair within
+ * 5 minutes is a no-op that returns the current cart — double-taps and
+ * optimistic-retries cannot double-add. Per-instance scope (see request-dedupe).
+ */
+const addLineDedupe = createRequestDedupe(5 * 60_000);
 
 const CART_COOKIE = "sh_cart";
 const CART_SECRET = process.env.BETTER_AUTH_SECRET ?? "dev-only-insecure-secret";
@@ -130,9 +138,13 @@ export async function addLine(
   cartId: string,
   variantId: string,
   qty: number,
+  requestId?: string,
 ): Promise<CartDto> {
   if (!Number.isSafeInteger(qty) || qty < 1 || qty > 99) {
     throw new CartError("Quantity must be between 1 and 99", "VALIDATION");
+  }
+  if (requestId !== undefined && !addLineDedupe.checkAndReserve(`${cartId}:${requestId}`)) {
+    return getCartDto(cartId);
   }
   const pricing = await loadVariantPricing(variantId);
   if (!pricing) throw new CartError("Variant not found", "NOT_FOUND");

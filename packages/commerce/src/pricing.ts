@@ -19,6 +19,8 @@ export type PromotionApplication = {
   kind: "fixed" | "percent" | "free_shipping" | "bogo" | "tiered";
   /** Minor units for fixed; basis points (1/100 %) for percent. */
   value: number;
+  /** Tiered thresholds (FR-810): best qualifying tier supplies the discount. */
+  tiers?: readonly { minSpendMinor: number; discountMinor: number }[] | null;
 };
 
 export type CartTotals = {
@@ -68,11 +70,15 @@ export function selectBestPromotion(
         candidate = Math.min(promotion.value, subtotal);
         break;
       case "percent":
-        candidate = roundHalfUp((subtotal * promotion.value) / 10_000);
+        // Capped at subtotal so an over-100 % bp value can never beat a
+        // discount the engine could not actually deliver (FR-810 cap).
+        candidate = Math.min(roundHalfUp((subtotal * promotion.value) / 10_000), subtotal);
+        break;
+      case "tiered":
+        candidate = Math.min(resolveTierValue(promotion.tiers, subtotal) ?? 0, subtotal);
         break;
       case "free_shipping":
       case "bogo":
-      case "tiered":
         // Free-shipping value depends on the shipping rate — handled by caller.
         candidate = 0;
         break;
@@ -83,6 +89,22 @@ export function selectBestPromotion(
     }
   }
   return best;
+}
+
+/**
+ * Best qualifying tier (highest threshold wins) for a subtotal.
+ * Returns null when no tier qualifies — distinct from a zero discount (FR-810).
+ */
+export function resolveTierValue(
+  tiers: readonly { minSpendMinor: number; discountMinor: number }[] | null | undefined,
+  subtotal: number,
+): number | null {
+  if (!tiers || tiers.length === 0) return null;
+  const qualifying = tiers
+    .filter((tier) => subtotal >= tier.minSpendMinor)
+    .sort((a, b) => b.minSpendMinor - a.minSpendMinor);
+  const tier = qualifying[0];
+  return tier ? tier.discountMinor : null;
 }
 
 /**
@@ -151,14 +173,26 @@ export function distributeDiscount(
 }
 
 export function computeCartTotals(input: PricingInput): CartTotals {
+  // Precondition: line ids are keys for per-line allocation (DTO ids come from
+  // uuid PKs). Duplicates would collapse allocations — fail fast instead.
+  const seenIds = new Set<string>();
+  for (const line of input.lines) {
+    if (seenIds.has(line.id)) {
+      throw new Error(`duplicate line id "${line.id}" — line ids must be unique`);
+    }
+    seenIds.add(line.id);
+  }
   const subtotal = computeSubtotal(input.lines);
   const best = selectBestPromotion(input.promotions, subtotal);
-  const rawDiscount =
-    best && (best.kind === "fixed" || best.kind === "percent")
-      ? best.kind === "fixed"
-        ? Math.min(best.value, subtotal)
-        : roundHalfUp((subtotal * best.value) / 10_000)
-      : 0;
+  const rawDiscount = best
+    ? best.kind === "fixed"
+      ? Math.min(best.value, subtotal)
+      : best.kind === "percent"
+        ? roundHalfUp((subtotal * best.value) / 10_000)
+        : best.kind === "tiered"
+          ? (resolveTierValue(best.tiers, subtotal) ?? 0)
+          : 0
+    : 0;
 
   const { lineDiscounts, lineTotals } = distributeDiscount(input.lines, rawDiscount);
   const discount = sumMinor(Object.values(lineDiscounts));
