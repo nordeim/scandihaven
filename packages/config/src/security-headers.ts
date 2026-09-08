@@ -2,13 +2,19 @@
 
 export type HeaderMap = Record<string, string>;
 
+/**
+ * The one manifest both apps' proxies apply (§9.3: "centrally in proxy.ts with
+ * a unit-tested manifest"). CSP note: Next.js injects inline bootstrap
+ * scripts, so `unsafe-inline` stands until strict nonce CSP lands in Phase 1
+ * hardening — the remainder of the policy is already restrictive.
+ */
 export function securityHeaders(): HeaderMap {
   return {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
     "Content-Security-Policy": [
       "default-src 'self'",
       // Next.js injects inline bootstrap scripts; strict nonce CSP lands in Phase 1 hardening.

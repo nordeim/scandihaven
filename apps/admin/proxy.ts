@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { securityHeaders } from "@scandihaven/config/security-headers";
 
 /**
  * Admin proxy (PRD §9.2): unauthenticated visitors bounce to /sign-in.
  * Fine-grained permission checks live in Server Actions via the RBAC matrix —
  * this gate is UX only (the control is server-side re-authorization).
+ * Security headers come from the shared §9.3 manifest, same as the storefront.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const sessionCookie =
@@ -13,9 +15,18 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (!sessionCookie) {
     const signIn = new URL("/sign-in", request.url);
     signIn.searchParams.set("redirect", request.nextUrl.pathname);
-    return NextResponse.redirect(signIn);
+    const redirectResponse = NextResponse.redirect(signIn);
+    for (const [key, value] of Object.entries(securityHeaders())) {
+      redirectResponse.headers.set(key, value);
+    }
+    return redirectResponse;
   }
-  return NextResponse.next();
+
+  const response = NextResponse.next();
+  for (const [key, value] of Object.entries(securityHeaders())) {
+    response.headers.set(key, value);
+  }
+  return response;
 }
 
 export const config = {

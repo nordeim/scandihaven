@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { securityHeaders } from "@/lib/security-headers";
+import { securityHeaders } from "@scandihaven/config/security-headers";
 
 /**
  * proxy.ts replaces middleware.ts in Next.js 16 (PRD §4.4).
