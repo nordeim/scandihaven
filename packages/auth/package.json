@@ -6,7 +6,8 @@
   "exports": {
     "./server": "./src/server.ts",
     "./client": "./src/client.ts",
-    "./rbac": "./src/rbac.ts"
+    "./rbac": "./src/rbac.ts",
+    "./next-handler": "./src/next-handler.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
