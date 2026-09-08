@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "@scandihaven/ui/tokens.css";
+
+/* Explicit sources: workspace packages are outside the app's auto-scan root.
+   Without this, classes used only in packages/ui (bg-secondary, hover:bg-bg-3…)
+   are never generated (Tailwind v4 source detection). */
+@source "../../../../packages/ui/src";
+@source "../../../../packages/auth/src";
+@source "../../../../packages/commerce/src";
