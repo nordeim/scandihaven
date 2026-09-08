@@ -20,6 +20,8 @@ export type CheckoutAddress = z.infer<typeof addressSchema>;
 /**
  * Create the PaymentIntent (PRD FR-508). Amount is re-derived server-side from
  * the cart; the client never supplies money values (§9.4 STRIDE: tampering).
+ * The validated contact (email + shipping address) rides on the PaymentIntent
+ * metadata so the webhook can build the order's address snapshot (§8.3).
  */
 export async function createPaymentIntentAction(input: {
   address: CheckoutAddress;
@@ -34,7 +36,17 @@ export async function createPaymentIntentAction(input: {
   if (!cartId) return fail("VALIDATION", "Your cart is empty");
 
   try {
-    const clientSecret = await createPaymentIntent(cartId);
+    const clientSecret = await createPaymentIntent(cartId, {
+      email: parsed.data.email,
+      shippingAddress: {
+        name: parsed.data.name,
+        line1: parsed.data.line1,
+        line2: parsed.data.line2 ?? null,
+        city: parsed.data.city,
+        postalCode: parsed.data.postalCode,
+        country: parsed.data.country,
+      },
+    });
     return ok({ clientSecret });
   } catch (error) {
     if (error instanceof CheckoutError) {

@@ -6,6 +6,7 @@ import {
   analyticsEvent,
   cart,
   cartLine,
+  cartPromotion,
   inventoryLevel,
   inventoryMovement,
   job,
@@ -16,11 +17,12 @@ import {
   payment,
   product,
   productVariant,
+  promotion,
   variantPrice,
   webhookEvent,
 } from "@scandihaven/db/schema";
 import { transition } from "./order-state";
-import { computeCartTotals, type PriceLine } from "./pricing";
+import { computeCartTotals, type PriceLine, type PromotionApplication } from "./pricing";
 
 let stripeClient: Stripe | null = null;
 
@@ -47,8 +49,57 @@ export class CheckoutError extends Error {
   }
 }
 
+export type CheckoutContact = {
+  email: string;
+  shippingAddress: {
+    name: string;
+    line1: string;
+    line2?: string | null;
+    city: string;
+    postalCode: string;
+    country: string;
+    phone?: string | null;
+  };
+};
+
+/**
+ * Map cart_promotion × promotion join rows into the pricing engine's
+ * PromotionApplication shape (PRD §7.10). Pure seam shared by intent creation
+ * and the §7.11 webhook re-verification so both sides price the cart
+ * identically to what the cart page displays.
+ */
+export function toPromotionApplications(
+  rows: readonly { id: string; kind: string; value: number | null }[],
+): PromotionApplication[] {
+  return rows.map((row) => ({
+    promotionId: row.id,
+    kind: row.kind as PromotionApplication["kind"],
+    value: row.value ?? 0,
+  }));
+}
+
+/**
+ * Load the promotions attached to a cart (same rows the cart DTO displays).
+ * Accepts the pool client or a transaction client so the webhook path can
+ * read promotions inside its placement transaction.
+ */
+export async function loadCartPromotionApplications(
+  executor: Pick<typeof db, "select">,
+  cartId: string,
+): Promise<PromotionApplication[]> {
+  const rows = await executor
+    .select({ id: promotion.id, kind: promotion.kind, value: promotion.value })
+    .from(cartPromotion)
+    .innerJoin(promotion, eq(promotion.id, cartPromotion.promotionId))
+    .where(eq(cartPromotion.cartId, cartId));
+  return toPromotionApplications(rows);
+}
+
 /** Create (or reuse) a PaymentIntent for the cart; amount re-derived server-side (FR-508). */
-export async function createPaymentIntent(cartId: string): Promise<string> {
+export async function createPaymentIntent(
+  cartId: string,
+  contact?: CheckoutContact,
+): Promise<string> {
   const stripe = getStripe();
   if (!stripe) {
     throw new CheckoutError(
@@ -78,7 +129,11 @@ export async function createPaymentIntent(cartId: string): Promise<string> {
     unitPriceMinor: row.amount ?? row.line.unitPriceSnapshot,
     discountable: !row.line.isGiftWrap,
   }));
-  const totals = computeCartTotals({ lines: priceLines, promotions: [], shippingMinor: 0 });
+  // Payable totals include the cart's promotions (§7.11): the intent amount
+  // must equal what the cart page displays, or the §7.11 re-verification
+  // would reject every discounted order.
+  const promotions = await loadCartPromotionApplications(db, cartId);
+  const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
 
   // Idempotency key derived from cart identity + totals so retries reuse the intent.
   const idempotencyKey = `cart:${cartRow.id}:${totals.total}`;
@@ -87,7 +142,17 @@ export async function createPaymentIntent(cartId: string): Promise<string> {
       amount: totals.total,
       currency: cartRow.currency.toLowerCase(),
       automatic_payment_methods: { enabled: true },
-      metadata: { cartId: cartRow.id },
+      metadata: {
+        cartId: cartRow.id,
+        email: contact?.email ?? "",
+        shipping_name: contact?.shippingAddress.name ?? "",
+        shipping_line1: contact?.shippingAddress.line1 ?? "",
+        shipping_line2: contact?.shippingAddress.line2 ?? "",
+        shipping_city: contact?.shippingAddress.city ?? "",
+        shipping_postal_code: contact?.shippingAddress.postalCode ?? "",
+        shipping_country: contact?.shippingAddress.country ?? "",
+        shipping_phone: contact?.shippingAddress.phone ?? "",
+      },
     },
     { idempotencyKey },
   );
@@ -176,7 +241,10 @@ export async function placeOrderFromWebhook(input: {
       unitPriceMinor: row.amount ?? row.line.unitPriceSnapshot,
       discountable: !row.line.isGiftWrap,
     }));
-    const totals = computeCartTotals({ lines: priceLines, promotions: [], shippingMinor: 0 });
+    // Re-verification (§7.11) prices the cart with its promotions inside the
+    // same transaction — identical inputs to intent creation (§7.10).
+    const promotions = await loadCartPromotionApplications(tx, cartId);
+    const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
 
     if (totals.total !== intent.amount) {
       throw new CheckoutError(
@@ -200,6 +268,11 @@ export async function placeOrderFromWebhook(input: {
     }
 
     const year = new Date().getUTCFullYear();
+    // Serialize per-year number generation (§7.9 concurrency): a unique-
+    // violation on order_number would abort AFTER webhook_event was recorded,
+    // and Stripe's retry would then no-op — silently losing a paid order.
+    // The advisory lock makes MAX+1 deterministic under concurrency.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`order_number:${year}`}))`);
     const seqRows = await tx.execute<{ seq: string }>(
       sql`SELECT COALESCE(MAX(substring(number from 10)::int), 0) + 1 AS seq FROM "order" WHERE number LIKE ${`SH-${year}-%`}`,
     );
@@ -216,6 +289,9 @@ export async function placeOrderFromWebhook(input: {
         email,
         region: cartRow.region,
         currency: cartRow.currency,
+        // FR-504 (multi-currency FX snapshot) is a Phase 1 slice: launch is
+        // EUR-only, so rate 1 and totalEur=total are correct today. Revisit
+        // with the fx_rate table the moment a second currency sells.
         fxRate: "1",
         status: "pending_payment",
         subtotal: totals.subtotal,
