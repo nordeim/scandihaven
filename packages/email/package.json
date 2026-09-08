@@ -1,0 +1,27 @@
+{
+  "name": "@scandihaven/email",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./templates": "./src/templates/index.ts",
+    "./send": "./src/send.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "react": "^19.2.8",
+    "resend": "^6.26.0"
+  },
+  "devDependencies": {
+    "@scandihaven/config": "workspace:*",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "react-dom": "^19.2.8",
+    "typescript": "~5.9.3"
+  }
+}
