@@ -65,7 +65,7 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 pnpm install
 docker compose up -d                  # PostgreSQL 17 (postgres:17-alpine, service `postgres` → scandihaven_postgres, healthy in ~10s; logs: docker compose logs -f postgres)
 cp .env.example .env                  # fill BETTER_AUTH_SECRET (openssl rand -base64 32), CRON_SECRET
-pnpm db:migrate && pnpm db:seed       # schema + demo catalog
+pnpm db:setup                         # schema + demo catalog (migrate && seed) — fresh container
 pnpm dev                              # storefront :3000  (pnpm dev:admin → :3001)
 ```
 
@@ -79,6 +79,7 @@ pnpm dev                              # storefront :3000  (pnpm dev:admin → :3
 | `pnpm typecheck` | `tsc --noEmit` per workspace |
 | `pnpm test` | Vitest (commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
 | `pnpm e2e` | Playwright Chromium (needs migrated+seeded DB; `E2E_BASE_URL` to target a running server) |
+| `pnpm db:setup` | Fresh DB init (`db:migrate && db:seed`) |
 | `pnpm db:migrate` / `db:seed` / `db:reset` / `db:generate` | Database lifecycle |
 | `pnpm seed:admin` | Test admin (`SEED_ADMIN_PASSWORD` required — no default credentials exist) |
 

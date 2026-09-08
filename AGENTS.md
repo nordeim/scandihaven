@@ -14,11 +14,12 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm lint` / `pnpm typecheck` | ESLint 9 flat / `tsc --noEmit` per workspace |
 | `pnpm test` | Vitest unit suites (commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
 | `pnpm e2e` | Playwright, Chromium project, against `apps/web` |
+| `pnpm db:setup` | `db:migrate && db:seed` — fresh container init (migrate + idempotent seed, local hosts only) |
 | `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | drizzle-kit migrate / idempotent seed / drop+recreate (local hosts only) |
 | `pnpm db:generate` | Regenerate drizzle migrations after schema edits |
 | `pnpm seed:admin` | Provision test admin; **requires** `SEED_ADMIN_PASSWORD` env (no default credentials exist) |
 
-Order matters for a clean check: `pnpm lint typecheck test build` then `db:migrate && db:seed` before `pnpm e2e` (E2E needs a migrated+seeded DB).
+Order matters for a clean check: `pnpm lint typecheck test build` then `pnpm db:setup` (`db:migrate && db:seed`) before `pnpm e2e` (E2E needs a migrated+seeded DB).
 
 ## Architecture invariants
 

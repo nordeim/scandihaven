@@ -96,7 +96,7 @@ Prerequisites: **Node.js ≥ 22**, **PNPM 10** (`corepack enable`), **Docker** (
 pnpm install
 docker compose up -d               # PostgreSQL 17 (postgres:17-alpine, service `postgres`; logs: docker compose logs -f postgres)
 cp .env.example .env               # then fill secrets (below)
-pnpm db:migrate && pnpm db:seed    # schema + demo catalog
+pnpm db:setup                      # schema + demo catalog (migrate && seed)
 pnpm dev                           # storefront on http://localhost:3000
 ```
 
@@ -130,7 +130,8 @@ Full manifest with generation commands: [`.env.example`](./.env.example).
 pnpm test                # Vitest: pricing/promotions/state-machine/RBAC/schema suites
 pnpm e2e                 # Playwright Chromium (needs migrated+seeded DB)
 pnpm --filter @scandihaven/web exec playwright test --project=chromium -g "cart"   # single spec
-pnpm db:reset && pnpm db:migrate && pnpm db:seed   # clean database cycle
+pnpm db:setup                      # fresh container (migrate && seed)
+pnpm db:reset && pnpm db:setup     # clean cycle (drop → migrate → seed)
 ```
 
 - Coverage gates on the pure domain package: **90% lines / 85% functions** (property-based invariants via fast-check).

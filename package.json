@@ -15,6 +15,7 @@
     "e2e": "turbo run e2e",
     "db:migrate": "pnpm --filter @scandihaven/db migrate",
     "db:seed": "pnpm --filter @scandihaven/db seed",
+    "db:setup": "pnpm db:migrate && pnpm db:seed",
     "db:reset": "pnpm --filter @scandihaven/db reset",
     "db:generate": "pnpm --filter @scandihaven/db generate"
   },
