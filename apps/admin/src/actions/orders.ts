@@ -1,13 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@scandihaven/db/client";
 import { order, orderEvent } from "@scandihaven/db/schema";
-import { transition, InvalidOrderTransition, type OrderEvent } from "@scandihaven/commerce/order-state";
+import { transition, type OrderEvent } from "@scandihaven/commerce/order-state";
 import { fail, ok, type ActionResult } from "@scandihaven/commerce/result";
-import { requirePermission, writeAudit } from "@/lib/admin-guard";
+import {
+  OrderActionError,
+  requirePermission,
+  toActionError,
+  writeAudit,
+} from "@/lib/admin-guard";
 
 const transitionSchema = z.object({
   orderId: z.string().uuid(),
@@ -21,6 +26,9 @@ const transitionSchema = z.object({
     "close",
     "cancel",
   ]),
+  // The client's last-seen status — used only as an optimistic-concurrency
+  // token. The transition itself is always computed from the DB row (§7.7:
+  // transition() is the only status writer; §9.7: server re-derives state).
   from: z.enum([
     "pending_payment",
     "review",
@@ -44,19 +52,41 @@ export async function transitionOrderAction(
   if (!parsed.success) return fail("VALIDATION", "Invalid transition input");
   const { orderId, event, from } = parsed.data;
 
-  const permission = event === "cancel" ? "orders:cancel" : "orders:fulfill";
-  const guard = await requirePermission(permission);
-
   try {
-    const next = transition(from, event as OrderEvent);
-    await db.transaction(async (tx) => {
-      await tx.update(order).set({ status: next, updatedAt: new Date() }).where(eq(order.id, orderId));
+    const permission = event === "cancel" ? "orders:cancel" : "orders:fulfill";
+    const guard = await requirePermission(permission);
+
+    const next = await db.transaction(async (tx) => {
+      // Read the authoritative status under lock — never trust the form's
+      // `from` for state derivation (§9.7 STRIDE tampering).
+      const rows = await tx
+        .select({ status: order.status })
+        .from(order)
+        .where(eq(order.id, orderId))
+        .limit(1)
+        .for("update");
+      const current = rows[0];
+      if (!current) {
+        throw new OrderActionError("NOT_FOUND", "Order not found");
+      }
+      if (current.status !== from) {
+        throw new OrderActionError(
+          "CONFLICT",
+          `Order is ${current.status}, not ${from}. Reload the order and retry.`,
+        );
+      }
+      const nextStatus = transition(current.status, event as OrderEvent);
+      await tx
+        .update(order)
+        .set({ status: nextStatus, updatedAt: new Date() })
+        .where(and(eq(order.id, orderId), eq(order.status, current.status)));
       await tx.insert(orderEvent).values({
         orderId,
         type: event,
         actor: guard.userId,
-        payload: { from, to: next },
+        payload: { from: current.status, to: nextStatus },
       });
+      return nextStatus;
     });
 
     await writeAudit({
@@ -72,9 +102,8 @@ export async function transitionOrderAction(
     revalidatePath(`/orders/${orderId}`);
     return ok({ status: next });
   } catch (error) {
-    if (error instanceof InvalidOrderTransition) {
-      return fail("INVALID_TRANSITION", error.message);
-    }
+    const mapped = toActionError(error);
+    if (mapped) return fail(mapped.code, mapped.message);
     console.error("[admin order] transition failed", error);
     return fail("INTERNAL", "Order update failed. Please try again.");
   }

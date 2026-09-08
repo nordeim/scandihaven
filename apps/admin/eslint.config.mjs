@@ -11,7 +11,7 @@ const nextFlat = [
 ];
 
 /** @type {import("eslint").Linter.Config[]} */
-export default [
+const config = [
   ...nextFlat,
   {
     rules: {
@@ -23,3 +23,5 @@ export default [
     ignores: [".next/**", "node_modules/**"],
   },
 ];
+
+export default config;
