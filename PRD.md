@@ -4,9 +4,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 2.0 |
+| Version | 4.0 |
 | Status | Approved for build |
-| Supersedes | `PRD_draft.md` v1.0 (stack recommendation only; domain scope preserved) |
+| Supersedes | `PRD_draft.md` v1.0 (stack recommendation only; domain scope preserved); `PRD_v3a.md` / `PRD_v3b.md` v3.0 proposals (reviewed and synthesized into this revision) |
 | Author | Product Engineering |
 | Last updated | 2026-09-08 |
 | Companion artifact | Monorepo scaffold implemented in this repository (see §4.9 and Appendix B) |
@@ -29,6 +29,7 @@
 12. [Quality Engineering: Testing, Accessibility & Observability](#12-quality-engineering-testing-accessibility--observability)
 13. [Environments, Infrastructure & Release Plan](#13-environments-infrastructure--release-plan)
 14. [Risks, Traceability & Appendices](#14-risks-traceability--appendices)
+15. [Agent Operating Contract](#15-agent-operating-contract)
 
 ---
 
@@ -40,6 +41,8 @@ The v1.0 draft defined the commercial and operational scope of the Scandi Haven 
 
 Three properties were non-negotiable in this revision. First, **build-readiness**: every functional requirement carries a stable identifier (FR-x.y), a priority, and testable acceptance criteria; every data entity is specified down to column, type, and index level so that the Drizzle schema can be written without further interpretation. Second, **honesty about scope**: v1 exclusions are stated as clearly as inclusions, and the accompanying scaffold marks precisely which surfaces are implemented and which are stubbed. Third, **verifiability**: the plan is paired with a quality-engineering regime in which claims of correctness require evidence — commands run, tests observed, results recorded — rather than assertion.
 
+**What v4 adds.** The v3 proposal pair (`PRD_v3a.md`, `PRD_v3b.md`) was reviewed end-to-end against both this document and the implemented scaffold. v4 synthesizes the best of those proposals into a single contract: a closed-decisions registry, provider ports that fix vendor seams even where v1 has one implementation, a typed feature-flag module, SLOs with error-budget alerts, Definition of Ready/Done, an agent operating contract (§15), and a stack-governance rule set that promotes hard-won platform lessons (Tailwind v4 `@source`, `@theme` literal tokens, Next.js 16 async request APIs, `turbo.json globalEnv`) to numbered NFRs so they cannot regress. v4 also closes the gap between specification and code: five remediation slices (feature flags, provider ports, cart idempotency, promotion cap invariants, and the outbox drainer `/api/jobs/run`) were implemented test-first and verified — Appendix B records the evidence.
+
 ### 1.2 Executive summary
 
 Scandi Haven is a direct-to-consumer brand selling handcrafted Scandinavian furniture, lighting, textiles, and ceramics. The current marketing landing page communicates the brand but is functionally inert: no real checkout, no accounts, no inventory, no administration. This PRD specifies a full production e-commerce platform — customer-facing storefront, commerce engine, admin back-office, trade (B2B) program, and third-party integrations — capable of supporting €5M+ annual GMV across EU, US, and UK markets operated by a four-person team.
@@ -49,30 +52,53 @@ The platform is built as a **PNPM + Turborepo monorepo** of two Next.js 16 appli
 **North-star metric:** conversion rate (visitor → paid order) ≥ 2.4% on cold traffic.
 **Secondary metrics:** AOV ≥ €420; repeat-purchase rate ≥ 38% within 12 months; NPS ≥ 70.
 
-### 1.3 What changed relative to the draft (v1.0 → v2.0)
+### 1.3 What changed relative to the draft (v1.0 → v2.0 → v4.0)
 
-| Area | Draft v1.0 | This PRD v2.0 | Rationale |
+| Area | Draft v1.0 | v2.0 | v4.0 |
 |---|---|---|---|
-| Commerce backend | Medusa.js v2 (self-hosted) | Custom commerce engine in `packages/commerce` on Next.js 16 + Drizzle | Mandated stack; eliminates a second Node runtime, a second ORM, and a second deployment target; multi-warehouse, made-to-order lead times, and trade pricing are first-class in the custom schema |
-| Storefront framework | Next.js 14 | Next.js 16 (App Router, RSC, `proxy.ts`) | Mandated; note Next.js 16 replaces `middleware.ts` with `proxy.ts` and makes route params/searchParams async |
-| Auth | Auth0 / Clerk | Better-Auth 1.x (self-hosted, Postgres-backed) | Mandated; keeps PII in our database, avoids per-MAU vendor pricing, RBAC via plugin |
-| Database | PostgreSQL 16 | PostgreSQL 17 | Mandated |
-| ORM | (Medusa's) | Drizzle ORM + drizzle-kit migrations | Mandated |
-| Styling | Tailwind CSS (v3-era) | Tailwind CSS v4 (CSS-first `@theme`) + PostCSS | Mandated |
-| UI primitives | Custom Storybook-first | shadcn/ui primitives (Radix + CVA) themed via CSS variables | Mandated; Storybook retained as optional harness, not a v1 gate |
-| Client state | (unspecified) | Zustand v5 | Mandated |
-| Validation | (unspecified) | Zod v4 at every boundary | Mandated |
-| Search | Algolia / Meilisearch | PostgreSQL FTS + trigram in v1; managed search service deferred (§11.2) | Mandated-stack purity for v1; swap path documented |
-| E2E testing | Playwright | Playwright (unchanged) | Mandated |
-| Package manager / repo | (unspecified) | PNPM 10 + Turborepo 2 | Mandated |
-| Lint / types | (unspecified) | ESLint 9 flat config + typescript-eslint strict | Mandated |
-| Redis | ElastiCache for cache/sessions/rate-limit | Deferred to scale-out phase; Postgres-backed rate limiting + Better-Auth DB sessions in v1 | Fewer moving parts at launch scale; tradeoff recorded in §9.6 |
-| Reviews vendor | Yotpo / Junip | First-party reviews module | Mandated-stack purity; vendor swap path in §6.8 |
-| Consent vendor | Cookiebot / OneTrust | Consent-management integration point defined; vendor selected pre-launch (§9.5) | Not load-bearing for the build; interface fixed |
+| Commerce backend | Medusa.js v2 (self-hosted) | Custom engine in `packages/commerce` | Unchanged; remediation closed the idempotency + outbox gaps |
+| Storefront framework | Next.js 14 | Next.js 16 (`proxy.ts`, async params) | Platform quirks promoted to NFR-STACK-1..11 |
+| Auth | Auth0 / Clerk | Better-Auth 1.x (self-hosted) | Unchanged |
+| Database | PostgreSQL 16 | PostgreSQL 17 | Unchanged |
+| ORM | (Medusa's) | Drizzle ORM + drizzle-kit | Unchanged |
+| Styling | Tailwind CSS (v3-era) | Tailwind CSS v4 (CSS-first `@theme`) | AA-verified token values recorded (§10.1) |
+| UI primitives | Custom Storybook-first | shadcn/ui (Radix + CVA) themed | Unchanged |
+| Client state | (unspecified) | Zustand v5 | Unchanged |
+| Validation | (unspecified) | Zod v4 at every boundary | Unchanged |
+| Search | Algolia / Meilisearch | Postgres FTS + trigram | `SearchProvider` port formalized (§4.8) |
+| Consent vendor | Cookiebot / OneTrust | Interface only, vendor pre-launch | **Closed:** Cookiebot default behind `ConsentProvider`; local internal impl ships first (§14.6) |
+| Currencies | Open | Open | **Closed:** EUR, DKK, SEK, USD, GBP (§14.6) |
+| Net-30 | Open | Stripe recommended | **Closed:** Stripe Invoicing, Phase 5 (§14.6) |
+| Feature flags | (unspecified) | Typed module over env vars | Implemented in `packages/config/flags`; unknown flags fail fast (§4.8) |
+| Provider seams | (unspecified) | Named informally | Six ports mandatory even with one impl (§4.8) |
+| Outbox jobs | (unspecified) | `jobs` table + cron drainer | `/api/jobs/run` implemented (SKIP LOCKED, retry/backoff, dead-letter) |
+| SLOs / DoR-DoD | Absent | Partial | SLO table with burn-rate alerts (§12.6); DoR/DoD (§1.6) |
+| Agent contract | Absent | Informal standards | Binding operating contract (§15) |
+| Redis | ElastiCache | Deferred; Postgres-backed limiting | Unchanged; swap trigger quantified (§3.2) |
 
 ### 1.4 How to read this document
 
-Sections 2–4 are the contract every engineer must internalize: goals, stack, architecture. Sections 5–6 are the functional requirements — the "what". Sections 7–9 are the data, API, and security specifications — the "how" at contract level. Sections 10–13 govern the frontend, quality, and operations. Section 14 carries traceability and appendices. Acceptance criteria use RFC-2119 verbs (**MUST/SHOULD/MAY**). The companion scaffold in this repository implements the Phase 0 foundation described in §13.2; Appendix B maps scaffold artifacts to requirements.
+Sections 2–4 are the contract every engineer must internalize: goals, stack, architecture. Sections 5–6 are the functional requirements — the "what". Sections 7–9 are the data, API, and security specifications — the "how" at contract level. Sections 10–13 govern the frontend, quality, and operations. Section 14 carries traceability and appendices, and §15 binds every implementer (human or agent). Acceptance criteria use RFC-2119 verbs (**MUST/SHOULD/MAY**). The companion scaffold in this repository implements the Phase 0 foundation described in §13.2; Appendix B maps scaffold artifacts to requirements.
+
+### 1.5 Closed decisions registry
+
+Questions that were open in the draft and debated across v2/v3 are closed here. Reopening one requires an ADR (§4.6) and product sign-off — these are not implementation details an engineer may relitigate unilaterally.
+
+| # | Question | Disposition | Revisit trigger |
+|---|---|---|---|
+| 1 | Launch currencies | EUR, DKK, SEK, USD, GBP; EU=EUR, US=USD, UK=GBP defaults; schema carries any set | New market with an unsupported currency |
+| 2 | Net-30 trade terms | Stripe Invoicing, Phase 5; v1 trade pays by card (`payment_terms` column ships now) | Phase 5 kickoff |
+| 3 | Consent vendor | Cookiebot behind the `ConsentProvider` port; the local internal provider ships for soft launch; OneTrust is the documented swap | Procurement or enterprise-SSO requirement |
+| 4 | Editorial CMS | In-house admin WYSIWYG for v1 (static_page/journal tables); Sanity remains a Phase 5 option | Editorial headcount growth |
+| 5 | Klarna BNPL | Off in v1 (`FEATURE_KLARNA`); Phase 5 if DE/SE/DK demand materializes | Payment-mix analytics |
+| 6 | Southern-Europe 3PL | Open business question, Q+2; schema is multi-warehouse ready | Q+2 business review |
+| 7 | Rate limiting | Postgres sliding window in v1; Redis only on the §3.2 trigger | Sustained lock wait p95 > 20 ms or multi-region |
+
+### 1.6 Definition of Ready / Definition of Done
+
+A ticket **may start** when: the governing FR ID is named; acceptance criteria are testable; schema impact is stated (or "none"); the feature flag is named if the surface is gated; and no more than one material ambiguity remains.
+
+A ticket **may merge** when: `pnpm turbo lint typecheck test build` is green; every FR acceptance criterion is covered by an automated test or carries an explicit Unverifiable label; PRs touching money, auth, or order placement include a verification-ledger entry (§12.4); no `any` and no skipped tests exist; and remaining stubs still name their FR IDs so nothing is silently missing.
 
 ---
 
@@ -120,6 +146,8 @@ Sections 2–4 are the contract every engineer must internalize: goals, stack, a
 | Core Web Vitals "Good" | 100% of key pages | CrUX + Lighthouse CI |
 | Uptime (storefront) | ≥ 99.95% monthly | Synthetic monitoring + host SLA |
 | Trade accounts active | ≥ 250 by month 12 | Trade application table |
+| Checkout error rate | ≤ 0.5% of checkout starts | Server Action error telemetry (§11.2 events) |
+| P1 security findings open > 7 days | 0 | `pnpm audit` / CI security dashboard (§12.1) |
 
 ---
 
@@ -164,13 +192,21 @@ These are **not** part of the mandated core but are required by the domain scope
 - **Reviews: first-party module** (verified-buyer enforcement via order data). Swap trigger: syndication or UGC moderation needs at scale → Junip/Yotpo.
 - **Consent: interface fixed (`ConsentProvider` + gated analytics loader); vendor (Cookiebot or OneTrust) selected before public launch.** Soft-launch can run with an internal consent banner implementing the same interface.
 
-### 3.3 Stack governance rules
+### 3.3 Stack governance rules (NFR-STACK-1 … NFR-STACK-11)
 
-1. **No unverified APIs.** Before any library API is used, its existence for the pinned version is confirmed from the package's own types or docs. This rule is inherited from the engineering standards document and enforced in code review.
-2. **Lockfile respect.** Dependencies are added with `pnpm add` only; `package.json` and `pnpm-lock.yaml` are never hand-edited.
-3. **Boundary discipline.** Apps may import from packages; packages never import from apps. ESLint `import/no-restricted-paths` enforces this mechanically.
-4. **One validation dialect.** Zod v4 schemas are the single definition of input/output shapes; React prop types derive from them (via `z.infer`) rather than drifting by hand.
-5. **Money is integers.** All monetary values are stored and computed in integer minor units (EUR cents) in `bigint`-safe `integer` columns; floats never touch money (§7.2).
+These are PR-blocking. Rules 7–11 are **promoted from verified build failures** in this repository — they are the hard-won lessons the v3 proposals argued for, stated so they cannot regress silently:
+
+1. **NFR-STACK-1 — No unverified APIs.** Before any library API is used, its existence for the pinned version is confirmed from the package's own types or docs. Enforced in code review.
+2. **NFR-STACK-2 — Lockfile respect.** Dependencies are added with `pnpm add` only; `package.json` and `pnpm-lock.yaml` are never hand-edited.
+3. **NFR-STACK-3 — Boundary discipline.** Apps may import from packages; packages never import from apps. Inside packages: `db ← auth ← commerce ← apps`; `packages/ui` depends only on React, Radix, and Tailwind. Enforced by review plus the Turborepo task graph (mechanical `import/no-restricted-paths` linting is a Phase 1 hardening item — Appendix B).
+4. **NFR-STACK-4 — One validation dialect.** Zod v4 schemas are the single definition of input/output shapes; React prop types derive from them (via `z.infer`) rather than drifting by hand.
+5. **NFR-STACK-5 — Money is integers.** All monetary values are stored and computed in integer minor units in `integer`/`bigint` columns; floats never touch money (§7.2). Division uses BigInt largest-remainder.
+6. **NFR-STACK-6 — No package build step.** `packages/*` export TypeScript source consumed via `transpilePackages`; exceptions require an ADR.
+7. **NFR-STACK-7 — Tailwind `@source` directives.** Each app's `globals.css` MUST declare `@source` paths reaching `packages/ui/src`. Auto content detection does not scan workspace packages, so utilities used only in `packages/ui` are silently absent without it (Verified).
+8. **NFR-STACK-8 — `@theme` tokens are literal.** `var()` chains inside a Tailwind v4 `@theme` block are dropped by the current build; shadcn semantic tokens MUST be literal hex values kept in sync with the palette (Verified).
+9. **NFR-STACK-9 — Next.js 16 page-file exports.** Page files may export only `default`, `metadata`/`generateMetadata`, `revalidate`, and `dynamic`; anything else fails the build.
+10. **NFR-STACK-10 — Async request APIs.** `params`, `searchParams`, `cookies()`, and `headers()` are async — always `await` them.
+11. **NFR-STACK-11 — Turbo env propagation.** Env vars read inside `next.config.ts` MUST be listed in `turbo.json` `globalEnv` or builds re-run stale cache entries (Verified). Related: `react-dom/server` MUST NOT be statically imported anywhere in the App Router graph — the bundler rejects it; resolve it at runtime (`turbopackIgnore` dynamic import) when a Node-only renderer is unavoidable (Verified; see `packages/email/src/send.ts`).
 
 ---
 
@@ -245,12 +281,40 @@ Package boundaries are one-directional: `apps/* → packages/*`, and within pack
 
 - `packages/db` exports: `db` (pooled Drizzle client, `globalThis` singleton in dev), `schema` (all tables/enums/relations), `ensureSeeded()`, `migrate` helpers, test fixtures. The pool uses PG17; in dev the client is created lazily on first import to keep CLI tools fast.
 - `packages/auth` exports: `auth` (Better-Auth server instance bound to `db`), `authClient` (browser client), `rbac` (role matrix + `can(role, action)`), session helpers (`requireUser`, `requireRole`) used by both apps' Server Actions.
-- `packages/commerce` exports per feature module: `catalog` (queries + DTOs), `cart`, `checkout`, `orders` (incl. `transition`), `pricing` (pure functions), `promotions` (pure engine + `applyPromotion` query orchestration), `inventory`, `search` (`SearchProvider` interface + Postgres impl), `tax` (Stripe Tax adapter), `shipping` (rate resolver), `dto` + `zod` contract types.
+- `packages/commerce` exports per feature module: `catalog` (queries + DTOs), `cart-service` (incl. requestId idempotency), `checkout-service` (incl. amount re-verification), `order-state` (incl. `transition`), `pricing` (pure functions incl. tier resolution), `promotions` (pure engine), `jobs` (`PgJobRunner` outbox runner), `providers` (the six vendor ports), `search-provider` (Postgres FTS binding), `dto` + `result` (typed envelope), `money`.
 - `packages/ui` exports: themed shadcn primitives and SH composites (§10.3), `tokens.css`, `cn()` utility. Zero app-specific logic.
-- `packages/email` exports: React Email templates keyed by job kind, `send(template, to, data)` with Resend or log transport selected by env.
-- `packages/config` exports: shared `tsconfig` bases, eslint flat-config factory, Tailwind preset import, `env.ts` (Zod-validated, per-process env parsing).
+- `packages/email` exports: React Email templates keyed by job kind, `send(template, to, data)` with Resend or log transport selected by env. The `react-dom/server` renderer is resolved at runtime (NFR-STACK-11) so the package is safely importable from both Next routes and the job runner.
+- `packages/config` exports: shared `tsconfig` bases, eslint flat-config factory, Tailwind preset import, `env.ts` (Zod-validated, per-process env parsing), and `flags.ts` (typed feature-flag registry, §4.8).
 
 Every cross-package import must resolve to these documented exports; deep imports (`packages/db/src/internals/...`) are lint-banned to keep refactoring freedom inside packages.
+
+### 4.8 Cross-cutting contracts (provider ports, flags, idempotency)
+
+**Provider ports (adapted from the v3a/v3b proposals).** Every vendor-class dependency enters the domain through an interface declared in `packages/commerce/src/providers.ts`, even when v1 has exactly one implementation. New vendors MUST implement the port; call sites MUST NOT import vendor SDKs outside their adapter. The six ports:
+
+| Port | v1 binding | Swap target |
+|---|---|---|
+| `SearchProvider.search({ q, locale, limit, cursor })` | Postgres FTS typeahead (`search-provider.ts`, limit ≤ 10) | Algolia / Meilisearch |
+| `ConsentProvider.load/has/grant/revoke/onChange` | Local internal state holder (soft launch) | Cookiebot → OneTrust |
+| `TaxProvider.quote(input)` | Stripe Tax adapter (checkout path, FR-506) | Avalara |
+| `ShippingRateProvider.quote(input)` | `shipping_rates` table resolver incl. white-glove forcing (FR-402/507) | Carrier rating APIs |
+| `EmailProvider.send({ template, to, data })` | React Email + Resend adapter (composed at the app layer; the Resend SDK never leaves `packages/email`) | Klaviyo |
+| `JobRunner.enqueue / drain` | `PgJobRunner` over the `jobs` outbox (ADR-8) | Trigger.dev / queue |
+
+**Feature flags.** `packages/config/src/flags.ts` is the single typed registry: `FEATURE_TRADE` (off), `FEATURE_GIFT_CARDS` (off), `FEATURE_REVIEWS` (on), `FEATURE_I18N` (on), `FEATURE_KLARNA` (off). Unknown `FEATURE_*` env variables fail fast at boot, and unknown flag names fail typecheck — a typo can never silently disable a surface. Gated surfaces MUST check `isFlagEnabled` in Server Actions (the server-side check is the control; client gating is UX only).
+
+**Idempotency matrix.** Retries MUST be safe for every operation in the table:
+
+| Operation | Key | Mechanism |
+|---|---|---|
+| Stripe webhook | Stripe event ID | `webhook_event` unique insert; duplicate ⇒ 200 no-op |
+| Order placement | PaymentIntent ID | Placement re-validates cart; event row guards re-entry |
+| Cart line add | `(cartId, requestId)` | 5-minute dedupe window (§8.3 `cart.addLine`) |
+| Inventory reservation | `(variant_id, warehouse_id, order_id)` | Movements recorded inside the placement transaction |
+| Outbox job | `idempotency_key` (unique) | `onConflictDoNothing` on enqueue |
+| Newsletter subscribe | email (citext unique) | Subscriber row upsert |
+
+**Outbox drain semantics (implemented).** `/api/jobs/run` (§8.4) claims due jobs with `FOR UPDATE SKIP LOCKED` inside a short transaction, executes handlers outside the lock, settles each independently: success → `done`; failure → retry with exponential backoff (0.5 s · 2ⁿ) until `maxAttempts`, then `dead`; an unknown kind dead-letters immediately so nothing is silently dropped. Concurrent cron ticks never double-process (verified by an integration test that drains 12 jobs across three concurrent ticks).
 
 ---
 
@@ -308,7 +372,7 @@ Conventions: **Priority** — M = must ship v1, S = should ship v1 (may slip to 
 | ID | Requirement | Pri | Acceptance criteria |
 |---|---|---|---|
 | FR-401 | Slide-out mini-cart drawer: line items, qty stepper, remove, subtotal, "Proceed to checkout" | M | Drawer state in Zustand; lines are server-truth re-validated on open; optimistic UI rolls back on failure |
-| FR-402 | Full cart page `/cart`: order summary, shipping estimate by postcode, promo code field, gift-card field | M | Estimates call commerce shipping-rate resolver; invalid promo/gift-card states show actionable errors |
+| FR-402 | Full cart page `/cart`: order summary, shipping estimate by postcode, promo code field, gift-card field | M | Estimates call the shipping-rate provider; recalculate within 500 ms of postcode entry; invalid promo/gift-card states show actionable errors |
 | FR-403 | Cart persistence: server-side cart keyed by signed cookie; merged on login | M | Guest cart survives 30 days; merge preserves earliest `created_at` lines and never duplicates a variant line (quantities sum) |
 | FR-404 | Price/stock re-validation on every cart read | M | If a variant's price or purchasability changed, cart displays current truth with an inline notice |
 | FR-405 | Gift options in cart/checkout: gift wrap (+€8 flat), gift message (≤500 chars), gift receipt (no prices in shipment) | S | Gift wrap is a cart line with its own SKU; message stored per order |
@@ -324,8 +388,8 @@ Conventions: **Priority** — M = must ship v1, S = should ship v1 (may slip to 
 | FR-504 | Address autocomplete (Google Places/Loqate) with manual entry fallback | S | Autocomplete is progressive enhancement; forms fully valid without it |
 | FR-505 | Multi-currency: display and charge in customer's currency; FX rate locked at order | M | Currency selection by region (§11.4); order stores `fx_rate` + base-currency equivalents (§7.4) |
 | FR-506 | Tax by destination via Stripe Tax; EU VAT-inclusive display, US/UK added at checkout | M | Tax breakdown line in review step; tax recorded per line on order (§7.4) |
-| FR-507 | Shipping methods: Standard, Express, White-glove (furniture), Pickup-at-showroom | M | Method availability by region + cart contents (weight/size); rates from `shipping_rates` table |
-| FR-508 | Stripe Payment Element on our domain; no card data touches our servers (SAQ-A) | M | PaymentIntent created server-side; client confirms; amount/currency verified against cart before order placement |
+| FR-507 | Shipping methods: Standard, Express, White-glove (furniture), Pickup-at-showroom | M | Method availability by region + cart contents (weight/size); rates from `shipping_rates` table; white-glove is **force-selected** (not merely offered) when any line exceeds 30 kg (FR-409 alignment) |
+| FR-508 | Stripe Payment Element on our domain; no card data touches our servers (SAQ-A) | M | PaymentIntent created server-side; client confirms; amount/currency verified against cart before order placement (§7.11); when Stripe keys are absent the checkout surfaces an honest "not configured" state (E2E asserts it; tests MUST NOT fake payment) |
 | FR-509 | Payment failure recovery: clear error, form state preserved, retry allowed | M | Failed intents never create orders; duplicate-submit guarded by idempotency key |
 | FR-510 | Order confirmation: on-screen with order number + email; optional SMS opt-in (post-launch) | M | Confirmation page reads order by number + proof token; email transactional via Resend template |
 | FR-511 | Abandoned-checkout emails at 30 min and 24 h | S | Triggered from cart `updated_at` heuristics via outbox; requires consent-compliant email capture |
@@ -342,8 +406,8 @@ Conventions: **Priority** — M = must ship v1, S = should ship v1 (may slip to 
 | FR-601 | Auth methods: email/password, magic link, OAuth (Google, Apple) via Better-Auth | M | All flows produce Better-Auth DB sessions; OAuth callbacks verified against allow-listed redirect URIs |
 | FR-602 | Account dashboard `/account` (auth required): profile, orders, addresses, wishlists, reviews, returns, settings | M | Unauthenticated access redirects to sign-in with `redirect` param; proxy.ts gate |
 | FR-603 | Profile: name, email, phone, default address, communication preferences | M | Email change requires re-verification; preferences stored as consented flags |
-| FR-604 | Order history: status, tracking link, invoice PDF download | M | Invoice generated server-side (PDF) with order + tax breakdown; tracking deep-links to carrier via AfterShip post-launch, carrier page in v1 |
-| FR-605 | One-click reorder; return-request initiation from an order | M | Reorder creates a fresh cart (re-validating prices); returns enter FR-903 workflow |
+| FR-604 | Order history: status, tracking link, invoice PDF download | M | Invoice PDF regenerates **deterministically from the order-line snapshot** (never live-priced); tracking deep-links to carrier via AfterShip post-launch, carrier page in v1 |
+| FR-605 | One-click reorder; return-request initiation from an order | M | Reorder creates a fresh cart (re-validating prices); out-of-stock lines are **skipped with a visible notice**, never silently dropped; returns enter FR-912 workflow |
 | FR-606 | Saved addresses (multi); Stripe-tokenized payment methods list (display-only in v1: last4, brand, expiry) | M | Addresses validated with Zod + destination-aware region rules; payment methods never store PAN |
 | FR-607 | Wishlist: multiple lists, shareable via URL token | S | Guest wishlist merges on login; share token grants read-only view; no PII exposure |
 | FR-608 | Reviews written + pending visible in account | S | Status shown: submitted/pending moderation/published |
@@ -357,7 +421,7 @@ Conventions: **Priority** — M = must ship v1, S = should ship v1 (may slip to 
 | FR-702 | Collections: curated product groups with editorial header image, story copy, product grid; `/collections`, `/collections/{slug}` | M | Collection pages are indexable; revalidated on catalog change via tags |
 | FR-703 | Journal: `/journal`, `/journal/{category}/{slug}`; categories Craft/Home/People/Sustainability; hero image; rich body with inline product embeds ("shop this post") | M | Body rich text sanitized allow-list style (§9.4); product embeds resolve live price/availability at render |
 | FR-704 | Static pages: Our Story, Sustainability, Materials, Showrooms, Trade Program, FAQ, Shipping, Returns, Privacy, Terms, Cookies, Accessibility | M | Managed in admin (FR-809); versioned with `updated_at`; privacy/terms carry legal review note |
-| FR-705 | Lookbooks: seasonal, image-led, shoppable hotspots linking to PDPs | S | Hotspot coordinates stored as percentages (resolution-independent) |
+| FR-705 | Lookbooks: seasonal, image-led, shoppable hotspots linking to PDPs | S | Hotspot coordinates stored as percentages (resolution-independent); until built (Phase 5), `/lookbooks` routes MUST return an honest 404 naming the FR ID — never a silent 500 or empty success |
 | FR-706 | Redirect manager: admin CRUD for 301/302 source→target | M | Checked in `proxy.ts` before routing; loop detection on save; 404 log (top N) surfaced in admin to inform redirects |
 
 ### 6.3 Admin back-office (FR-8xx)
@@ -367,7 +431,7 @@ RBAC roles: **Owner, Admin, Merchandiser, Customer Service, Warehouse, Read-only
 | ID | Requirement | Pri | Acceptance criteria |
 |---|---|---|---|
 | FR-801 | Dashboard: revenue today/7d/30d; orders pending fulfilment; low-stock alerts; top products; conversion funnel | M | Revenue is currency-normalized to EUR at order FX; funnel uses server events (§11.2) |
-| FR-802 | Product CRUD: all draft §4.7 fields (title, slug, rich description, variants, materials, dimensions, weight, HS code, country of origin, lead time, images+alt, collections, tags, SEO meta) | M | Slug uniqueness enforced; draft/active/archived status; publish requires hero image + alt + ≥1 variant + price per enabled currency |
+| FR-802 | Product CRUD: all draft §4.7 fields (title, slug, rich description, variants, materials, dimensions, weight, HS code, country of origin, lead time, images+alt, collections, tags, SEO meta) | M | Slug uniqueness enforced at the **DB constraint level** (citext UNIQUE), not only in the UI; draft/active/archived status; publish requires hero image + alt + ≥1 variant + price per enabled currency |
 | FR-803 | Inventory per variant per warehouse (Aalborg + Copenhagen showroom); safety stock; low-stock threshold | M | Negative stock impossible; adjustments are row-recorded movements (audit) not silent updates |
 | FR-804 | Pricing: base price per currency, sale price with schedule, trade price tier | M | Sale schedule validation (start < end); active sale rendered automatically; trade tier per §6.9 |
 | FR-805 | Catalog bulk import/export (CSV) | S | Import is dry-run first (error report), then commit; exports async with signed download |
@@ -375,7 +439,7 @@ RBAC roles: **Owner, Admin, Merchandiser, Customer Service, Warehouse, Read-only
 | FR-807 | Order actions: capture, refund (partial/full), cancel, split-ship, mark shipped, print packing slip, print return label | M | Refund/cancel call Stripe with idempotency keys and reconcile via webhooks; state machine (§7.7) forbids illegal transitions with explicit errors |
 | FR-808 | Returns workflow: request → approve → ship → inspect → refund/exchange | M | Workflow states in `return_requests`; each transition actor+timestamp stamped |
 | FR-809 | Content management: journal, collections, static pages, lookbooks, redirects, navigation menu editor, announcement bar | M | Draft → published lifecycle; scheduling (publish_at) for journal; menu editor output cached with tags |
-| FR-810 | Promotions: codes (fixed/percent/free-shipping), automatic promotions, scheduling, usage limits, per-customer limits, product/category exclusions, BOGO, tiered ("spend €500 get €50 off") | M | Promotion engine is pure + unit-tested; conflicting promotions apply best-single by default (no stacking in v1) |
+| FR-810 | Promotions: codes (fixed/percent/free-shipping), automatic promotions, scheduling, usage limits, per-customer limits, product/category exclusions, BOGO, tiered ("spend €500 get €50 off") | M | Promotion engine is pure + unit-tested; conflicting promotions apply best-single by default (no stacking in v1); **property-tested invariants**: applied discount never exceeds the cart subtotal (for every kind — fixed, percent above 100%, tiered), and `subtotal − discount + shipping + tax = total` holds over randomized carts; tier resolution picks the highest qualifying threshold |
 | FR-811 | Gift cards: digital, configurable denominations, scheduled delivery, balance lookup, fraud limits | S | Gift-card code generation uses CSPRNG; redemption is a payment method in checkout with balance ledger |
 | FR-812 | Reporting: sales by day/week/month, product, category, channel, country, discount; CSV export; cohort + repeat-purchase report | S | Reports read from order tables (not GA4); scheduled email reports via outbox |
 | FR-813 | Settings: regions, currencies, tax display mode, shipping zones & rates, payment providers, team & roles, webhooks, API keys | M | Destructive settings changes require Owner role + typed confirmation |
@@ -474,13 +538,22 @@ Availability shown on the storefront is `qty_on_hand − qty_reserved − safety
 
 ### 7.7 Order state machine
 
+The machine below matches the implemented engine in `packages/commerce/src/order-state.ts` exactly (statuses, events, and allowed sources):
+
 ```
-pending_payment → confirmed → in_production? → partially_shipped → shipped → delivered → closed
-       │               │                              │
-       └─ expired ─→ cancelled        refunded ←── partially_refunded (any point after payment)
+pending_payment ──payment_succeeded──▶ confirmed ──start_production──▶ in_production
+       │  (flag_for_review)                │  │  mark_partially_shipped        │
+       ▼                                   │  ▼                                │
+    review ──release_to_production──▶ partially_shipped ──mark_shipped──▶ shipped
+       │        │                           │ mark_delivered                 │
+       └────────┴────▶ confirmed           ▼                                ▼
+                                    delivered ──close──▶ closed ◀── close ◀─ cancelled/refunded
+
+cancel: pending_payment | confirmed | in_production | review  →  cancelled
+refund_full / refund_partial: any post-payment state → refunded / partially_refunded
 ```
 
-Transitions are enforced in `commerce/orders.transition(orderId, event)` — the only writer of `order.status`. Illegal transitions throw `InvalidOrderTransition` (surfaced as typed error). Every transition writes an `order_event` timeline row (`type`, `actor` (system/customer/admin id), `payload jsonb`). Webhook-driven transitions (`payment_intent.succeeded` → confirmed) are idempotent by Stripe event ID.
+Transitions are enforced in `commerce/order-state.transition(status, event)` — the only writer of `order.status`. Illegal transitions throw `InvalidOrderTransition` (surfaced as typed error). Every transition writes an `order_event` timeline row (`type`, `actor` (system/customer/admin id), `payload jsonb`). The `review` state (entered via `flag_for_review`) is the fraud/CS hold: webhooks confirm placement even when the placement re-validation passes with a mutated cart (§8.7), and `release_to_production` is the explicit human clearance. Webhook-driven transitions (`payment_intent.succeeded` → confirmed) are idempotent by Stripe event ID.
 
 ### 7.8 Better-Auth tables & audit
 
@@ -518,6 +591,10 @@ Cart: Halden armchair ×1 @ €1,299.00 (129900); Woo table runner ×2 @ €45.0
 4. Tax: EU display is VAT-inclusive — `order.tax` records the Stripe Tax-computed contained VAT (25% DK) for reporting; displayed breakdown shows "incl. VAT".
 5. `total` = 120548 + 8352 + 4900 = 133800. Invariant `subtotal − discount + shipping + tax_exclusive_adjustments = total` holds; unit tests assert this property across randomized carts.
 6. USD charge: `fx_rate` snapshot (e.g. 1.0864) → Stripe amount = round(133800 × 1.0864) = 145360 minor units; `order.total_eur` stores 133800.
+
+### 7.11 Checkout amount re-verification (load-bearing integrity control)
+
+On `payment_intent.succeeded`, the placement transaction **MUST** recompute cart totals server-side (prices, promotion cap, tax, shipping) and compare to the PaymentIntent amount **before** creating the order. A mismatch (`AMOUNT_MISMATCH`) means no order: the payment is flagged for CS review and the webhook-after-abort sequence (§8.7) applies. This is the single load-bearing control against stale carts, price tampering, and promotion races — it is implemented in `checkout-service.placeOrderFromWebhook` and asserted by property tests (FR-810 invariants) plus the E2E checkout path.
 
 ---
 
@@ -622,7 +699,7 @@ SQL shape: base CTE filters `product.status='active'` + category subtree (recurs
 
 ### 9.2 Authorization model
 
-Roles: `owner`, `admin`, `merchandiser`, `customer_service`, `warehouse`, `readonly`, plus customer-side `trade` flag. Permissions are a typed matrix in `packages/auth/rbac.ts` — a single source consumed by both apps; **no role checks inline in pages**. Server Actions re-check authorization server-side (client gating is UX only, never the control). Least privilege: customer-service can refund ≤ €500 without second approval; above that requires `admin`. Warehouse can adjust inventory and transition fulfillment states but cannot see payment methods beyond status.
+Roles are the single-source matrix in `packages/auth/src/rbac.ts`: **`user`, `readonly`, `warehouse`, `customer_service`, `merchandiser`, `admin`, `owner`** — plus the trade program riding on `user` via `trade_status`/`trade_tier` extensions (§7.5). Permissions are a typed matrix (`can(role, permission)`) consumed by both apps; **no role checks inline in pages**. Server Actions re-check authorization server-side (client gating is UX only, never the control). Least privilege: customer-service can refund ≤ €500 (`orders:refund_small`) without second approval; above that requires `admin` (`orders:refund_large`). Warehouse can adjust inventory (`inventory:adjust`) and transition fulfillment states but cannot see payment methods beyond status. Admin 2FA is enforced at the proxy level — a session lacking the second factor cannot reach `/admin` regardless of role.
 
 ### 9.3 Transport & headers
 
@@ -676,10 +753,10 @@ Tokens are defined once in `packages/ui/src/theme.css` as a Tailwind v4 `@theme`
   --color-bg-3: #E8E0D2;        /* sand */
   --color-ink: #1F1B17;         /* warm near-black */
   --color-ink-2: #4A433B;
-  --color-muted: #8A8178;
+  --color-muted: #6F665C;       /* AA-verified (was #8A8178 — failed 4.5:1 at 13px) */
   --color-line: #E5DDD1;
-  --color-accent: #C97B5E;      /* terracotta */
-  --color-accent-2: #B06548;    /* deep terracotta */
+  --color-accent: #C97B5E;      /* terracotta — large text/UI accent only */
+  --color-accent-2: #8F4326;    /* deep terracotta — AA-verified body links (was #B06548) */
   --color-sage: #8B9A82;
   --color-wood: #C9A876;
 
@@ -694,7 +771,7 @@ Tokens are defined once in `packages/ui/src/theme.css` as a Tailwind v4 `@theme`
 }
 ```
 
-shadcn variable mapping: `--background: var(--color-bg)`, `--foreground: var(--color-ink)`, `--primary: var(--color-accent)`, `--border: var(--color-line)`, `--ring: var(--color-accent)`; destructive pair uses `#B06548` depth. Dark mode is out of scope v1 except the "Hygge Edit" dark editorial section, which is a component-level palette, not a theme.
+The `muted` and `accent-2` values above are the **axe-verified AA-passing values implemented in the scaffold** (the v3b proposal still carried the draft's original `#8A8178`/`#B06548`, which failed WCAG AA contrast and were darkened during the a11y gate; §12.2 records the evidence). shadcn variable mapping: `--background`, `--foreground`, `--primary`, `--border`, `--ring` are literal hex values inside the single `@theme` block — `var()` chains are dropped by the current Tailwind v4 build (NFR-STACK-8). Dark mode is out of scope v1 except the "Hygge Edit" dark editorial section, which is a component-level palette, not a theme.
 
 ### 10.2 Typography & content rules
 
@@ -820,6 +897,20 @@ Every claim that code "works" must carry evidence. The repo keeps a running `doc
 
 Fixtures are typed builders in `packages/db/src/testing` (`aProduct({overrides})`, `aCart({items})`, `anOrder({status})`) producing valid entity graphs with deterministic IDs for tests; the seed catalog (Halden armchair, Woo runner, Øresund lamp, Hygge wool throw et al.) doubles as E2E fixture data so specs reference stable slugs/SKUs. Money-heavy tests (pricing/promotions) run property-based invariants via `fast-check`: discount distribution conserves totals, FX rounding is monotonic, state-machine transitions are total functions. Every fixture builder validates against the same Zod schemas the app uses — fixtures cannot drift from production contracts. Integration tests run against a throwaway database created per CI job (`CREATE DATABASE test_$BUILDID`), never shared state; the embedded-PG fallback bootstraps identically so local and CI produce byte-identical schema states (migrations only, no drift).
 
+### 12.6 SLOs & error budgets
+
+| SLO | Target | Alert |
+|---|---|---|
+| Storefront availability | 99.95% / 30 d | Error-budget burn > 2% in 1 h |
+| Storefront error rate | < 1% / 5 min | Immediate page |
+| p95 TTFB (HTML) | < 800 ms | 15 min |
+| Checkout success (given PI confirm) | ≥ 99.5% | 15 min |
+| Webhook lag (event → order) | < 5 min | Immediate page |
+| Outbox dead-letter count | 0 | Immediate page |
+| Admin availability | ≥ 99.5% monthly | Error budget |
+
+Error-budget policy: two consecutive budget-burn weeks freeze feature deploys in favor of reliability work. The outbox dead-letter SLO ties to §4.8 — the drainer dead-letters loudly, and ops treats any dead row as an incident (§13.7 runbook). The `/api/health` probe (§8.4) and the SLO table above share thresholds so synthetic monitors and dashboards never disagree.
+
 ---
 
 ## 13. Environments, Infrastructure & Release Plan
@@ -879,6 +970,20 @@ Vercel (both Next apps; Node runtime proxy) → managed PostgreSQL 17 (multi-AZ)
 - **Stripe webhook outage:** `/api/jobs/run` drains nothing but orders stay `pending_payment`; reconcile via Stripe dashboard → manual `payment_intent.succeeded` replay (Stripe CLI `stripe events resend`); verify `webhook_event` dedupe catches duplicates.
 - **Migration rollback policy:** forward-only — a bad migration ships a corrective forward migration; the deploy pairs app+N−1 schema compatibility for one release (expand/contract, §7.9).
 - **Seeded dev data:** `pnpm db:reset` = drop → migrate → seed; never run against staging/production (guard: seed script refuses non-local `DATABASE_URL` hosts).
+
+### 13.8 Capacity & cost envelope (€5M GMV, four-person team)
+
+Assumptions: ~12k orders/year at €420 AOV; peak 20× average (holiday); catalog < 5k SKUs; media on object storage + CDN. These are order-of-magnitude envelopes (Reasoned, not measured) that keep infrastructure under ~2% of GMV excluding payment fees:
+
+| Item | Envelope (annual) |
+|---|---|
+| Vercel (two Next apps) | low four figures |
+| Managed PostgreSQL 17 multi-AZ | low-to-mid four figures |
+| Object storage + CDN | low three-to-four figures |
+| Stripe fees | ~1.4–2.9% + fixed — commercial COGS, not infra |
+| Resend / Sentry / Cookiebot | low three figures each |
+
+No service exists that the four-person team cannot debug. Redis, Algolia, and Trigger.dev remain explicit later costs gated by their §3.2/§1.5 swap triggers — capacity math is the trigger, not hype.
 
 ---
 
@@ -940,26 +1045,65 @@ The engineering-skills library (`my-pi-agent/skills`, 233 skills) was reviewed t
 
 Implemented in this repo (Phase 0 scaffold per §13.2): root tooling (pnpm workspace, turbo.json, eslint flat config, tsconfig bases, .env.example, docker-compose, CI workflow); `packages/db` (full Drizzle schema per §7, drizzle-kit config, migrations, idempotent seed); `packages/auth` (Better-Auth server/client, RBAC matrix); `packages/ui` (Tailwind v4 `@theme` tokens, shadcn-themed primitives, core SH composites); `packages/commerce` (money, pricing, promotion engine, order state machine + unit tests, DTO/Zod contracts); `packages/email` (React Email templates + log transport); `apps/web` (home, PLP, PDP, cart drawer/page, checkout with Payment Element, account basics, health route); `apps/admin` (auth gate, dashboard skeleton, product list/edit, order list/actions); Playwright suite (guest checkout smoke + a11y scan) and Vitest unit suite. Deferred surfaces (Phase 1+ per §13.6) are stubbed with typed placeholders — each stub names its FR ID, so nothing is silently missing.
 
+**v4 remediation evidence (all Verified, 2026-09-08).** The five remediation slices closed the last spec-vs-code gaps; every claim below was executed in this workspace:
+
+1. **Feature flags** — `packages/config/src/flags.ts` (+22 unit tests): five v1 flags, defaults per §4.8, garbage values and unknown `FEATURE_*` variables fail fast, unknown names fail typecheck.
+2. **Provider ports** — `packages/commerce/src/providers.ts` + `search-provider.ts` (+13 tests): six ports with a bound Postgres FTS `SearchProvider` and a tested local `ConsentProvider`; existing services satisfy the remaining ports structurally.
+3. **Cart idempotency** — `request-dedupe.ts` (+5 tests) wired into `cart-service.addLine` and `addToCartAction` (client sends `crypto.randomUUID()`); same `(cartId, requestId)` within 5 min is a no-op.
+4. **Promotion cap invariants** — `pricing.ts` tier resolution unified into `resolveTierValue` (highest qualifying threshold), percent capped at subtotal before selection, duplicate-line-id guard; +8 property/unit tests including a fast-check counterexample that exposed the duplicate-id collapse.
+5. **Outbox drainer** — `jobs.ts` `PgJobRunner` (+7 real-PG integration tests: dedupe, due-ness, no reprocess, retry→dead-letter, unknown-kind dead-letter, 12 jobs × 3 concurrent ticks without double-processing) + `/api/jobs/run` (CRON_SECRET timing-safe gate; live-verified 401/401/200) with the email handler composed at the app layer; `email.order_confirmation` payload is a self-sufficient snapshot.
+
+Gates after remediation: `pnpm turbo lint typecheck test` 22/22 tasks (config package now participates with its own lint/typecheck/test), both apps' production builds green, Playwright Chromium 11/11 incl. 3 axe scans on the honest-checkout build. Platform lesson recorded as NFR-STACK-11: `react-dom/server` must resolve at runtime (`turbopackIgnore`) — caught by the build gate the moment the drainer route imported the email adapter.
+
+Phase 1 hardening backlog (explicitly NOT done here, no overclaiming): mechanical `import/no-restricted-paths` lint rule (NFR-STACK-3 is review/graph-enforced today), `ShippingRateProvider`/`TaxProvider` concrete adapters behind the new ports, and the consent banner UI consuming `ConsentProvider`.
+
 ### 14.5 Appendix C — Glossary
 
 AOV — average order value; BNPL — buy-now-pay-later; CR — conversion rate; CSP — content-security-policy; CWV — Core Web Vitals; DSA — Digital Services Act; DSR — data subject request; FTS — full-text search; GMV — gross merchandise value; INP — interaction to next paint; LCP — largest contentful paint; LTV — lifetime value; OSS — one-stop-shop (EU VAT); PDP/PLP — product detail/listing page; PITR — point-in-time recovery; RTO/RPO — recovery time/point objective; SCA — strong customer authentication; SAQ-A — PCI self-assessment questionnaire A; SLO — service-level objective.
 
-### 14.6 Appendix D — Open questions (carried from draft, updated)
+### 14.6 Appendix D — Open questions (dispositions as of v4.0)
 
-1. Launch currency list — proposed EUR, DKK, SEK, USD, GBP (schema supports any set; default EU=EUR, US=USD, UK=GBP).
-2. Net-30 via Stripe Invoicing vs. in-house ledger — Stripe recommended (FR-904); decision needed before Phase 5.
-3. Southern-Europe 3PL — schema is multi-warehouse ready; business decision Q+2.
-4. Consent vendor (Cookiebot vs OneTrust) — interface fixed; choose before Phase 3.
+The v2-era open questions are **closed** in the §1.5 registry: launch currencies (EUR/DKK/SEK/USD/GBP), Net-30 (Stripe Invoicing, Phase 5), consent vendor (Cookiebot behind `ConsentProvider`), editorial CMS (in-house for v1; Sanity Phase 5 option), and Klarna (off via `FEATURE_KLARNA`). The single remaining open item is the Southern-Europe 3PL — a business decision for Q+2; the schema is multi-warehouse ready today.
 
 ### 14.7 Sign-off
 
 Product: ___ · Engineering: ___ · Design: ___ · Operations: ___ · Legal: ___
 
+---
 
+## 15. Agent Operating Contract
 
+Derived from the `spec-driven-development`, `plan-writing`, `tdd`, and `verification-and-review-protocol` skills in the my-pi-agent library, plus this repository's AGENTS.md/CLAUDE.md. Binding on every human and AI implementer; reviewers treat violations as review-blocking.
 
+### 15.1 Always
 
+- Read the governing PRD sections and the existing code **in full** before writing.
+- Name the FR IDs and NFR-STACK rules that govern the change.
+- Use `pnpm`, never `npm`/`yarn`.
+- Keep money as integers; route order changes through `transition()`; never confuse the cart cookie token with the cart UUID.
+- Return `ActionResult`; never throw across the action boundary; log caught errors with context — never swallow.
+- Work test-first at pre-agreed seams (unit for pure domain logic, real-PG integration for transactional semantics, E2E for critical paths).
+- Run `pnpm turbo lint typecheck test build` before claiming anything works, and label claims Verified / Reasoned / Assumed / Unverifiable (§12.4 ledger).
 
+### 15.2 Ask first
 
+- Non-additive schema changes, new dependencies, CI/CSP/auth changes.
+- Enabling a feature flag in production or staging.
+- Introducing Redis, Algolia, a queue, or any swap-path vendor before its §3.2/§1.5 trigger.
 
+### 15.3 Never
 
+- Commit secrets or `.env` (`.env.example` only) — CI scans.
+- Hand-edit `package.json`/lockfile after bootstrap; use `pnpm add`.
+- Skip or weaken tests, lint, or types to pass a gate. A red test is a regression or a wrong test — fix one of them, never skip.
+- Add REST endpoints for UI mutations; import vendor SDKs outside their adapter; use `any`, `sql.raw`, or float money arithmetic.
+- Add a build step to `packages/*`; statically import `react-dom/server` in the App Router graph (NFR-STACK-11).
+- Fake Stripe payments in E2E — the honest "not configured" state is the tested path.
+
+### 15.4 Workflow
+
+```
+ANALYZE (PRD + code in full) → PLAN (smallest correct path, seams agreed)
+  → VALIDATE (money/auth/orders touchpoints) → IMPLEMENT (thin vertical slice, red → green)
+  → VERIFY (gates + ledger evidence) → DELIVER (conventional commits, main only)
+```

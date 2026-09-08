@@ -7,7 +7,7 @@ last_updated: 2026-09-08
 
 # Scandi Haven — E-Commerce Monorepo
 
-Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles brand: storefront (Next.js 16), admin back-office (Next.js 16), custom commerce engine on PostgreSQL 17 + Drizzle ORM. Maintained by a four-person product-engineering team. The authoritative specification is `PRD.md` (requirement IDs FR-100…FR-999); code stubs reference the FR IDs they belong to.
+Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles brand: storefront (Next.js 16), admin back-office (Next.js 16), custom commerce engine on PostgreSQL 17 + Drizzle ORM. Maintained by a four-person product-engineering team. The authoritative specification is `PRD.md` v4.0 (requirement IDs FR-100…FR-999, cross-cutting contracts in §4.8, agent operating contract in §15); code stubs reference the FR IDs they belong to.
 
 **Stack**: PNPM 10 workspaces · Turborepo 2 · Next.js 16.3 (App Router, Turbopack, `proxy.ts`) · React 19.2 · TypeScript 5.9 (strict) · Tailwind CSS v4 (CSS-first `@theme`) · shadcn-style components on Radix · PostgreSQL 17 · Drizzle ORM 0.45 · Better-Auth 1.7 · Zod v4 · Zustand v5 · Stripe · ESLint 9 (flat config) · Vitest + Playwright.
 

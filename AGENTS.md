@@ -41,6 +41,8 @@ Order matters for a clean check: `pnpm lint typecheck test build` then `db:migra
 
 - All monetary values are **integer minor units**; floats never touch money (`packages/commerce/src/money.ts`). Discount distribution uses BigInt largest-remainder — property tests in `src/pricing.test.ts` will fail on float drift.
 - Order status changes go through `commerce/order-state.ts transition()` only; illegal transitions throw `InvalidOrderTransition`.
+- Provider ports live in `@scandihaven/commerce/providers` (Search/Consent/Tax/ShippingRate/Email/JobRunner). Vendor SDKs never leave their adapter; new vendors implement the port (PRD §4.8). Feature flags come from `@scandihaven/config/flags` — unknown `FEATURE_*` env vars fail fast, so add new flags there first.
+- `react-dom/server` must never be statically imported in the App Router graph (Turbopack build error). `packages/email/src/send.ts` resolves it at runtime via a `turbopackIgnore` dynamic import — keep that pattern.
 - Seeding is idempotent (advisory-lock + natural-key upserts) and **refuses non-local `DATABASE_URL` hosts**.
 - Inventory availability = `qty_on_hand − qty_reserved − safety_stock`; made-to-order variants have no inventory rows and are always purchasable.
 
@@ -58,5 +60,5 @@ Order matters for a clean check: `pnpm lint typecheck test build` then `db:migra
 
 ## Reference
 
-- `PRD.md` — the authoritative spec: FR-100…FR-999 requirement IDs, §7 schema, §8 action contracts, §13 rollout phases. Stubs in code name their FR ID.
+- `PRD.md` — the authoritative spec (v4.0): FR-100…FR-999 requirement IDs, §4.8 cross-cutting contracts (ports/flags/idempotency), §7 schema, §8 action contracts, §12.6 SLOs, §15 agent operating contract, §13 rollout phases. Stubs in code name their FR ID.
 - `README.md` — human onboarding (setup, verification, design tokens).

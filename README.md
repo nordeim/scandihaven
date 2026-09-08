@@ -175,7 +175,7 @@ Deferred surfaces are stubbed in code with their PRD FR IDs — nothing is silen
 
 ## Documentation
 
-- [`PRD.md`](./PRD.md) — final build-ready product requirements (v2.0): personas, 90+ requirement IDs with acceptance criteria, DDL-level schema, action/API contracts, security & compliance, rollout plan.
+- [`PRD.md`](./PRD.md) — final build-ready product requirements (v4.0): personas, 90+ requirement IDs with acceptance criteria, DDL-level schema, action/API contracts, provider ports & feature flags (§4.8), SLOs, closed-decisions registry, agent operating contract, rollout plan. `PRD_v3a.md`/`PRD_v3b.md` remain as reviewed proposal inputs.
 - [`AGENTS.md`](./AGENTS.md) — high-signal instructions for AI coding agents.
 - [`CLAUDE.md`](./CLAUDE.md) — conventions and workflow contract for assistant-driven development.
 - [`PRD_draft.md`](./PRD_draft.md) — original draft (stack recommendation superseded; domain scope preserved).
