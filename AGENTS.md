@@ -56,7 +56,7 @@ Order matters for a clean check: `pnpm lint typecheck test build` then `db:migra
 
 ## Environment
 
-`.env.example` documents every variable; secrets are `set-me` placeholders — generate with `openssl rand -base64 32` (auth secret) / `openssl rand -hex 16` (cron). Postgres 17 via `docker compose up -d` (canonical) or any local PG17. The seed/migrate scripts refuse non-local hosts. Stripe runs in test mode without keys — checkout then renders an explicit "not configured" notice; E2E asserts that state rather than faking payment.
+`.env.example` documents every variable; secrets are `set-me` placeholders — generate with `openssl rand -base64 32` (auth secret) / `openssl rand -hex 16` (cron). Postgres 17 via `docker compose up -d` (canonical) — service `postgres` (`postgres:17-alpine`, `scandihaven_postgres`, `postgres_data`/`scandihaven_net`, `PGDATA=/var/lib/postgresql/data/pgdata`, init `infrastructure/postgres/init/00-create-extensions.sql` → `pgcrypto`+`pg_trgm`) or any local PG17. `DATABASE_URL=postgresql://scandihaven_user:scandihaven_secret@localhost:5432/scandihaven_dev` — seed/migrate refuse non-local hosts. Stripe runs in test mode without keys — checkout then renders an explicit "not configured" notice; E2E asserts that state rather than faking payment.
 
 ## Reference
 

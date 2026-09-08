@@ -82,7 +82,9 @@ Requests read through RSC → `commerce` queries → Drizzle. Mutations flow thr
  ├─ 📂 email                React Email templates + send adapter
  └─ 📂 config               ESLint factory, tsconfig bases, Zod env parser
 📄 PRD.md                   Final spec: FR-100…FR-999, schema, contracts, rollout
-📄 docker-compose.yml       PostgreSQL 17 for local dev
+📄 docker-compose.yml       PostgreSQL 17 (postgres:17-alpine, service `postgres` → scandihaven_postgres, volume postgres_data, network scandihaven_net)
+📄 docker-compose.yml.example  Template — cp to docker-compose.yml
+📄 infrastructure/postgres/init/00-create-extensions.sql  pgcrypto + pg_trgm (run on first docker compose up)
 📄 turbo.json               Task graph (+ globalEnv manifest)
 ```
 
@@ -92,7 +94,7 @@ Prerequisites: **Node.js ≥ 22**, **PNPM 10** (`corepack enable`), **Docker** (
 
 ```bash
 pnpm install
-docker compose up -d               # PostgreSQL 17
+docker compose up -d               # PostgreSQL 17 (postgres:17-alpine, service `postgres`; logs: docker compose logs -f postgres)
 cp .env.example .env               # then fill secrets (below)
 pnpm db:migrate && pnpm db:seed    # schema + demo catalog
 pnpm dev                           # storefront on http://localhost:3000
@@ -112,7 +114,7 @@ Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `
 
 | Variable | Purpose | Required |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL 17 connection string | ✅ |
+| `DATABASE_URL` | PostgreSQL 17 connection string (`scandihaven_dev` / `scandihaven_user` via compose) | ✅ |
 | `BETTER_AUTH_SECRET` | Auth signing + cart-cookie HMAC (≥ 32 chars) | ✅ |
 | `BETTER_AUTH_URL` / `NEXT_PUBLIC_SITE_URL` | Canonical origin for auth redirects | ✅ |
 | `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` · `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Payments (test mode locally) | for checkout |
@@ -171,6 +173,7 @@ Deferred surfaces are stubbed in code with their PRD FR IDs — nothing is silen
 | Cart always empty after add | `BETTER_AUTH_SECRET` changed between signing and verifying — the cart cookie HMAC uses it; keep the value stable per environment |
 | `next build` type error on page file | Next 16 pages may only export `default` + metadata/revalidate/dynamic — move helpers out |
 | Seed refuses to run | Seed/migrate only accept local hosts (`localhost`, `127.0.0.1`) by design |
+| `docker compose` volume `pgdata` not found / `scandihaven-db` unhealthy | Renamed to `postgres_data` / `scandihaven_postgres` with `PGDATA` and `start_period`; run `docker compose down -v` once (one-time, re-seeds via `pnpm db:seed`) then `docker compose up -d` (init installs `pgcrypto`+`pg_trgm`) |
 | Image optimizer hangs in CI/sandbox | Set `DISABLE_IMAGE_OPTIMIZER=1` (local only — production keeps the optimizing pipeline) |
 
 ## Documentation

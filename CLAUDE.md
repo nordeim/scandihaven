@@ -53,7 +53,7 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 
 ### Data layer (Drizzle + PostgreSQL 17)
 
-- Schema: `packages/db/src/schema/*.ts` (PRD §7). After edits: `pnpm db:generate`, review the SQL, prepend `CREATE EXTENSION IF NOT EXISTS citext/pg_trgm` if new extension-dependent columns appear, then `pnpm db:migrate`.
+- Schema: `packages/db/src/schema/*.ts` (PRD §7). After edits: `pnpm db:generate`, review the SQL, prepend `CREATE EXTENSION IF NOT EXISTS citext` / `pg_trgm` / `pgcrypto` if needed (local DB already has `pgcrypto`+`pg_trgm` via `infrastructure/postgres/init/00-create-extensions.sql`, `citext` via migrations), then `pnpm db:migrate`.
 - Migrations are forward-only and never hand-edited except for the extension preamble. Seed is idempotent (`ensureSeeded()`), advisory-locked, and refuses non-local hosts.
 - Multi-row invariants (order placement, inventory reservation) run in `db.transaction()` with `SELECT … FOR UPDATE`. Order status changes only via `commerce/order-state.ts transition()`.
 
@@ -63,7 +63,7 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 
 ```bash
 pnpm install
-docker compose up -d                  # PostgreSQL 17 on :5432
+docker compose up -d                  # PostgreSQL 17 (postgres:17-alpine, service `postgres` → scandihaven_postgres, healthy in ~10s; logs: docker compose logs -f postgres)
 cp .env.example .env                  # fill BETTER_AUTH_SECRET (openssl rand -base64 32), CRON_SECRET
 pnpm db:migrate && pnpm db:seed       # schema + demo catalog
 pnpm dev                              # storefront :3000  (pnpm dev:admin → :3001)
@@ -129,6 +129,7 @@ packages/
   ui          Design system: tokens.css (@theme) + Radix primitives + composites
   email       React Email templates; Resend or log transport
   config      Shared tsconfig, ESLint factory, Zod env parser
+  infrastructure/postgres/init  PG extensions (pgcrypto, pg_trgm) seeded on first `docker compose up`
 ```
 
 Dependency direction `db ← auth ← commerce ← apps` — cycles break the turbo graph (symptom: builds that silently do nothing).

@@ -1,22 +1,44 @@
+# ══════════════════════════════════════════════════════════════════
+# Scandi Haven — Local Development Services
+# ══════════════════════════════════════════════════════════════════
+# Usage:
+#   Start:   docker compose up -d
+#   Stop:    docker compose down
+#   Reset:   docker compose down -v  (WARNING: deletes all data)
+#   Logs:    docker compose logs -f postgres
+# ══════════════════════════════════════════════════════════════════
+
 services:
-  db:
-    image: postgres:17
-    container_name: scandihaven-db
+  # ─── PostgreSQL 17 ───────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: scandihaven_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: scandihaven
-      POSTGRES_PASSWORD: scandihaven
-      POSTGRES_DB: scandihaven
-      # locale/collation kept default for portability
+      POSTGRES_DB: scandihaven_dev
+      POSTGRES_USER: scandihaven_user
+      POSTGRES_PASSWORD: scandihaven_secret
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scandihaven -d scandihaven"]
+      test: ["CMD-SHELL", "pg_isready -U scandihaven_user -d scandihaven_dev"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+      start_period: 10s
+    networks:
+      - scandihaven_net
 
+# ─── Named Volumes ─────────────────────────────────────────────────
 volumes:
-  pgdata:
+  postgres_data:
+    driver: local
+
+# ─── Networks ──────────────────────────────────────────────────────
+networks:
+  scandihaven_net:
+    driver: bridge
