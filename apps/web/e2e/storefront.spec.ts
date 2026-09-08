@@ -80,7 +80,17 @@ test.describe("storefront smoke", () => {
 test.describe("accessibility (PRD §12.2)", () => {
   for (const path of ["/", "/shop", "/products/oresund-table-lamp"]) {
     test(`axe: no serious violations on ${path}`, async ({ page }) => {
+      // WCAG contrast evaluates the steady state, not transient reveal
+      // animation frames — mid-fade opacity fails contrast spuriously
+      // (Verified flake: hero reveal runs 800ms; scan races it). Freeze
+      // animations after load so the scan measures the rendered end state.
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(path);
+      await page.addStyleTag({
+        content:
+          "*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; }",
+      });
+      await page.waitForTimeout(250);
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
         .analyze();

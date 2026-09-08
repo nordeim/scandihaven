@@ -50,7 +50,12 @@ export function ProductBuyPanel({
   const onAdd = () => {
     setError(null);
     startTransition(async () => {
-      const result = await addToCartAction({ variantId: selected.id, qty });
+      // Per-add idempotency key (PRD §8.3): retries within 5 min are no-ops.
+      const result = await addToCartAction({
+        variantId: selected.id,
+        qty,
+        requestId: crypto.randomUUID(),
+      });
       if (result.ok) {
         openDrawer();
         router.refresh();

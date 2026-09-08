@@ -40,11 +40,14 @@ async function requireCart(): Promise<string> {
 const lineInput = z.object({
   variantId: z.string().uuid(),
   qty: z.number().int().min(1).max(99),
+  // Client-generated idempotency key (PRD §8.3): deduped within a 5-min window.
+  requestId: z.string().min(8).max(64).optional(),
 });
 
 export async function addToCartAction(input: {
   variantId: string;
   qty: number;
+  requestId?: string;
 }): Promise<ActionResult<CartDto>> {
   const parsed = lineInput.safeParse(input);
   if (!parsed.success) {
@@ -52,7 +55,12 @@ export async function addToCartAction(input: {
   }
   try {
     const cartId = await requireCart();
-    const dto = await addLine(cartId, parsed.data.variantId, parsed.data.qty);
+    const dto = await addLine(
+      cartId,
+      parsed.data.variantId,
+      parsed.data.qty,
+      parsed.data.requestId,
+    );
     revalidatePath("/", "layout");
     return ok(dto);
   } catch (error) {
