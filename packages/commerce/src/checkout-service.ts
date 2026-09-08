@@ -153,6 +153,7 @@ export async function placeOrderFromWebhook(input: {
         line: cartLine,
         variant: productVariant,
         productTitle: product.title,
+        productLeadTimeMax: product.leadTimeDaysMax,
         amount: variantPrice.amount,
       })
       .from(cartLine)
@@ -314,12 +315,27 @@ export async function placeOrderFromWebhook(input: {
       },
     });
 
-    // Outbox: confirmation email (FR-910).
+    // Outbox: confirmation email (FR-910). Payload is a self-sufficient
+    // snapshot so the drainer never re-reads mutable rows (§8.6).
+    const leadTimeDaysMax = Math.max(
+      0,
+      ...lineRows.map(
+        (r) => r.variant?.leadTimeDaysMaxOverride ?? r.productLeadTimeMax ?? 0,
+      ),
+    );
     await tx
       .insert(job)
       .values({
         kind: "email.order_confirmation",
-        payload: { orderId, orderNumber, to: email },
+        payload: {
+          orderId,
+          orderNumber,
+          to: email,
+          customerName: intent.metadata["shipping_name"] ?? "",
+          totalMinor: totals.total,
+          currency: cartRow.currency,
+          leadTimeDaysMax,
+        },
         idempotencyKey: `order_confirmation:${orderId}`,
       })
       .onConflictDoNothing();
