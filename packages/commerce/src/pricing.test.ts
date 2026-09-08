@@ -11,6 +11,15 @@ function lineArb(): fc.Arbitrary<PriceLine> {
   });
 }
 
+// Line ids are per-line allocation keys — `computeCartTotals` rejects
+// duplicates by design (see the duplicate-id guard test below) and
+// `distributeDiscount` maps allocations by id, so generators feeding either
+// function must produce unique ids.
+const uniqueLinesArb = (maxLength: number) =>
+  fc
+    .array(lineArb(), { minLength: 1, maxLength })
+    .map((lines) => lines.map((line, i) => ({ ...line, id: `line-${i}` })));
+
 describe("pricing invariants (PRD §7.2)", () => {
   it("subtotal equals sum of line subtotals", () => {
     fc.assert(
@@ -25,7 +34,7 @@ describe("pricing invariants (PRD §7.2)", () => {
   it("discount distribution conserves the discount exactly", () => {
     fc.assert(
       fc.property(
-        fc.array(lineArb(), { minLength: 1, maxLength: 12 }),
+        uniqueLinesArb(12),
         fc.integer({ min: 0, max: 200_000 }),
         (lines, discount) => {
           const { lineDiscounts } = distributeDiscount(lines, discount);
@@ -43,7 +52,7 @@ describe("pricing invariants (PRD §7.2)", () => {
   it("no line total goes negative", () => {
     fc.assert(
       fc.property(
-        fc.array(lineArb(), { minLength: 1, maxLength: 12 }),
+        uniqueLinesArb(12),
         fc.integer({ min: 0, max: 200_000 }),
         (lines, discount) => {
           const { lineTotals } = distributeDiscount(lines, discount);
@@ -56,7 +65,7 @@ describe("pricing invariants (PRD §7.2)", () => {
   it("cart total = discounted goods + shipping + tax", () => {
     fc.assert(
       fc.property(
-        fc.array(lineArb(), { minLength: 1, maxLength: 10 }),
+        uniqueLinesArb(10),
         fc.integer({ min: 0, max: 50_000 }),
         fc.integer({ min: 0, max: 20_000 }),
         (lines, shipping, tax) => {
@@ -76,7 +85,7 @@ describe("pricing invariants (PRD §7.2)", () => {
   it("fixed promotion discounts capped at subtotal", () => {
     fc.assert(
       fc.property(
-        fc.array(lineArb(), { minLength: 1, maxLength: 8 }),
+        uniqueLinesArb(8),
         fc.integer({ min: 0, max: 1_000_000 }),
         (lines, value) => {
           const totals = computeCartTotals({
@@ -126,13 +135,6 @@ describe("promotion discount cap invariants (PRD v4 FR-810)", () => {
   const kindArb = fc.constantFrom("fixed", "percent", "tiered") as fc.Arbitrary<
     "fixed" | "percent" | "tiered"
   >;
-
-  // Line ids are allocation keys — generators must produce unique ids (the
-  // domain asserts this precondition; see duplicate-id guard test below).
-  const uniqueLinesArb = (maxLength: number) =>
-    fc
-      .array(lineArb(), { minLength: 1, maxLength })
-      .map((lines) => lines.map((line, i) => ({ ...line, id: `line-${i}` })));
 
   const promotionArb = fc
     .record({
