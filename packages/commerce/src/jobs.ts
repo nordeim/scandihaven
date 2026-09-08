@@ -73,6 +73,8 @@ export class PgJobRunner {
     const result: DrainResult = { processed: 0, failed: 0, dead: 0 };
 
     // Phase 1: short claim transaction — lock, verify due-ness, mark running.
+    // ALL due rows are claimed: known kinds go to their handlers; unknown
+    // kinds dead-letter in phase 2 (§4.8 — nothing stays pending forever).
     const claimed = await this.db.transaction(async (tx) => {
       const rows = await tx
         .select({ id: job.id, kind: job.kind, payload: job.payload, attempts: job.attempts })
@@ -82,10 +84,7 @@ export class PgJobRunner {
         .limit(limit)
         .for("update", { skipLocked: true });
 
-      const claimable = rows.filter(
-        (row) => this.handlers.has(row.kind) || row.attempts + 1 >= this.maxAttempts,
-      );
-      for (const row of claimable) {
+      for (const row of rows) {
         await tx
           .update(job)
           .set({
@@ -95,7 +94,7 @@ export class PgJobRunner {
           })
           .where(eq(job.id, row.id));
       }
-      return claimable;
+      return rows;
     });
 
     // Phase 2: handlers run lock-free; each job settles independently.

@@ -126,6 +126,23 @@ describe.skipIf(!dbReady)("PgJobRunner (outbox drain, FOR UPDATE SKIP LOCKED)", 
     expect(rows[0]?.lastError).toContain("no handler");
   });
 
+  // Regression (PRD §4.8): with the DEFAULT maxAttempts, an unknown kind must
+  // dead-letter on its first drain — the old claim filter left it pending
+  // forever because attempts never advanced toward maxAttempts.
+  it("dead-letters unknown kinds immediately under the default maxAttempts", async () => {
+    const runner = new PgJobRunner({ db, handlers: { "test.other": async () => {} } });
+    await runner.enqueue({
+      kind: "test.unknown.default",
+      payload: {},
+      dedupeKey: "test.unknown.default:1",
+    });
+    const first = await runner.drain({ now: new Date() });
+    expect(first.dead).toBe(1);
+    const rows = await db.select().from(job).where(eq(job.kind, "test.unknown.default"));
+    expect(rows[0]?.status).toBe("dead");
+    expect(rows[0]?.lastError).toContain("no handler");
+  });
+
   it("concurrent drains never double-process the same job", async () => {
     const runner = new PgJobRunner({
       db,
