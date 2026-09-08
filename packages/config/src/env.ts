@@ -19,7 +19,31 @@ const serverEnvSchema = z.object({
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
+function tryLoadRootEnv(): void {
+  if (process.env.DATABASE_URL && process.env.BETTER_AUTH_SECRET) return;
+  try {
+    // Next.js @next/env walks only the app dir; repo-root .env is missed
+    // when `pnpm prod` (next start) runs from apps/* — load it explicitly.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const dotenv = require("dotenv") as { config: (o: { path: string; override: boolean }) => void };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as { resolve: (...p: string[]) => string };
+    for (const c of [
+      path.resolve(process.cwd(), ".env"),
+      path.resolve(process.cwd(), ".env.local"),
+      path.resolve(process.cwd(), "../../.env"),
+      path.resolve(process.cwd(), "../../.env.local"),
+    ]) {
+      dotenv.config({ path: c, override: false, quiet: true } as never);
+      if (process.env.DATABASE_URL && process.env.BETTER_AUTH_SECRET) break;
+    }
+  } catch {}
+}
+
 export function parseServerEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
+  // When called with the default `process.env` (instrumentation hook / next start),
+  // ensure the repo-root .env is loaded so `pnpm prod` works without `export`.
+  if (source === process.env) tryLoadRootEnv();
   const parsed = serverEnvSchema.safeParse(source);
   if (!parsed.success) {
     const issues = parsed.error.issues

@@ -11,6 +11,8 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm dev` | Storefront dev server on :3000 (Turbopack) |
 | `pnpm dev:admin` | Admin dev server on :3001 |
 | `pnpm build` | Production build of both apps (Turbopack) |
+| `pnpm prod` | Storefront prod server on :3000 — requires prior `pnpm build` |
+| `pnpm prod:admin` | Admin prod server on :3001 — requires prior `pnpm build` |
 | `pnpm lint` / `pnpm typecheck` | ESLint 9 flat / `tsc --noEmit` per workspace |
 | `pnpm test` | Vitest unit suites + real-PG integration suites (auto-skip unless `DATABASE_URL` points at localhost; commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
 | `pnpm e2e` | Playwright, Chromium project, against `apps/web` |

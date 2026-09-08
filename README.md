@@ -98,6 +98,7 @@ docker compose up -d               # PostgreSQL 17 (postgres:17-alpine, service 
 cp .env.example .env               # then fill secrets (below)
 pnpm db:setup                      # schema + demo catalog (migrate && seed)
 pnpm dev                           # storefront on http://localhost:3000
+pnpm build && pnpm prod            # production storefront on http://localhost:3000 (admin: pnpm prod:admin → :3001)
 ```
 
 **Verify setup**

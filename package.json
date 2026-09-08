@@ -9,6 +9,8 @@
     "dev": "turbo run dev --filter=@scandihaven/web",
     "dev:admin": "turbo run dev --filter=@scandihaven/admin",
     "build": "turbo run build",
+    "prod": "turbo run start --filter=@scandihaven/web",
+    "prod:admin": "turbo run start --filter=@scandihaven/admin",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

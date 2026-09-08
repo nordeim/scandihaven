@@ -1,0 +1,171 @@
+$  pnpm db:setup
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ db:setup /Home1/project/scandihaven
+> pnpm db:migrate && pnpm db:seed
+
+
+> scandihaven@ db:migrate /Home1/project/scandihaven
+> pnpm --filter @scandihaven/db migrate
+
+
+> @scandihaven/db@0.1.0 migrate /Home1/project/scandihaven/packages/db
+> tsx src/scripts/migrate.ts
+
+[db] migrations applied
+
+> scandihaven@ db:seed /Home1/project/scandihaven
+> pnpm --filter @scandihaven/db seed
+
+
+> @scandihaven/db@0.1.0 seed /Home1/project/scandihaven/packages/db
+> tsx src/scripts/seed.ts
+
+[db] seed complete (idempotent run=ok)
+
+$ pnpm build
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ build /Home1/project/scandihaven
+> turbo run build
+
+• turbo 2.10.12
+
+   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
+   • Running build in 8 packages
+   • Remote caching disabled
+
+@scandihaven/admin:build: cache hit, replaying logs d5e2f2737888e111
+@scandihaven/admin:build: 
+@scandihaven/admin:build: > @scandihaven/admin@0.1.0 build /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:build: > next build
+@scandihaven/admin:build: 
+@scandihaven/admin:build: ▲ Next.js 16.3.4 (Turbopack)
+@scandihaven/admin:build: ✓ Running next.config.ts took 40ms
+@scandihaven/admin:build: 
+@scandihaven/admin:build:   Creating an optimized production build ...
+@scandihaven/admin:build: ✓ Compiled successfully in 1086ms
+@scandihaven/admin:build: ✓ Finished TypeScript in 8.1s 
+  Collecting page data using 3 workers  ...2026-09-08T14:37:47.100Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+  Collecting page data using 3 workers  .2026-09-08T14:37:47.184Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+@scandihaven/admin:build: 2026-09-08T14:37:47.287Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+  Collecting page data using 3 workers  ..2026-09-08T14:37:47.472Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/admin:build: ✓ Collecting page data using 3 workers in 1521ms 
+@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+✓ Generating static pages using 3 workers (4/4) in 248ms
+@scandihaven/admin:build: ✓ Finalizing page optimization in 9ms 
+@scandihaven/admin:build: 
+@scandihaven/admin:build: Route (app)
+@scandihaven/admin:build: ┌ ƒ /
+@scandihaven/admin:build: ├ ƒ /_not-found
+@scandihaven/admin:build: ├ ƒ /api/auth/[...all]
+@scandihaven/admin:build: ├ ƒ /api/health
+@scandihaven/admin:build: ├ ƒ /customers
+@scandihaven/admin:build: ├ ƒ /orders
+@scandihaven/admin:build: ├ ƒ /orders/[id]
+@scandihaven/admin:build: ├ ƒ /products
+@scandihaven/admin:build: ├ ƒ /products/[id]
+@scandihaven/admin:build: └ ƒ /sign-in
+@scandihaven/admin:build: 
+@scandihaven/admin:build: 
+@scandihaven/admin:build: ƒ  (Dynamic)  server-rendered on demand
+@scandihaven/admin:build: 
+@scandihaven/admin:build: 
+@scandihaven/web:build: cache hit, replaying logs 4637e6e3deb09ff2
+@scandihaven/web:build: 
+@scandihaven/web:build: > @scandihaven/web@0.1.0 build /Home1/project/scandihaven/apps/web
+@scandihaven/web:build: > next build
+@scandihaven/web:build: 
+@scandihaven/web:build: ▲ Next.js 16.3.4 (Turbopack)
+@scandihaven/web:build: ✓ Running next.config.ts took 43ms
+@scandihaven/web:build: 
+@scandihaven/web:build:   Creating an optimized production build ...
+@scandihaven/web:build: ✓ Compiled successfully in 1240ms
+@scandihaven/web:build: ✓ Finished TypeScript in 11.1s 
+  Collecting page data using 3 workers  ..2026-09-08T14:37:49.977Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+  Collecting page data using 3 workers  ...2026-09-08T14:37:50.218Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
+@scandihaven/web:build: ✓ Collecting page data using 3 workers in 1134ms 
+✓ Generating static pages using 3 workers (9/9) in 335ms
+@scandihaven/web:build: ✓ Finalizing page optimization in 17ms 
+@scandihaven/web:build: 
+@scandihaven/web:build: Route (app)
+@scandihaven/web:build: ┌ ƒ /
+@scandihaven/web:build: ├ ƒ /_not-found
+@scandihaven/web:build: ├ ƒ /[slug]
+@scandihaven/web:build: ├ ƒ /account
+@scandihaven/web:build: ├ ƒ /api/auth/[...all]
+@scandihaven/web:build: ├ ƒ /api/health
+@scandihaven/web:build: ├ ƒ /api/jobs/run
+@scandihaven/web:build: ├ ƒ /api/search/typeahead
+@scandihaven/web:build: ├ ƒ /api/webhooks/stripe
+@scandihaven/web:build: ├ ƒ /cart
+@scandihaven/web:build: ├ ƒ /checkout
+@scandihaven/web:build: ├ ƒ /checkout/success
+@scandihaven/web:build: ├ ƒ /collections
+@scandihaven/web:build: ├ ƒ /collections/[slug]
+@scandihaven/web:build: ├ ƒ /journal
+@scandihaven/web:build: ├ ƒ /products/[slug]
+@scandihaven/web:build: ├ ƒ /shop
+@scandihaven/web:build: ├ ƒ /shop/[category]
+@scandihaven/web:build: └ ƒ /sign-in
+@scandihaven/web:build: 
+@scandihaven/web:build: 
+@scandihaven/web:build: ƒ  (Dynamic)  server-rendered on demand
+@scandihaven/web:build: 
+@scandihaven/web:build: 
+
+ Tasks:    2 successful, 2 total
+Cached:    2 cached, 2 total
+  Time:    181ms >>> FULL TURBO
+
+$ pnpm prod
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ prod /Home1/project/scandihaven
+> turbo run start --filter=@scandihaven/web
+
+• turbo 2.10.12
+
+   • Packages in scope: @scandihaven/web
+   • Running start in 1 packages
+   • Remote caching disabled
+
+@scandihaven/web:start: cache bypass, force executing 31cbbd693bb48e66
+@scandihaven/web:start: 
+@scandihaven/web:start: > @scandihaven/web@0.1.0 start /Home1/project/scandihaven/apps/web
+@scandihaven/web:start: > next start --port 3000
+@scandihaven/web:start: 
+@scandihaven/web:start: ▲ Next.js 16.3.4
+@scandihaven/web:start: - Local:         http://localhost:3000
+@scandihaven/web:start: - Network:       http://192.168.1.2:3000
+@scandihaven/web:start: ✓ Ready in 162ms
+@scandihaven/web:start: ✓ Running next.config.ts took 47ms
+
+$ pnpm prod:admin
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ prod:admin /Home1/project/scandihaven
+> turbo run start --filter=@scandihaven/admin
+
+• turbo 2.10.12
+
+   • Packages in scope: @scandihaven/admin
+   • Running start in 1 packages
+   • Remote caching disabled
+
+@scandihaven/admin:start: cache bypass, force executing a0f5d62ca6ce115a
+@scandihaven/admin:start: 
+@scandihaven/admin:start: > @scandihaven/admin@0.1.0 start /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:start: > next start --port 3001
+@scandihaven/admin:start: 
+@scandihaven/admin:start: ▲ Next.js 16.3.4
+@scandihaven/admin:start: - Local:         http://localhost:3001
+@scandihaven/admin:start: - Network:       http://192.168.1.2:3001
+@scandihaven/admin:start: ✓ Ready in 176ms
+@scandihaven/admin:start: ✓ Running next.config.ts took 62ms
+
