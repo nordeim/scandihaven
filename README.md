@@ -128,6 +128,8 @@ Full manifest with generation commands: [`.env.example`](./.env.example).
 
 ```bash
 pnpm test                # Vitest: pricing/promotions/state-machine/RBAC/schema suites
+                         # (real-PG integration suites auto-skip unless DATABASE_URL
+                         #  points at localhost — they run in CI after migrate+seed)
 pnpm e2e                 # Playwright Chromium (needs migrated+seeded DB)
 pnpm --filter @scandihaven/web exec playwright test --project=chromium -g "cart"   # single spec
 pnpm db:setup                      # fresh container (migrate && seed)
@@ -163,7 +165,7 @@ Typography: **Fraunces** (display, via `next/font`) · **Inter** (UI) — self-h
 | 3–4 — Soft launch / launch | ⬜ | Per PRD §13.6 |
 | 5 — Post-launch (trade, gift cards, Net-30) | ⬜ | Schema-ready (`payment_terms`, trade tables) |
 
-Deferred surfaces are stubbed in code with their PRD FR IDs — nothing is silently missing (inventory in [`PRD.md` Appendix B](./PRD.md#144-appendix-b--scaffold-inventory-what-exists-in-this-repository-now)).
+Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md) (FR → locus → verification → status); core deferred surfaces are stubbed in code with their PRD FR IDs — the full deferred inventory, including surfaces not yet stub-named, is kept there so nothing is silently missing.
 
 ## Troubleshooting
 
@@ -182,6 +184,9 @@ Deferred surfaces are stubbed in code with their PRD FR IDs — nothing is silen
 - [`PRD.md`](./PRD.md) — final build-ready product requirements (v4.0): personas, 90+ requirement IDs with acceptance criteria, DDL-level schema, action/API contracts, provider ports & feature flags (§4.8), SLOs, closed-decisions registry, agent operating contract, rollout plan. `PRD_v3a.md`/`PRD_v3b.md` remain as reviewed proposal inputs.
 - [`AGENTS.md`](./AGENTS.md) — high-signal instructions for AI coding agents.
 - [`CLAUDE.md`](./CLAUDE.md) — conventions and workflow contract for assistant-driven development.
+- [`docs/traceability.md`](./docs/traceability.md) — FR → implementation → verification matrix (PRD §14.2).
+- [`docs/verification-ledger.md`](./docs/verification-ledger.md) — running evidence ledger (PRD §12.4).
+- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
 - [`PRD_draft.md`](./PRD_draft.md) — original draft (stack recommendation superseded; domain scope preserved).
 
 ## License

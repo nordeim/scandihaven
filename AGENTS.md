@@ -12,14 +12,14 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm dev:admin` | Admin dev server on :3001 |
 | `pnpm build` | Production build of both apps (Turbopack) |
 | `pnpm lint` / `pnpm typecheck` | ESLint 9 flat / `tsc --noEmit` per workspace |
-| `pnpm test` | Vitest unit suites (commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
+| `pnpm test` | Vitest unit suites + real-PG integration suites (auto-skip unless `DATABASE_URL` points at localhost; commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
 | `pnpm e2e` | Playwright, Chromium project, against `apps/web` |
 | `pnpm db:setup` | `db:migrate && db:seed` — fresh container init (migrate + idempotent seed, local hosts only) |
 | `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | drizzle-kit migrate / idempotent seed / drop+recreate (local hosts only) |
 | `pnpm db:generate` | Regenerate drizzle migrations after schema edits |
 | `pnpm seed:admin` | Provision test admin; **requires** `SEED_ADMIN_PASSWORD` env (no default credentials exist) |
 
-Order matters for a clean check: `pnpm lint typecheck test build` then `pnpm db:setup` (`db:migrate && db:seed`) before `pnpm e2e` (E2E needs a migrated+seeded DB).
+Order matters for a clean check: `pnpm lint typecheck test build` works without a database (real-PG integration suites auto-skip unless `DATABASE_URL` points at localhost). With a local PG up, run `pnpm db:setup` (`db:migrate && db:seed`) BEFORE `pnpm db:setup`-dependent steps — CI runs migrate+seed before Unit tests so the integration suites execute, then E2E needs a migrated+seeded DB.
 
 ## Architecture invariants
 
@@ -35,6 +35,8 @@ Order matters for a clean check: `pnpm lint typecheck test build` then `pnpm db:
   1. **`@theme` var() chains are dropped** by the current build — shadcn semantic tokens (`--color-primary`, `--color-secondary`, …) are literal hex values; keep them in sync with the palette block above them.
   2. **Auto content-scan does not reach `packages/ui`** — `@source "../../../../packages/ui/src";` in each app's `globals.css` is load-bearing. Without it, classes used only inside the UI package (`bg-secondary`, `bg-primary`, `hover:bg-bg-3`) silently never generate CSS.
 - **Turborepo env passing**: env vars read inside `next.config.ts` (e.g. `DISABLE_IMAGE_OPTIMIZER`) must be listed in `turbo.json` `globalEnv` or turbo strips them from build tasks.
+- **Boot validation**: each app's `src/instrumentation.ts` runs `parseServerEnv()` + `parseFlags()` when the server starts — missing required env or an unknown `FEATURE_*` var fails fast with an actionable message (PRD §9.4).
+- **Build-time env**: `next build` imports the auth route (`/api/auth/[...all]`), which constructs the Better-Auth instance and therefore the db client — builds require `DATABASE_URL` + `BETTER_AUTH_SECRET` to be set (same values as CI/§13.4).
 - **Image optimizer**: `DISABLE_IMAGE_OPTIMIZER=1` (local/E2E) serves images unoptimized — the sharp pipeline can deadlock in constrained sandboxes. Production keeps optimization on.
 - **React 19 + react-stripe-js v6**: `confirmPayment` is a method on `useStripe()`, not a module export.
 
