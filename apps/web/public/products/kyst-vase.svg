@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Kyst Vase">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <path d="M340 640 q-40 -120 10 -200 q40 -60 20 -120 l60 0 q-20 60 20 120 q50 80 10 200 z" fill="#F0EAE0"/>
+    <ellipse cx="400" cy="655" rx="90" ry="20" fill="#E5DDD1"/>
+    <path d="M340 640 q-40 -120 10 -200 q40 -60 20 -120 l60 0 q-20 60 20 120 q50 80 10 200 z" fill="none" stroke="#8B9A82" stroke-width="6"/>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">Kyst Vase</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

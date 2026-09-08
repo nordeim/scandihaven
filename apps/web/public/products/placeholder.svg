@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Scandi Haven">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <rect x="260" y="380" width="280" height="280" rx="12" fill="#E5DDD1"/>
+    <text x="400" y="540" text-anchor="middle" font-family="Georgia, serif" font-size="48" fill="#1F1B17">SH</text>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">Scandi Haven</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

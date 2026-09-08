@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Birch Side Table">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <ellipse cx="400" cy="400" rx="210" ry="46" fill="#C9A876"/>
+    <rect x="370" y="430" width="60" height="230" fill="#C9A876"/>
+    <ellipse cx="400" cy="672" rx="110" ry="26" fill="#E8E0D2"/>
+    <ellipse cx="400" cy="672" rx="110" ry="26" fill="none" stroke="#C9A876" stroke-width="8"/>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">Birch Side Table</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

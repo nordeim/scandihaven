@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="The Hygge Edit">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <rect x="140" y="300" width="520" height="380" fill="#221D18" opacity="0.9"/>
+    <rect x="200" y="460" width="240" height="160" rx="12" fill="#C97B5E"/>
+    <circle cx="560" cy="380" r="46" fill="#C9A876"/>
+    <rect x="552" y="380" width="16" height="160" fill="#C9A876"/>
+    <rect x="180" y="300" width="440" height="8" fill="#B06548"/>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">The Hygge Edit</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

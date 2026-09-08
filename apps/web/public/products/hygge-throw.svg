@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Hygge Wool Throw">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <rect x="230" y="330" width="340" height="400" rx="10" fill="#8B9A82"/>
+    <line x1="230" y1="430" x2="570" y2="430" stroke="#F0EAE0" stroke-width="6"/>
+    <line x1="230" y1="530" x2="570" y2="530" stroke="#F0EAE0" stroke-width="6"/>
+    <line x1="230" y1="630" x2="570" y2="630" stroke="#F0EAE0" stroke-width="6"/>
+    <path d="M230 730 q10 24 20 0 M270 730 q10 24 20 0 M310 730 q10 24 20 0 M350 730 q10 24 20 0 M390 730 q10 24 20 0 M430 730 q10 24 20 0 M470 730 q10 24 20 0 M510 730 q10 24 20 0 M550 730 q10 24 20 0" stroke="#8B9A82" stroke-width="8" fill="none"/>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">Hygge Wool Throw</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

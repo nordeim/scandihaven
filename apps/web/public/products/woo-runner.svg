@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Woo Runner">
+  <rect width="800" height="1000" fill="#F0EAE0"/>
+  <rect x="60" y="60" width="680" height="880" fill="#E8E0D2"/>
+  
+    <rect x="180" y="420" width="440" height="220" rx="6" fill="#F0EAE0"/>
+    <rect x="180" y="420" width="440" height="220" rx="6" fill="none" stroke="#E5DDD1" stroke-width="4"/>
+    <line x1="220" y1="450" x2="580" y2="450" stroke="#C97B5E" stroke-width="5"/>
+    <line x1="220" y1="610" x2="580" y2="610" stroke="#C97B5E" stroke-width="5"/>
+    <circle cx="330" cy="530" r="34" fill="#8B9A82"/>
+    <circle cx="470" cy="530" r="34" fill="#C9A876"/>
+  <text x="400" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1F1B17">Woo Runner</text>
+  <text x="400" y="944" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="6" fill="#B06548">SCANDI HAVEN</text>
+</svg>

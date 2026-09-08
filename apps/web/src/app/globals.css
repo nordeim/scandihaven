@@ -1,0 +1,54 @@
+@import "tailwindcss";
+@import "@scandihaven/ui/tokens.css";
+
+/* Explicit sources: workspace packages are outside the app's auto-scan root.
+   Without this, classes used only in packages/ui (bg-secondary, hover:bg-bg-3…)
+   are never generated (Tailwind v4 source detection). */
+@source "../../../../packages/ui/src";
+@source "../../../../packages/auth/src";
+@source "../../../../packages/commerce/src";
+
+/* Accordion motion (Radix data-state driven, PRD §10.5 motion tokens) */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@theme {
+  --animate-accordion-down: accordion-down var(--duration-base) var(--ease-brand);
+  --animate-accordion-up: accordion-up var(--duration-base) var(--ease-brand);
+}
+
+/* Editorial reveal — respects prefers-reduced-motion (PRD §10.5) */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: reveal-up var(--duration-reveal) var(--ease-brand) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
