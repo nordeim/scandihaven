@@ -27,7 +27,23 @@ import { createRequestDedupe } from "./request-dedupe";
 const addLineDedupe = createRequestDedupe(5 * 60_000);
 
 const CART_COOKIE = "sh_cart";
-const CART_SECRET = process.env.BETTER_AUTH_SECRET ?? "dev-only-insecure-secret";
+
+/**
+ * Cart-cookie HMAC secret (PRD FR-403): BETTER_AUTH_SECRET, ≥ 32 chars.
+ * Read per call, never snapshotted at import, and there is NO insecure
+ * fallback — a missing/short secret fails fast here instead of silently
+ * minting forgeable cart identities (CLAUDE.md env contract: "required or
+ * boot fails").
+ */
+function cartSecret(): string {
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "BETTER_AUTH_SECRET is missing or shorter than 32 chars — cart cookies cannot be signed safely. Generate one with `openssl rand -base64 32`.",
+    );
+  }
+  return secret;
+}
 
 export class CartError extends Error {
   constructor(
@@ -41,7 +57,7 @@ export class CartError extends Error {
 /** Signed cart token: `<random>.<hmac>` — tamper-evident (PRD FR-403). */
 export function createCartToken(): string {
   const value = randomBytes(24).toString("hex");
-  const sig = createHmac("sha256", CART_SECRET).update(value).digest("hex").slice(0, 32);
+  const sig = createHmac("sha256", cartSecret()).update(value).digest("hex").slice(0, 32);
   return `${value}.${sig}`;
 }
 
@@ -49,7 +65,7 @@ export function verifyCartToken(token: string | undefined | null): string | null
   if (!token) return null;
   const [value, sig] = token.split(".");
   if (!value || !sig) return null;
-  const expected = createHmac("sha256", CART_SECRET).update(value).digest("hex").slice(0, 32);
+  const expected = createHmac("sha256", cartSecret()).update(value).digest("hex").slice(0, 32);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b) ? token : null;
@@ -75,7 +91,14 @@ export async function ensureCart(token: string, userId?: string | null): Promise
   return id;
 }
 
-/** Merge a guest cart into the user's most recent active cart (FR-403). */
+/**
+ * Merge a guest cart into the user's most recent active cart (FR-403).
+ * Wiring note: no auth databaseHooks call site exists yet — the Better-Auth
+ * sign-in hook that invokes this is a queued remediation slice (FR-403,
+ * docs/plans/2026-09-08-remediation-plan.md B5) because hook-scope cookie
+ * access needs runtime verification. Guest carts currently attach only when
+ * the same signed token is reused via ensureCart(token, userId).
+ */
 export async function mergeGuestCartIntoUserCart(guestCartId: string, userId: string): Promise<void> {
   const target = await db
     .select()
