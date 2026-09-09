@@ -60,6 +60,26 @@ export type PromotionEvaluation =
   | { eligible: true; promotion: PromotionInput }
   | { eligible: false; reason: PromotionRejection };
 
+/**
+ * Customer-facing copy for rejection reasons (live E2E audit 2026-09-09
+ * round 2, M1-PROMO): raw internal codes like "min_spend" must never reach
+ * the storefront. Each entry tells the shopper what to do next.
+ */
+const PROMOTION_REJECTION_COPY: Record<PromotionRejection, string> = {
+  not_active: "This code isn't active right now.",
+  outside_schedule: "This code isn't valid on this date — check the promo window.",
+  min_spend: "This code requires a higher order subtotal to apply.",
+  product_excluded: "Some items in your cart are excluded from this code.",
+  product_not_included: "Your cart doesn't contain an item this code applies to.",
+  region_not_eligible: "This code isn't available in your delivery region.",
+  usage_limit: "This code has been fully redeemed and is no longer available.",
+  customer_limit: "You've already used this code — it's limited per customer.",
+};
+
+export function humanizePromotionRejection(reason: PromotionRejection): string {
+  return PROMOTION_REJECTION_COPY[reason];
+}
+
 export function evaluatePromotion(
   promotion: PromotionInput,
   context: PromotionContext,

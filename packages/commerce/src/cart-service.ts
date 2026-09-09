@@ -16,7 +16,7 @@ import {
 } from "@scandihaven/db/schema";
 import type { CartDto, CartLineDto } from "./dto";
 import { computeCartTotals, type PriceLine } from "./pricing";
-import { evaluatePromotion, type PromotionInput } from "./promotions";
+import { evaluatePromotion, humanizePromotionRejection, type PromotionInput } from "./promotions";
 import { createRequestDedupe } from "./request-dedupe";
 
 /**
@@ -286,7 +286,8 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
     },
   );
   if (!evaluation.eligible) {
-    throw new CartError(`Promotion not applicable (${evaluation.reason})`, "VALIDATION");
+    // Customer copy, not the raw reason code (audit 2026-09-09 round 2, M1-PROMO).
+    throw new CartError(humanizePromotionRejection(evaluation.reason), "VALIDATION");
   }
   await db.delete(cartPromotion).where(eq(cartPromotion.cartId, cartId));
   await db.insert(cartPromotion).values({ cartId, promotionId: promo.id });
