@@ -169,3 +169,25 @@ Environment: same sandbox (no Docker/PG). Slices executed per approved plans A01
 | `pnpm test` | 7/7 (88+17+9+8+4, 12 skip) | 7/7 | **Verified** |
 | Secret scan (tracked) | `clean` (untracked ssh-key would have matched) | `clean` | **Verified** |
 
+
+## 2026-09-09 — E2E live-site audit + remediation (scandihaven.jesspete.shop / scandihaven-admin.jesspete.shop)
+
+Audit: `docs/audits/2026-09-09-e2e-live-site-audit/findings.md` · Plan: `docs/plans/2026-09-09-e2e-live-remediation.md` · Method: 42-check HTTP route sweep + interactive Chromium (agent-browser) on both live deployments, plus source review of every failing path.
+
+| Finding | Fix | Verification | Label |
+|---|---|---|---|
+| C2r — `.env`, `.env.local`, `docs/bak.env` git-tracked again (262d3cc re-add after dd352c6 untrack); real `BETTER_AUTH_SECRET`/`CRON_SECRET`/Stripe/DB values in public repo | `git rm --cached` all three; `.gitignore` gains `docs/bak.env`, `**/bak.env`, `*.env.bak`; rotation flagged to ops (README) | `git ls-files \| grep -E '^\.env'` → `.env.example` only; `git show --stat 262d3cc` shows the re-add | **Verified** (exposure) / rotation = ops, **Unverifiable** here |
+| C-CI — CI secret scan blind to gitignored-but-tracked files (`rg` honors `.gitignore`; exact CI command replay matched `docs/bak.env` but not `.env`/`.env.local`) | `--no-ignore` added to the scan + scratch-dir excludes (`.turbo/`, `coverage/`, `playwright-report/`, `test-results/`) | worktree replay: old scan 2 hits, hardened scan 6 hits across all three files; post-E1 HEAD will scan clean | **Verified** |
+| H-AUTH — sign-in "Invalid origin" on BOTH live apps (storefront + admin repro'd in browser); `BETTER_AUTH_URL` localhost-pinned trusted set; any auth POST with cookies (cart cookie) rejected | `packages/auth`: new pure `requestOriginFromHeaders()` (proxy-controlled headers only — never `Origin`/`Referer`); wired as Better-Auth `trustedOrigins` request hook; `BETTER_AUTH_TRUSTED_ORIGINS` (native) documented in `.env.example` | TDD: `trusted-origins.test.ts` (7 cases) + `server-origin.test.ts` (3, via `auth.$context`) red→green, 18/18; live root cause confirmed against better-auth@1.7.3 dist; redeploy still required to heal production | **Verified** (root cause + unit); deployment healing = **Unverifiable** here |
+| M-SH — `start_server.sh` PDP health check used `/products/halden-armchair`; seeded slug is `halden-linen-armchair` → every fresh boot "failed" (start_server_log.txt:144-150) | Check corrected to the seeded slug | `bash -n` clean; slug grep-aligned with `ensure-seeded.ts:83` | **Verified** |
+| M-404 — root `not-found.tsx` was a client component → SSR payload was an empty Suspense shell (live-verified: 404 body had zero visible text) | Converted to server component; `/lookbooks` honesty moved to `lookbooks/[[...slug]]` + segment server not-found naming FR-705; E2E asserts SSR body | Local prod-boot curl: `/foo/bar` → 404 with `This page has wandered off` + `Browse the shop` in SSR HTML; `/lookbooks` → 404 with `FR-705` in SSR HTML (DB-less boot: `/[slug]` 500s by design per M-2 rethrow) | **Verified** |
+| M-FAQ — footer `/faq` link 404ed (no FAQ static page seeded) | Idempotent `staticPage` seed entry `faq` (onConflictDoNothing) | seed-pattern review; real-PG re-seed idempotency runs in CI | **Reasoned** (needs PG to execute) |
+| M-TITLE — PDP `<title>` rendered `… \| Scandi Haven \| Scandi Haven` (seoTitle already suffixed + layout template) | PDP `generateMetadata` returns `title: { absolute }` | E2E PDP assertion (suffix exactly once) written for CI; typecheck/build green | **Reasoned** locally, E2E = **Verified** in CI |
+| M-COL — collection page loaded first 48 products + JS-filtered (silent cliff), dead `await import`, `void inArray;` | `productQuerySchema.ids` (uuid array ≤500, TDD 5 cases red→green) + `listProducts` SQL `IN` filter (full member set, no page cap); page rewired | `catalog-query.test.ts` 5/5; commerce suite 81 passed; SQL path = CI integration | **Verified** (schema/unit); SQL = **Verified** in CI |
+| M-HLTH — admin health swallowed DB errors (`catch {}`) | Paired `console.error("[health] db check failed", error)` mirroring the web route | lint/typecheck green; contrast with `apps/web/src/app/api/health/route.ts` | **Verified** |
+| Gates after remediation | — | `pnpm lint` 8/8 · `pnpm typecheck` 8/8 · `pnpm test` 7/7 (coverage gates green) · `pnpm build` 2/2, `/lookbooks/[[...slug]]` registered | **Verified** |
+
+**Ops actions required (cannot be executed from this sandbox):**
+1. Rotate every secret that was publicly exposed via 262d3cc: `BETTER_AUTH_SECRET`, `CRON_SECRET`, `DATABASE_URL` password, Stripe test keys (`sk_test_…`, `whsec_…` — test mode, rotation still advised).
+2. Redeploy both apps so the H-AUTH fix reaches production (or, independently, set `BETTER_AUTH_TRUSTED_ORIGINS=https://scandihaven.jesspete.shop,https://scandihaven-admin.jesspete.shop` on the deployment).
+3. Align Stripe env on the deployment: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set while `STRIPE_SECRET_KEY` is not (client loads stripe.js; server reports "not configured" — audit L-STR).

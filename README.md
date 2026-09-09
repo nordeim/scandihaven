@@ -118,7 +118,7 @@ pnpm typecheck && pnpm lint && pnpm test   # all green
 open http://localhost:3000/shop     # seeded catalog (Halden armchair, Øresund lamp, …)
 ```
 
-Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. **Never commit `.env`/`.env.local`** — a 2026-09-09 audit found them git-tracked with real secrets (they are untracked now; rotate any value that was exposed or deployed). Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm --filter @scandihaven/web seed:admin` (no default credentials ship in the repo).
+Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. **Never commit `.env`/`.env.local`** — a 2026-09-09 audit found them git-tracked with real secrets (they are untracked now; rotate any value that was exposed or deployed). ⚠️ **Ops, 2026-09-09:** commit `262d3cc` re-exposed `.env`, `.env.local`, and `docs/bak.env` publicly — every value in those files must be rotated (see `docs/audits/2026-09-09-e2e-live-site-audit/findings.md` C2r). Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm --filter @scandihaven/web seed:admin` (no default credentials ship in the repo).
 
 ## Environment Variables
 
@@ -126,7 +126,8 @@ Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL 17 connection string (`scandihaven_dev` / `scandihaven_user` via compose) | ✅ |
 | `BETTER_AUTH_SECRET` | Auth signing + cart-cookie HMAC (≥ 32 chars) | ✅ |
-| `BETTER_AUTH_URL` / `NEXT_PUBLIC_SITE_URL` | Canonical origin for auth redirects | ✅ |
+| `BETTER_AUTH_URL` / `NEXT_PUBLIC_SITE_URL` | Canonical origin for auth redirects — **public origin in production** | ✅ |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Extra comma-separated origins trusted by auth (the served origin is derived from proxy headers automatically) | optional |
 | `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` · `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Payments (test mode locally) | for checkout |
 | `RESEND_API_KEY` · `EMAIL_FROM` | Transactional email (log transport when unset) | optional |
 | `CRON_SECRET` | Protects `/api/jobs/run` (outbox drainer) | in prod |
@@ -184,6 +185,7 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | Classes like `bg-secondary` have no CSS | The `@source` directives in each app's `globals.css` must include `packages/ui/src` (Tailwind v4 auto-scan doesn't reach workspace packages) |
 | Turbo build "does nothing" / silently skips | You created a workspace dependency cycle (e.g. `db` ↔ `commerce`); package direction must stay `db ← auth ← commerce ← apps` |
 | Cart always empty after add | `BETTER_AUTH_SECRET` changed between signing and verifying — the cart cookie HMAC uses it; keep the value stable per environment |
+| Sign-in shows "Invalid origin" (storefront or admin) | `BETTER_AUTH_URL` must be the **public** origin behind a reverse proxy (a localhost value pins the trusted set to localhost — audit 2026-09-09 H-AUTH). Since the 2026-09-09 fix the app also trusts the origin each request is served on (derived from proxy-controlled headers); extra origins may be allow-listed via the native `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated). Redeploy after fixing env |
 | `next build` type error on page file | Next 16 pages may only export `default` + metadata/revalidate/dynamic — move helpers out |
 | Seed refuses to run | Seed/migrate only accept local hosts (`localhost`, `127.0.0.1`) by design |
 | `docker compose` volume `pgdata` not found / `scandihaven-db` unhealthy | Renamed to `postgres_data` / `scandihaven_postgres` with `PGDATA` and `start_period`; run `docker compose down -v` once (one-time, re-seeds via `pnpm db:seed`) then `docker compose up -d` (init installs `pgcrypto`+`pg_trgm`) |

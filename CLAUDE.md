@@ -146,6 +146,7 @@ Dependency direction `db ← auth ← commerce ← apps` — cycles break the tu
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL 17 connection | App role should lack DDL in production |
 | `BETTER_AUTH_SECRET` | Auth + cart-cookie HMAC | ≥ 32 chars; required or boot fails |
+| `BETTER_AUTH_URL` | Canonical auth origin | **Must be the public origin in production** — localhost behind a reverse proxy broke live sign-in ("Invalid origin", audit 2026-09-09 H-AUTH); the served origin is additionally derived from proxy headers, and `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated) allow-lists extras |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Payments (test mode in dev) | Unset → honest "not configured" checkout state |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Transactional email | Unset → log transport |
 | `CRON_SECRET` | Protects `/api/jobs/run` | Outbox drainer |
