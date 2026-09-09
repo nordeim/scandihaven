@@ -501,6 +501,15 @@ export async function ensureSeeded(): Promise<{ seeded: boolean }> {
             "<p>You may return in-stock items within 14 days of delivery, unworn and in original packaging — start a return from your account or the returns portal. Made-to-order and personalised pieces are excluded unless faulty. Damaged goods: photograph the packaging and item on arrival; we collect and replace at our cost.</p>",
           isPublished: true,
         },
+        {
+          // The footer help nav (and site-footer.tsx) link /faq — without this
+          // row the link 404s on every page (audit 2026-09-09 M-FAQ).
+          slug: "faq",
+          title: "FAQ",
+          bodyHtml:
+            "<h2>How long until my order ships?</h2><p>In-stock pieces leave our Aalborg warehouse within 3 business days. Made-to-order furniture follows the lead time shown on the product page at purchase.</p><h2>Do you ship outside Denmark?</h2><p>We ship across the EU, UK, and US. Shipping options and costs are shown at checkout before you pay.</p><h2>Can I return a piece?</h2><p>In-stock items can be returned within 14 days of delivery — see the Returns page for the full policy and how to start one. Made-to-order and personalised pieces are excluded unless faulty.</p><h2>Is the Copenhagen showroom open?</h2><p>Yes — Vestre Havnegade 4, 9000 Aalborg, Tuesday to Saturday 10–17. Pickup at the showroom is always free.</p><h2>How do I care for solid oak and linen?</h2><p>Each product page carries its Materials &amp; care guide. In short: dry-dust the oak, keep it out of direct sun, and let the linen age — it only gets softer.</p>",
+          isPublished: true,
+        },
       ])
       .onConflictDoNothing();
 
