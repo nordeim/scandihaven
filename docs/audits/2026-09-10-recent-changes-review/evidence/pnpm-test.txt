@@ -1,0 +1,120 @@
+@scandihaven/auth:test: cache miss, executing 61c0f2f5b7b5bcfe
+@scandihaven/db:test: cache miss, executing 8ea7b156f165cfad
+@scandihaven/admin:test: cache miss, executing 0b7a57c58b03d443
+@scandihaven/ui:test: cache hit, replaying logs 9c0dc7b074c4edb2
+@scandihaven/config:test: cache hit, replaying logs 17696cb6ff4849b7
+@scandihaven/ui:test: 
+@scandihaven/ui:test: > @scandihaven/ui@0.1.0 test /Home1/project/scandihaven/packages/ui
+@scandihaven/ui:test: > echo "no unit tests in ui package (component tests live with apps)" && exit 0
+@scandihaven/ui:test: 
+@scandihaven/ui:test: no unit tests in ui package (component tests live with apps)
+@scandihaven/config:test: 
+@scandihaven/config:test: > @scandihaven/config@0.1.0 test /Home1/project/scandihaven/packages/config
+@scandihaven/config:test: > vitest run
+@scandihaven/config:test: 
+@scandihaven/config:test: 
+@scandihaven/config:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/config
+@scandihaven/config:test: 
+@scandihaven/config:test: 
+@scandihaven/config:test:  Test Files  2 passed (2)
+@scandihaven/config:test:       Tests  25 passed (25)
+@scandihaven/config:test:    Start at  09:49:47
+@scandihaven/config:test:    Duration  418ms (transform 57%, import 28%, tests 10%, worker 4%)
+@scandihaven/config:test: 
+@scandihaven/db:test: 
+@scandihaven/db:test: > @scandihaven/db@0.1.0 test /Home1/project/scandihaven/packages/db
+@scandihaven/db:test: > vitest run
+@scandihaven/db:test: 
+@scandihaven/auth:test: 
+@scandihaven/auth:test: > @scandihaven/auth@0.1.0 test /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:test: > vitest run
+@scandihaven/auth:test: 
+@scandihaven/web:test: 
+@scandihaven/web:test: > @scandihaven/web@0.1.0 test /Home1/project/scandihaven/apps/web
+@scandihaven/web:test: > vitest run
+@scandihaven/web:test: 
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: > @scandihaven/commerce@0.1.0 test /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:test: > vitest run --coverage
+@scandihaven/commerce:test: 
+@scandihaven/admin:test: 
+@scandihaven/admin:test: > @scandihaven/admin@0.1.0 test /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:test: > vitest run
+@scandihaven/admin:test: 
+@scandihaven/db:test: 
+@scandihaven/db:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/db
+@scandihaven/db:test: 
+@scandihaven/web:test: (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+@scandihaven/web:test:   - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+@scandihaven/web:test: Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+@scandihaven/auth:test: 
+@scandihaven/auth:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:test: 
+@scandihaven/admin:test: (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+@scandihaven/admin:test:   - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+@scandihaven/admin:test: Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+@scandihaven/web:test: 
+@scandihaven/web:test:  RUN  v5.0.0 /Home1/project/scandihaven/apps/web
+@scandihaven/web:test: 
+@scandihaven/admin:test: 
+@scandihaven/admin:test:  RUN  v5.0.0 /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:test: 
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:test:       Coverage enabled with v8
+@scandihaven/commerce:test: 
+@scandihaven/web:test: 
+@scandihaven/web:test:  Test Files  2 passed (2)
+@scandihaven/web:test:       Tests  9 passed (9)
+@scandihaven/web:test:    Start at  15:48:09
+@scandihaven/web:test:    Duration  1.19s (transform 39%, tests 34%, import 20%, worker 7%)
+@scandihaven/web:test: 
+@scandihaven/db:test: 
+@scandihaven/db:test:  Test Files  3 passed (3)
+@scandihaven/db:test:       Tests  17 passed (17)
+@scandihaven/db:test:    Start at  15:48:08
+@scandihaven/db:test:    Duration  2.77s (import 77%, transform 18%, tests 4%, worker 2%)
+@scandihaven/db:test: 
+@scandihaven/auth:test: 
+@scandihaven/auth:test:  Test Files  4 passed (4)
+@scandihaven/auth:test:       Tests  18 passed (18)
+@scandihaven/auth:test:    Start at  15:48:09
+@scandihaven/auth:test:    Duration  4.42s (tests 92%, transform 4%, import 4%, worker 1%)
+@scandihaven/auth:test: 
+@scandihaven/admin:test: 
+@scandihaven/admin:test:  Test Files  1 passed (1)
+@scandihaven/admin:test:       Tests  4 passed (4)
+@scandihaven/admin:test:    Start at  15:48:09
+@scandihaven/admin:test:    Duration  4.60s (tests 89%, transform 8%, import 2%, worker 1%)
+@scandihaven/admin:test: 
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:  Test Files  15 passed (15)
+@scandihaven/commerce:test:       Tests  93 passed (93)
+@scandihaven/commerce:test:    Start at  15:48:09
+@scandihaven/commerce:test:    Duration  8.44s (import 63%, tests 26%, worker 6%, transform 5%)
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:     Isolate  15 workers spawned · ~286ms startup each (spawn + environment, per file)
+@scandihaven/commerce:test:              at least ~1.14s faster with isolate: false — reuses workers across files instead of one per file
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: [34m % [39m[2mCoverage report from [22m[33mv8[39m
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: All files       |   90.68 |    81.96 |   89.28 |   92.66 |                   
+@scandihaven/commerce:test:  money.ts       |      95 |    84.61 |     100 |     100 | 20,39             
+@scandihaven/commerce:test:  pricing.ts     |   93.97 |    81.48 |     100 |    94.8 | 50,83-84,166      
+@scandihaven/commerce:test:  promotions.ts  |   80.64 |       80 |      80 |   85.18 | 68,71,78,87       
+@scandihaven/commerce:test:  result.ts      |       0 |        0 |       0 |       0 | 3-36              
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: =============================== Coverage summary ===============================
+@scandihaven/commerce:test: Statements   : 90.68% ( 146/161 )
+@scandihaven/commerce:test: Branches     : 81.96% ( 100/122 )
+@scandihaven/commerce:test: Functions    : 89.28% ( 25/28 )
+@scandihaven/commerce:test: Lines        : 92.66% ( 139/150 )
+@scandihaven/commerce:test: ================================================================================
+
+ Tasks:    7 successful, 7 total
+Cached:    2 cached, 7 total
+  Time:    10.723s 
+

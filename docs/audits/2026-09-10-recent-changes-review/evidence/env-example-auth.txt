@@ -1,0 +1,4 @@
+7:BETTER_AUTH_SECRET=set-me-with-openssl-rand-base64-32
+11:# BETTER_AUTH_TRUSTED_ORIGINS); the origin each request is served on is
+13:BETTER_AUTH_URL=http://localhost:3000
+14:#BETTER_AUTH_TRUSTED_ORIGINS=https://scandihaven.example,https://admin.scandihaven.example

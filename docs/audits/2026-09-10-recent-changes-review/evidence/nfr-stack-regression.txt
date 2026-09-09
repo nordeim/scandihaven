@@ -1,0 +1,63 @@
+=== NFR-STACK-7 @source ===
+apps/admin/src/app/globals.css:7:@source "../../../../packages/ui/src";
+apps/admin/src/app/globals.css:8:@source "../../../../packages/auth/src";
+apps/admin/src/app/globals.css:9:@source "../../../../packages/commerce/src";
+apps/web/src/app/globals.css:7:@source "../../../../packages/ui/src";
+apps/web/src/app/globals.css:8:@source "../../../../packages/auth/src";
+apps/web/src/app/globals.css:9:@source "../../../../packages/commerce/src";
+--- NFR-STACK-8 @theme literal ---
+75:    border-color: var(--color-line);
+82:    background-color: var(--color-bg);
+83:    color: var(--color-ink);
+86:    background-color: var(--color-bg-3);
+89:    outline: 2px solid var(--color-ring);
+--- NFR-STACK-9 page exports ---
+apps/web/src/app/cart/page.tsx:6:export const metadata: Metadata = {
+apps/web/src/app/cart/page.tsx:11:export const dynamic = "force-dynamic";
+apps/web/src/app/shop/page.tsx:10:export const metadata: Metadata = {
+apps/web/src/app/shop/[category]/page.tsx:15:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/checkout/page.tsx:8:export const metadata: Metadata = {
+apps/web/src/app/checkout/page.tsx:13:export const dynamic = "force-dynamic";
+apps/web/src/app/checkout/success/page.tsx:4:export const metadata: Metadata = {
+apps/web/src/app/collections/[slug]/page.tsx:14:export const revalidate = 300;
+apps/web/src/app/collections/[slug]/page.tsx:25:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/collections/page.tsx:5:export const metadata: Metadata = {
+apps/web/src/app/collections/page.tsx:10:export const revalidate = 300;
+apps/web/src/app/account/page.tsx:10:export const metadata: Metadata = {
+apps/web/src/app/account/page.tsx:15:export const dynamic = "force-dynamic";
+apps/web/src/app/products/[slug]/page.tsx:12:export const revalidate = 300; // ISR per PRD §4.4; tag-invalidated on catalog mutation
+apps/web/src/app/products/[slug]/page.tsx:14:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/layout.tsx:22:export const metadata: Metadata = {
+apps/web/src/app/journal/page.tsx:4:export const metadata: Metadata = {
+apps/web/src/app/journal/page.tsx:9:export const revalidate = 300;
+apps/web/src/app/[slug]/page.tsx:10:export const dynamic = "force-dynamic";
+apps/web/src/app/[slug]/page.tsx:12:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+--- NFR-STACK-10 async request APIs ---
+apps/web/src/app/[slug]/page.tsx:12:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/[slug]/page.tsx:13:  const { slug } = await params;
+apps/web/src/app/[slug]/page.tsx:18:export default async function StaticContentPage({ params }: { params: Params }) {
+apps/web/src/app/[slug]/page.tsx:19:  const { slug } = await params;
+apps/web/src/app/account/page.tsx:20:    .getSession({ headers: await headers() })
+apps/web/src/app/products/[slug]/page.tsx:14:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/products/[slug]/page.tsx:15:  const { slug } = await params;
+apps/web/src/app/products/[slug]/page.tsx:38:export default async function ProductPage({ params }: { params: Params }) {
+apps/web/src/app/products/[slug]/page.tsx:39:  const { slug } = await params;
+apps/web/src/app/shop/page.tsx:28:export default async function ShopPage({ searchParams }: { searchParams: SearchParams }) {
+apps/web/src/app/shop/page.tsx:29:  const params = await searchParams;
+apps/web/src/app/shop/page.tsx:31:    sort: pick(params.sort) ?? "featured",
+apps/web/src/app/shop/page.tsx:32:    page: pick(params.page) ?? 1,
+apps/web/src/app/shop/page.tsx:33:    availability: pick(params.availability) ?? "all",
+apps/web/src/app/shop/page.tsx:34:    search: pick(params.q),
+apps/web/src/app/collections/[slug]/page.tsx:25:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+apps/web/src/app/collections/[slug]/page.tsx:26:  const { slug } = await params;
+apps/web/src/app/collections/[slug]/page.tsx:34:export default async function CollectionPage({ params }: { params: Params }) {
+apps/web/src/app/collections/[slug]/page.tsx:35:  const { slug } = await params;
+apps/web/src/app/shop/[category]/page.tsx:15:export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+--- NFR-STACK-11 turbo globalEnv ---
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "NEXT_PUBLIC_SITE_URL",
+--- sql.raw / any / cycles ---

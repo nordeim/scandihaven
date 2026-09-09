@@ -1,0 +1,143 @@
+{
+  "auditId": "2026-09-10-recent-changes-review",
+  "window": { "base": "48be575", "head": "e9c061f", "commits": 11, "files": 29, "insertions": 695, "deletions": 178 },
+  "verdict": "PASS",
+  "gates": {
+    "lint": { "status": "PASS", "detail": "8/8 tasks, 0 errors, 0 warnings", "evidence": "evidence/pnpm-lint.txt", "label": "Verified" },
+    "typecheck": { "status": "PASS", "detail": "8/8 tasks", "evidence": "evidence/pnpm-typecheck.txt", "label": "Verified" },
+    "test": { "status": "PASS", "detail": "7/7 tasks — commerce 93 (15 files), db 17 (3), web 9 (2), auth 18 (4), admin 4 (1); 12 integration skipped (skipIf); coverage 90.68 stmts / 89.28 funcs", "evidence": "evidence/pnpm-test.txt", "label": "Verified" },
+    "build": { "status": "PASS", "detail": "2/2 tasks, both ƒ Proxy (Middleware), 20 routes including ƒ /lookbooks/[[...slug]]", "evidence": "evidence/pnpm-build.txt", "label": "Verified" },
+    "secretScan": { "status": "PASS", "detail": "tracked files clean; git ls-files shows only .env.example", "evidence": "evidence/secret-scan-replay.txt", "label": "Verified" }
+  },
+  "commits": [
+    {
+      "sha": "5241904",
+      "subject": "chore(security): untrack .env, .env.local, docs/bak.env; ignore env backups (C2r)",
+      "finding": "C2r — 262d3cc re-added all three secrets after dd352c6 had untracked them",
+      "locus": [".gitignore:4", "git ls-files"],
+      "prd": ["§9.4", "§13.4"],
+      "verdict": "PASS",
+      "severity": "Blocking",
+      "label": "Verified"
+    },
+    {
+      "sha": "17decda",
+      "subject": "ci(security): run secret scan with --no-ignore so tracked-but-ignored files are scanned (C-CI)",
+      "finding": "C-CI — rg honors .gitignore, so tracked-but-ignored secrets escaped the gate",
+      "locus": [".github/workflows/ci.yml: secret scan step"],
+      "prd": ["§9.4", "§13.3 job 6"],
+      "verdict": "PASS",
+      "severity": "Blocking",
+      "label": "Verified"
+    },
+    {
+      "sha": "1016fda",
+      "subject": "fix(auth): trust the served origin from proxy headers; unbreak sign-in behind reverse proxies (H-AUTH)",
+      "finding": "H-AUTH — BETTER_AUTH_URL=localhost pinned trusted set; sign-in INVALID_ORIGIN on both live apps",
+      "locus": ["packages/auth/src/trusted-origins.ts", "packages/auth/src/trusted-origins.test.ts (7)", "packages/auth/src/server.ts:trustedOrigins hook", "packages/auth/src/server-origin.test.ts (3)", ".env.example:BETTER_AUTH_URL", "AGENTS.md:Auth origin trust", "CLAUDE.md:BETTER_AUTH_URL"],
+      "prd": ["§9.1", "§9.7", "FR-601"],
+      "verdict": "PASS",
+      "severity": "Blocking",
+      "label": "Verified (unit); deployment healing Unverifiable",
+      "followUp": { "id": "S-1", "severity": "Minor", "effort": "S", "detail": "Explicit merge of BETTER_AUTH_TRUSTED_ORIGINS env into hook return as defense-in-depth" }
+    },
+    {
+      "sha": "7800374",
+      "subject": "fix(ops): check the seeded PDP slug in start_server.sh health gate (M-SH)",
+      "finding": "M-SH — start_server.sh checked /products/halden-armchair; seeded slug is halden-linen-armchair",
+      "locus": ["start_server.sh:447", "packages/db/src/seed/ensure-seeded.ts:83"],
+      "prd": ["§13.5"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Verified"
+    },
+    {
+      "sha": "bb48978",
+      "subject": "fix(web): server-render the branded 404 and the FR-705 lookbooks notice (M-404)",
+      "finding": "M-404 — not-found.tsx was client + usePathname → SSR empty Suspense shell; deferred FR-705 must 404 honestly",
+      "locus": ["apps/web/src/app/not-found.tsx (server component)", "apps/web/src/app/lookbooks/[[...slug]]/page.tsx", "apps/web/src/app/lookbooks/not-found.tsx (FR-705)"],
+      "prd": ["FR-109", "FR-705", "§10.5", "§15.3"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Verified"
+    },
+    {
+      "sha": "776ff82",
+      "subject": "feat(db): seed the FAQ static page the footer links to (M-FAQ)",
+      "finding": "M-FAQ — footer /faq link 404ed (no static_page seed)",
+      "locus": ["packages/db/src/seed/ensure-seeded.ts: faq onConflictDoNothing"],
+      "prd": ["FR-704", "FR-809"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Reasoned (needs PG); Verified in CI"
+    },
+    {
+      "sha": "ab635ab",
+      "subject": "fix(web): emit PDP titles without a doubled site suffix (M-TITLE)",
+      "finding": "M-TITLE — seoTitle already suffixed + layout template → double suffix",
+      "locus": ["apps/web/src/app/products/[slug]/page.tsx: generateMetadata title:{absolute}"],
+      "prd": ["§11.1", "FR-312"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Reasoned locally; Verified by E2E in CI"
+    },
+    {
+      "sha": "311d4f3",
+      "subject": "fix(commerce): filter collection grids by product id in SQL (M-COL)",
+      "finding": "M-COL — collection page loaded first 48 + JS-filtered (silent cliff)",
+      "locus": ["packages/commerce/src/catalog.ts: ids schema .max(500) + IN filter + effectivePageSize=ids.length", "packages/commerce/src/catalog-query.test.ts (5)", "apps/web/src/app/collections/[slug]/page.tsx (rewired)"],
+      "prd": ["FR-702", "§7.8", "§8.8"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Verified (schema/unit); SQL Verified in CI"
+    },
+    {
+      "sha": "937cb78",
+      "subject": "fix(admin): log health-check DB failures instead of swallowing them (M-HLTH)",
+      "finding": "M-HLTH — admin health catch {} swallowed DB errors",
+      "locus": ["apps/admin/src/app/api/health/route.ts: console.error"],
+      "prd": ["§8.4", "§12.3"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Verified"
+    },
+    {
+      "sha": "3522751",
+      "subject": "test(e2e): pin SSR 404 body, FR-705 notice, and single PDP title suffix",
+      "finding": "Harness for M-404 + M-TITLE (SSR-body assertions + FR-705 pin)",
+      "locus": ["apps/web/e2e/storefront.spec.ts: +19 lines (3 specs)"],
+      "prd": ["FR-109", "FR-705", "FR-312", "§12.1"],
+      "verdict": "PASS",
+      "severity": "Major",
+      "label": "Verified"
+    },
+    {
+      "sha": "e9c061f",
+      "subject": "docs: live-site E2E audit, remediation plan, and doc alignment",
+      "finding": "Docs — findings.md + remediation plan + traceability/ledger/AGENTS/CLAUDE/README alignment",
+      "locus": ["docs/audits/2026-09-09-e2e-live-site-audit/findings.md", "docs/plans/2026-09-09-e2e-live-remediation.md", "docs/traceability.md", "docs/verification-ledger.md", "AGENTS.md", "CLAUDE.md", "README.md"],
+      "prd": ["§14.2", "§12.4", "§13.6"],
+      "verdict": "PASS",
+      "severity": "Minor",
+      "label": "Verified"
+    }
+  ],
+  "nfrStack": {
+    "NFR-STACK-1": "Pass", "NFR-STACK-2": "Pass", "NFR-STACK-3": "Pass", "NFR-STACK-4": "Pass",
+    "NFR-STACK-5": "Pass", "NFR-STACK-6": "Pass", "NFR-STACK-7": "Pass", "NFR-STACK-8": "Pass",
+    "NFR-STACK-9": "Pass", "NFR-STACK-10": "Pass", "NFR-STACK-11": "Pass"
+  },
+  "residuals": [
+    { "id": "S-1", "severity": "Minor", "effort": "S", "locus": "packages/auth/src/server.ts:trustedOrigins", "detail": "Hook returns [served] only; explicitly merge BETTER_AUTH_TRUSTED_ORIGINS env allow-list inside hook as defense-in-depth" },
+    { "id": "N-1", "severity": "Nit", "locus": "docs/env.tgz (untracked, 1.2K)", "detail": "If this archives a real .env its contents are secrets; delete or add docs/env.tgz to .gitignore" },
+    { "id": "N-2", "severity": "Nit", "locus": "docs/recent_code_changes.txt (M), docs/session_3.md (A)", "detail": "Audit supplements remain M/A in git status; track or gitignore per 2026-09-10 ledger A03" },
+    { "id": "N-3", "severity": "Nit", "locus": "start_server_log.txt (M)", "detail": "Local boot artifact already gitignored via server*.log; working-tree M is harmless if not staged" }
+  ],
+  "opsActionsRequired": [
+    "Rotate every secret exposed via 262d3cc: BETTER_AUTH_SECRET, CRON_SECRET, DATABASE_URL password, Stripe test keys",
+    "Redeploy both apps so 1016fda reaches production (or set BETTER_AUTH_TRUSTED_ORIGINS on deployment)",
+    "Align Stripe env on deployment: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY set while STRIPE_SECRET_KEY absent (L-STR)"
+  ],
+  "ledgerHonesty": "Pass — ledger labels Verified / Reasoned / Unverifiable honestly per PRD §12.4",
+  "traceabilityHonesty": "Pass — three honest corrections to prior overclaims (FR-104, FR-109, FR-701/703, FR-704); no silent drift"
+}

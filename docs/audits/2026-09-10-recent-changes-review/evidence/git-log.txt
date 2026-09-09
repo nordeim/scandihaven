@@ -1,0 +1,12 @@
+e9c061f (HEAD -> main, origin/main, origin/HEAD) docs: live-site E2E audit, remediation plan, and doc alignment
+3522751 test(e2e): pin SSR 404 body, FR-705 notice, and single PDP title suffix
+937cb78 fix(admin): log health-check DB failures instead of swallowing them (M-HLTH)
+311d4f3 fix(commerce): filter collection grids by product id in SQL (M-COL)
+ab635ab fix(web): emit PDP titles without a doubled site suffix (M-TITLE)
+776ff82 feat(db): seed the FAQ static page the footer links to (M-FAQ)
+bb48978 fix(web): server-render the branded 404 and the FR-705 lookbooks notice (M-404)
+7800374 fix(ops): check the seeded PDP slug in start_server.sh health gate (M-SH)
+1016fda fix(auth): trust the served origin from proxy headers; unbreak sign-in behind reverse proxies (H-AUTH)
+17decda ci(security): run secret scan with --no-ignore so tracked-but-ignored files are scanned (C-CI)
+5241904 chore(security): untrack .env, .env.local, docs/bak.env; ignore env backups (C2r)
+5c74c2a Update prompts-2.md

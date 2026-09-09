@@ -1,0 +1,58 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 0add944..ea4f908 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -39,8 +39,9 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without
+   2. **Auto content-scan does not reach `packages/ui`** — `@source "../../../../packages/ui/src";` in each app's `globals.css` is load-bearing. Without it, classes used only inside the UI package (`bg-secondary`, `bg-primary`, `hover:bg-bg-3`) silently never generate CSS.
+ - **Turborepo env passing**: env vars read inside `next.config.ts` (e.g. `DISABLE_IMAGE_OPTIMIZER`) must be listed in `turbo.json` `globalEnv` or turbo strips them from build tasks.
+ - **Boot validation**: each app's `src/instrumentation.ts` runs `parseServerEnv()` + `parseFlags()` when the server starts — missing required env or an unknown `FEATURE_*` var fails fast with an actionable message (PRD §9.4).
++- **Auth origin trust**: `packages/auth/src/server.ts` derives the trusted origin per request from proxy-controlled headers (`x-forwarded-host`/`host`/`x-forwarded-proto` — never `Origin`/`Referer`, which are attacker-controlled). A localhost-pinned `BETTER_AUTH_URL` behind a reverse proxy broke sign-in on both live apps with "Invalid origin" (audit 2026-09-09 H-AUTH) — the pure seam is `trusted-origins.ts`; don't widen it to read `Origin`.
+ - **Proxy convention location**: `proxy.ts` lives at `apps/*/src/proxy.ts` — Next 16.3 discovers it at the parent of the app dir, so a repo-root (`apps/web/proxy.ts`) placement compiles but is silently never registered (headers/gate never ran; audit 2026-09-09 H8d). The `config.matcher` MUST stay an inline literal (Next statically parses it); its semantics are pinned by `apps/web/src/lib/proxy-matcher.test.ts`.
+-- **CI secret scan**: `rg` exits 0 on a MATCH — the gate must be `if rg …; then fail; else clean; fi`; the old `&& echo clean || fail` chaining inverted it (audit 2026-09-09 H6d).
++- **CI secret scan**: `rg` exits 0 on a MATCH — the gate must be `if rg …; then fail; else clean; fi` (audit 2026-09-09 H6d). `rg` also honors `.gitignore`, so the scan runs with `--no-ignore` — without it, tracked-but-ignored files (`.env`/`.env.local`, re-committed by 262d3cc) are invisible to the gate (audit 2026-09-09 C-CI).
+ - **Build-time env**: `next build` imports the auth route (`/api/auth/[...all]`), which constructs the Better-Auth instance and therefore the db client — builds require `DATABASE_URL` + `BETTER_AUTH_SECRET` to be set (same values as CI/§13.4).
+ - **Image optimizer**: `DISABLE_IMAGE_OPTIMIZER=1` (local/E2E) serves images unoptimized — the sharp pipeline can deadlock in constrained sandboxes. Production keeps optimization on.
+ - **React 19 + react-stripe-js v6**: `confirmPayment` is a method on `useStripe()`, not a module export.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 4a7312d..2cf1a1a 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -146,6 +146,7 @@ Dependency direction `db ← auth ← commerce ← apps` — cycles break the tu
+ |---|---|---|
+ | `DATABASE_URL` | PostgreSQL 17 connection | App role should lack DDL in production |
+ | `BETTER_AUTH_SECRET` | Auth + cart-cookie HMAC | ≥ 32 chars; required or boot fails |
++| `BETTER_AUTH_URL` | Canonical auth origin | **Must be the public origin in production** — localhost behind a reverse proxy broke live sign-in ("Invalid origin", audit 2026-09-09 H-AUTH); the served origin is additionally derived from proxy headers, and `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated) allow-lists extras |
+ | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Payments (test mode in dev) | Unset → honest "not configured" checkout state |
+ | `RESEND_API_KEY`, `EMAIL_FROM` | Transactional email | Unset → log transport |
+ | `CRON_SECRET` | Protects `/api/jobs/run` | Outbox drainer |
+diff --git a/README.md b/README.md
+index f0d2735..bf66392 100644
+--- a/README.md
++++ b/README.md
+@@ -118,7 +118,7 @@ pnpm typecheck && pnpm lint && pnpm test   # all green
+ open http://localhost:3000/shop     # seeded catalog (Halden armchair, Øresund lamp, …)
+ ```
+ 
+-Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. **Never commit `.env`/`.env.local`** — a 2026-09-09 audit found them git-tracked with real secrets (they are untracked now; rotate any value that was exposed or deployed). Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm --filter @scandihaven/web seed:admin` (no default credentials ship in the repo).
++Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. **Never commit `.env`/`.env.local`** — a 2026-09-09 audit found them git-tracked with real secrets (they are untracked now; rotate any value that was exposed or deployed). ⚠️ **Ops, 2026-09-09:** commit `262d3cc` re-exposed `.env`, `.env.local`, and `docs/bak.env` publicly — every value in those files must be rotated (see `docs/audits/2026-09-09-e2e-live-site-audit/findings.md` C2r). Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm --filter @scandihaven/web seed:admin` (no default credentials ship in the repo).
+ 
+ ## Environment Variables
+ 
+@@ -126,7 +126,8 @@ Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `
+ |---|---|---|
+ | `DATABASE_URL` | PostgreSQL 17 connection string (`scandihaven_dev` / `scandihaven_user` via compose) | ✅ |
+ | `BETTER_AUTH_SECRET` | Auth signing + cart-cookie HMAC (≥ 32 chars) | ✅ |
+-| `BETTER_AUTH_URL` / `NEXT_PUBLIC_SITE_URL` | Canonical origin for auth redirects | ✅ |
++| `BETTER_AUTH_URL` / `NEXT_PUBLIC_SITE_URL` | Canonical origin for auth redirects — **public origin in production** | ✅ |
++| `BETTER_AUTH_TRUSTED_ORIGINS` | Extra comma-separated origins trusted by auth (the served origin is derived from proxy headers automatically) | optional |
+ | `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` · `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Payments (test mode locally) | for checkout |
+ | `RESEND_API_KEY` · `EMAIL_FROM` | Transactional email (log transport when unset) | optional |
+ | `CRON_SECRET` | Protects `/api/jobs/run` (outbox drainer) | in prod |
+@@ -184,6 +185,7 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
+ | Classes like `bg-secondary` have no CSS | The `@source` directives in each app's `globals.css` must include `packages/ui/src` (Tailwind v4 auto-scan doesn't reach workspace packages) |
+ | Turbo build "does nothing" / silently skips | You created a workspace dependency cycle (e.g. `db` ↔ `commerce`); package direction must stay `db ← auth ← commerce ← apps` |
+ | Cart always empty after add | `BETTER_AUTH_SECRET` changed between signing and verifying — the cart cookie HMAC uses it; keep the value stable per environment |
++| Sign-in shows "Invalid origin" (storefront or admin) | `BETTER_AUTH_URL` must be the **public** origin behind a reverse proxy (a localhost value pins the trusted set to localhost — audit 2026-09-09 H-AUTH). Since the 2026-09-09 fix the app also trusts the origin each request is served on (derived from proxy-controlled headers); extra origins may be allow-listed via the native `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated). Redeploy after fixing env |
+ | `next build` type error on page file | Next 16 pages may only export `default` + metadata/revalidate/dynamic — move helpers out |
+ | Seed refuses to run | Seed/migrate only accept local hosts (`localhost`, `127.0.0.1`) by design |
+ | `docker compose` volume `pgdata` not found / `scandihaven-db` unhealthy | Renamed to `postgres_data` / `scandihaven_postgres` with `PGDATA` and `start_period`; run `docker compose down -v` once (one-time, re-seeds via `pnpm db:seed`) then `docker compose up -d` (init installs `pgcrypto`+`pg_trgm`) |

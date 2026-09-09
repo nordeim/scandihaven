@@ -1,0 +1,56 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ typecheck /Home1/project/scandihaven
+> turbo run typecheck
+
+• turbo 2.10.12
+
+   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
+   • Running typecheck in 8 packages
+   • Remote caching disabled
+
+@scandihaven/web:typecheck: cache miss, executing c3711ac77fbde7eb
+@scandihaven/commerce:typecheck: cache miss, executing 289a85b48f9c01bd
+@scandihaven/db:typecheck: cache miss, executing 2173204210f2499e
+@scandihaven/admin:typecheck: cache miss, executing 22c8716a6ca52282
+@scandihaven/auth:typecheck: cache miss, executing 0910879882b5fcb9
+@scandihaven/email:typecheck: cache hit, replaying logs 38d0e598ff0d6c94
+@scandihaven/email:typecheck: 
+@scandihaven/email:typecheck: > @scandihaven/email@0.1.0 typecheck /Home1/project/scandihaven/packages/email
+@scandihaven/email:typecheck: > tsc --noEmit
+@scandihaven/email:typecheck: 
+@scandihaven/config:typecheck: cache hit, replaying logs f5e93fed25b209d5
+@scandihaven/config:typecheck: 
+@scandihaven/config:typecheck: > @scandihaven/config@0.1.0 typecheck /Home1/project/scandihaven/packages/config
+@scandihaven/config:typecheck: > tsc --noEmit
+@scandihaven/config:typecheck: 
+@scandihaven/ui:typecheck: cache hit, replaying logs b718b3b16a82152b
+@scandihaven/ui:typecheck: 
+@scandihaven/ui:typecheck: > @scandihaven/ui@0.1.0 typecheck /Home1/project/scandihaven/packages/ui
+@scandihaven/ui:typecheck: > tsc --noEmit
+@scandihaven/ui:typecheck: 
+@scandihaven/db:typecheck: 
+@scandihaven/db:typecheck: > @scandihaven/db@0.1.0 typecheck /Home1/project/scandihaven/packages/db
+@scandihaven/db:typecheck: > tsc --noEmit
+@scandihaven/db:typecheck: 
+@scandihaven/admin:typecheck: 
+@scandihaven/admin:typecheck: > @scandihaven/admin@0.1.0 typecheck /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:typecheck: > tsc --noEmit
+@scandihaven/admin:typecheck: 
+@scandihaven/auth:typecheck: 
+@scandihaven/auth:typecheck: > @scandihaven/auth@0.1.0 typecheck /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:typecheck: > tsc --noEmit
+@scandihaven/auth:typecheck: 
+@scandihaven/web:typecheck: 
+@scandihaven/web:typecheck: > @scandihaven/web@0.1.0 typecheck /Home1/project/scandihaven/apps/web
+@scandihaven/web:typecheck: > tsc --noEmit
+@scandihaven/web:typecheck: 
+@scandihaven/commerce:typecheck: 
+@scandihaven/commerce:typecheck: > @scandihaven/commerce@0.1.0 typecheck /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:typecheck: > tsc --noEmit
+@scandihaven/commerce:typecheck: 
+
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    20.7s 
+

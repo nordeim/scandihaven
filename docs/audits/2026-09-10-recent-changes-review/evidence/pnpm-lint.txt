@@ -1,0 +1,50 @@
+
+   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
+   • Running lint in 8 packages
+   • Remote caching disabled
+
+@scandihaven/commerce:lint: cache miss, executing d23762d12a1dca33
+@scandihaven/admin:lint: cache miss, executing afc6a575e2df0b9a
+@scandihaven/db:lint: cache miss, executing 878598a275dbf40d
+@scandihaven/auth:lint: cache miss, executing 6a6829a7ec2e3cde
+@scandihaven/web:lint: cache miss, executing ac412a3a8d81801f
+@scandihaven/ui:lint: cache hit, replaying logs 8b13bc32839c2405
+@scandihaven/email:lint: cache hit, replaying logs 818187e4ce09d510
+@scandihaven/config:lint: cache hit, replaying logs 454c75d737e60011
+@scandihaven/ui:lint: 
+@scandihaven/ui:lint: > @scandihaven/ui@0.1.0 lint /Home1/project/scandihaven/packages/ui
+@scandihaven/ui:lint: > eslint .
+@scandihaven/ui:lint: 
+@scandihaven/email:lint: 
+@scandihaven/email:lint: > @scandihaven/email@0.1.0 lint /Home1/project/scandihaven/packages/email
+@scandihaven/email:lint: > eslint .
+@scandihaven/email:lint: 
+@scandihaven/config:lint: 
+@scandihaven/config:lint: > @scandihaven/config@0.1.0 lint /Home1/project/scandihaven/packages/config
+@scandihaven/config:lint: > eslint .
+@scandihaven/config:lint: 
+@scandihaven/db:lint: 
+@scandihaven/db:lint: > @scandihaven/db@0.1.0 lint /Home1/project/scandihaven/packages/db
+@scandihaven/db:lint: > eslint .
+@scandihaven/db:lint: 
+@scandihaven/admin:lint: 
+@scandihaven/admin:lint: > @scandihaven/admin@0.1.0 lint /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:lint: > eslint .
+@scandihaven/admin:lint: 
+@scandihaven/auth:lint: 
+@scandihaven/auth:lint: > @scandihaven/auth@0.1.0 lint /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:lint: > eslint .
+@scandihaven/auth:lint: 
+@scandihaven/web:lint: 
+@scandihaven/web:lint: > @scandihaven/web@0.1.0 lint /Home1/project/scandihaven/apps/web
+@scandihaven/web:lint: > eslint .
+@scandihaven/web:lint: 
+@scandihaven/commerce:lint: 
+@scandihaven/commerce:lint: > @scandihaven/commerce@0.1.0 lint /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:lint: > eslint .
+@scandihaven/commerce:lint: 
+
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    8.629s 
+

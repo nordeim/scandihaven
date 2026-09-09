@@ -1,0 +1,30 @@
+=== AUTH TESTS ===
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> @scandihaven/auth@0.1.0 test /Home1/project/scandihaven/packages/auth
+> vitest run -- trusted-origins
+
+
+ RUN  v5.0.0 /Home1/project/scandihaven/packages/auth
+
+
+ Test Files  4 passed (4)
+      Tests  18 passed (18)
+   Start at  15:48:51
+   Duration  1.95s (tests 91%, transform 5%, import 2%, worker 1%)
+
+--- server-origin ---
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> @scandihaven/auth@0.1.0 test /Home1/project/scandihaven/packages/auth
+> vitest run -- server-origin
+
+
+ RUN  v5.0.0 /Home1/project/scandihaven/packages/auth
+
+
+ Test Files  4 passed (4)
+      Tests  18 passed (18)
+   Start at  15:48:55
+   Duration  2.15s (tests 94%, transform 3%, import 2%, worker 1%)
+

@@ -1,0 +1,28 @@
+--- start_server.sh slug ---
+packages/db/src/seed/ensure-seeded.ts:37:  { id: "10000000-0000-4000-8000-000000000001", url: "/products/halden-armchair.svg", alt: "Halden linen armchair in oak with sand upholstery, three-quarter view" },
+packages/db/src/seed/ensure-seeded.ts:38:  { id: "10000000-0000-4000-8000-000000000002", url: "/products/halden-armchair-2.svg", alt: "Halden linen armchair detail of oak frame joinery" },
+packages/db/src/seed/ensure-seeded.ts:83:    slug: "halden-linen-armchair",
+packages/db/src/seed/ensure-seeded.ts:104:      { sku: "SH-HAL-ARM-OAK-SAND", material: "Oak", color: "Sand linen", colorHex: "#D9CBB3", isDefault: true, priceMinor: 129_900, stockByWarehouse: {}, imageUrls: ["/products/halden-armchair.svg", "/products/halden-armchair-2.svg"] },
+packages/db/src/seed/ensure-seeded.ts:105:      { sku: "SH-HAL-ARM-OAK-CHAR", material: "Oak", color: "Charcoal linen", colorHex: "#3E3A36", priceMinor: 129_900, stockByWarehouse: {}, imageUrls: ["/products/halden-armchair-2.svg"] },
+start_server.sh:447:  check "storefront product PDP" "http://localhost:3000/products/halden-linen-armchair" "Halden"
+--- health route admin vs web ---
+import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@scandihaven/db/client";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    await db.execute(sql`SELECT 1`);
+    return NextResponse.json({ status: "ok", db: true });
+  } catch (error) {
+    // Mirror the storefront health route — a degraded admin must say why
+    // (audit 2026-09-09 M-HLTH: silent catch blinded ops).
+    console.error("[health] db check failed", error);
+    return NextResponse.json({ status: "degraded", db: false }, { status: 503 });
+  }
+}
+---PROXY location---
+-rw-rw-r-- 1 pete pete 1694 Sep  9 09:07 apps/admin/src/proxy.ts
+-rw-rw-r-- 1 pete pete 1409 Sep  9 09:07 apps/web/src/proxy.ts

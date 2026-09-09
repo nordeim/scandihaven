@@ -1,0 +1,31 @@
+=== COMMERCE CATALOG QUERY ===
+
+ RUN  v5.0.0 /Home1/project/scandihaven/packages/commerce
+      Coverage enabled with v8
+
+
+ Test Files  15 passed (15)
+      Tests  93 passed (93)
+   Start at  15:48:59
+   Duration  7.65s (tests 56%, import 37%, transform 4%, worker 2%)
+
+    Isolate  15 workers spawned · ~171ms startup each (spawn + environment, per file)
+             at least ~683ms faster with isolate: false — reuses workers across files instead of one per file
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+----------------|---------|----------|---------|---------|-------------------
+File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------------|---------|----------|---------|---------|-------------------
+All files       |   90.68 |    81.96 |   89.28 |   92.66 |                   
+ money.ts       |      95 |    84.61 |     100 |     100 | 20,39             
+ pricing.ts     |   93.97 |    81.48 |     100 |    94.8 | 50,83-84,166      
+ promotions.ts  |   80.64 |       80 |      80 |   85.18 | 68,71,78,87       
+ result.ts      |       0 |        0 |       0 |       0 | 3-36              
+----------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 90.68% ( 146/161 )
+Branches     : 81.96% ( 100/122 )
+Functions    : 89.28% ( 25/28 )
+Lines        : 92.66% ( 139/150 )
+================================================================================
