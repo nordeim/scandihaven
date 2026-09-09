@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { securityHeaders } from "@scandihaven/config/security-headers";
+import { isSignInPath } from "@/lib/sign-in-paths";
 
 /**
  * Admin proxy (PRD §9.2): unauthenticated visitors bounce to /sign-in.
@@ -8,6 +9,14 @@ import { securityHeaders } from "@scandihaven/config/security-headers";
  * Security headers come from the shared §9.3 manifest and apply to EVERY
  * admin route including /sign-in (a credential page must not go bare;
  * audit 2026-09-09 follow-up to H5d/LD-2).
+ *
+ * `/admin`-prefixed paths: the deployment serves this app behind host-based
+ * routing where the canonical URL carries an `/admin` path prefix, but the
+ * app's routes live at the root — beforeFiles rewrites in next.config.ts
+ * strip the prefix after this gate runs (live E2E audit 2026-09-09 round 2,
+ * H2-ADMIN: without the rewrites, post-sign-in navigation to `/admin` — the
+ * gate's own redirect target — landed on a 404). The prefixed sign-in page
+ * passes the gate exactly like the bare one (isSignInPath).
  *
  * NOTE: this file lives at `src/proxy.ts` — Next 16.3 discovers the proxy
  * convention at the parent of the app directory (`src/` for src-dir apps).
@@ -26,7 +35,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     request.cookies.get("better-auth.session_token")?.value ??
     request.cookies.get("__Secure-better-auth.session_token")?.value;
 
-  if (!sessionCookie && request.nextUrl.pathname !== "/sign-in") {
+  if (!sessionCookie && !isSignInPath(request.nextUrl.pathname)) {
     const signIn = new URL("/sign-in", request.url);
     signIn.searchParams.set("redirect", request.nextUrl.pathname);
     return applyHeaders(NextResponse.redirect(signIn));
