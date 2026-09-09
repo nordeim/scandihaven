@@ -21,6 +21,8 @@ please meticulously plan to proceed with your best recommendations
 
 please meticulously review @AGENTS.md , @CLAUDE.md , @README.md and @PRD.md to have a deep understanding of the project and its codebase design and architecture. next, meticulously plan to review and validate the code changes in recent git commits as listed in @docs/recent_code_changes.txt and @docs/session_2.md
 
+please meticulously review @AGENTS.md , @CLAUDE.md , @README.md and @PRD.md to have a deep understanding of the project and its codebase design and architecture. Next, meticulously plan to validate your deep understanding against the codebase to check for alignment and to confirm the project status.
+
 ---
 
 please meticulously convert the 'clone-plan-rothershrine' document into a markdown file for your future reference and alignment going forward. Next, meticulously review and validate the plan against the relevant skills from the   'my-pi-agent' repo to help you complete your task of cloning the `https://www.rothershrine.org/` website successfully. You can review https://github.com/nordeim/my-pi-agent/blob/main/skills/skills-catalog.md for the relevant skills in the 'my-pi-agent' repo

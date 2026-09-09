@@ -1,0 +1,1980 @@
+{
+  "stack": {
+    "phase": "NFR-STACK",
+    "summary": "Audited NFR-STACK-3/5/6/7/8/9/10/11 by reading globals.css, tokens.css, turbo.json, pnpm-workspace.yaml, next.config.ts, money.ts, email/send.ts and rg/fd sweeps: 7 PASS (glob @source present in both apps), 8 PASS (tokens literal hex, no var chains for semantic colors), 9 PASS (only default/metadata/generateMetadata/revalidate/dynamic across 20+ page.tsx), 10 PASS (all params/searchParams/cookies/headers awaited), 11 PASS (no static react-dom/server, only turbopackIgnore dynamic import + globalEnv contains DISABLE_IMAGE_OPTIMIZER), 3 PASS (no cross-boundary imports, no sql.raw), 6 PASS (no build scripts, exports\u2192src/*.ts, no dist, transpilePackages correct), 5 PASS with qualifier (integer guards + BigInt pricing, float isolated to FX/formatting wrapped in roundHalfUp). No Blocking failures.",
+    "findings": [
+      {
+        "id": "NFR-STACK-7",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/globals.css",
+        "evidence": "apps/web/src/app/globals.css:7 @source \"../../../../packages/ui/src\"; apps/admin/src/app/globals.css:7 @source \"../../../../packages/ui/src\"",
+        "note": "Both apps contain Tailwind v4 @source directives reaching packages/ui/src \u2014 rg '@source' matched in web 7:5 and admin 7:5. Without this, classes used only inside UI package (bg-secondary, hover:bg-bg-3) silently never generate. Extra @source for auth/commerce also present (line 8-9) but requirement is ui/src. Verified via read + rg."
+      },
+      {
+        "id": "NFR-STACK-8",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/ui/src/tokens.css",
+        "evidence": "packages/ui/src/tokens.css:25 --color-background: #faf7f2; 31:--color-primary: #8f4326; 33:--color-secondary: #f0eae0; 38:--color-border: #e5ddd1; 40:--color-ring: #8f4326",
+        "note": "@theme block uses literal hex for all shadcn semantic tokens (background/foreground/card/popover/primary/secondary/border/input/ring etc. lines 25-40). No var() chains for colors \u2014 rg var\\( in file only matches font tokens (43:--font-display var(--font-fraunces)) and @layer base usages (75,82,83,86,89), not semantic colors. Comment on 23-24 explicitly documents var() chains are dropped by Tailwind v4 build."
+      },
+      {
+        "id": "NFR-STACK-9",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/**/page.tsx",
+        "evidence": "apps/web/src/app/[slug]/page.tsx:10 export const dynamic, 12:export async function generateMetadata, 18:export default; apps/web/src/app/products/[slug]/page.tsx:12 revalidate,14 generateMetadata,38 default; apps/web/src/app/shop/page.tsx:10 metadata,28 default (no extra); rg ^\\s*export across 21 page.tsx files returned only metadata/generateMetadata/revalidate/dynamic/default",
+        "note": "Grep for ^\\s*export in apps/*/src/app/**/page.tsx (rg export\\\\s) shows zero disallowed exports (no runtime, fetchCache, generateStaticParams, custom const). All exports are allow-list: default, metadata (journal 4, collections 5, account 10), generateMetadata ([slug] 12, products 14, collections/[slug] 25, shop/[category] 15), revalidate (products 12, collections 14), dynamic (sign-in 7, account 15, [slug] 10). Next 16 statically parses page exports \u2014 extra exports would fail build."
+      },
+      {
+        "id": "NFR-STACK-10",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/[slug]/page.tsx",
+        "evidence": "apps/web/src/app/[slug]/page.tsx:13 const {slug}=await params; apps/web/src/app/products/[slug]/page.tsx:15 await params; apps/web/src/app/shop/[category]/page.tsx:16 await params, 33 await params,34 await searchParams; apps/web/src/lib/cart-session.ts:13 await cookies(); apps/web/src/actions/cart.ts:36 await cookies(); apps/admin/src/lib/admin-guard.ts:58 await headers(); apps/web/src/app/account/page.tsx:20 await headers()",
+        "note": "Next 16 async params/searchParams/cookies/headers correctly awaited everywhere. rg cookies\\(\\)|headers\\(\\) showed 6 hits, all preceded by await (cart-session 13, cart.ts 36, cart.test 142, newsletter 26, admin-guard 58, staff layout 19). Bare grep cookies()|headers() without await returned 0 after excluding .next. params awaited in all dynamic routes (collections/[slug] 26/35, shop/page 29, products/[slug] 15/39, admin orders/[id] 14, products/[id] 13). No sync access."
+      },
+      {
+        "id": "NFR-STACK-11",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/email/src/send.ts",
+        "evidence": "packages/email/src/send.ts:17 const {renderToStaticMarkup}=await import(/* turbopackIgnore: true */ \"react-dom/server\"); turbo.json:12 \"DISABLE_IMAGE_OPTIMIZER\" in globalEnv[0..11]",
+        "note": "No static import of react-dom/server in apps/packages source (rg from.*react-dom/server excluding node_modules returns only PRD.md reference). Sole usage is runtime dynamic import with turbopackIgnore in email/send.ts:17 \u2014 correctly avoids Turbopack App Router graph ban (pattern pinned by PRD \u00a74.5). turbo.json globalEnv contains DISABLE_IMAGE_OPTIMIZER (line 12) plus 11 other envs (DATABASE_URL, BETTER_AUTH_SECRET etc.) \u2014 covers next.config.ts unoptimized flag (apps/web 23) which reads process.env.DISABLE_IMAGE_OPTIMIZER; turbo strips undeclared envs at build."
+      },
+      {
+        "id": "NFR-STACK-3",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src",
+        "evidence": "rg from.*@scandihaven/(auth|commerce) in packages/db/src => 0 hits; rg from.*@scandihaven/commerce in packages/ui/src => 0 hits; rg \\.raw\\( in packages => 0 hits (only sql` tagged templates e.g. packages/db/src/schema/auth.ts:37 sql`ARRAY[]::text[]`)",
+        "note": "Boundary discipline intact: db has zero imports of auth/commerce (would cycle turbo graph), ui imports only react/radix/tailwind (no commerce). Dependency direction db\u2190auth\u2190commerce\u2190apps enforced via transpilePackages. No sql.raw \u2014 all drizzle sql usage is parameterized tagged templates (sql`p.status='active'`, sql.join, sql.execute) not string concat. Evidence from rg excludes."
+      },
+      {
+        "id": "NFR-STACK-5",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/commerce/src/money.ts",
+        "evidence": "packages/commerce/src/money.ts:13 assertMinor with Number.isSafeInteger; 21 roundHalfUp Math.round; 31 return roundHalfUp(eurMinor * numeric); 41 amount/divisor in formatMinor; packages/commerce/src/pricing.ts uses BigInt largest-remainder (not in money.ts)",
+        "note": "Money core is integer minor units with assertMinor guard (13) and integer sumMinor (49-54). Limited float ops isolated to FX conversion (27 Number.parseFloat +31 eurMinor*numeric wrapped immediately in roundHalfUp) and display formatting (41 amount/divisor +42 toFixed) \u2014 both bounded by deterministic rounding and never used for discount distribution. Pricing.ts uses BigInt largest-remainder per AGENTS.md, property-tested. Strict 'no float arithmetic' reads as Pass with qualifier; no bare float touching ledger amounts."
+      },
+      {
+        "id": "NFR-STACK-6",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/ui/package.json",
+        "evidence": "packages/ui/package.json exports: \"./tokens.css\":\"./src/tokens.css\", \"./button\":\"./src/components/button.tsx\" (all \u2192 src/*.ts); scripts: [typecheck,lint,test] no build; packages/db 6 exports all ./src/*.ts; fd dist in packages => 0 results; apps/web/next.config.ts:4 transpilePackages [\"@scandihaven/ui\",\"@scandihaven/commerce\",\"@scandihaven/db\",\"@scandihaven/auth\",\"@scandihaven/email\",\"@scandihaven/config\"]",
+        "note": "No build step in packages/* \u2014 all 6 packages export TypeScript source directly (exports \u2192 src/*.ts) and have no build script (verified python json parse of each package.json scripts). Turborepo internal-packages pattern: apps compile via transpilePackages (web 4-10, admin 4-10). turbo.json build outputs [.next/**,dist/**] but no package produces dist \u2014 fd packages/*/dist returns empty, ls shows no dist/.next in packages. pnpm-workspace.yaml correctly lists apps/* and packages/*."
+      }
+    ]
+  },
+  "arch": {
+    "phase": "ARCH",
+    "summary": "PRD \u00a74 / \u00a74.8 audit: module map, 6 provider ports, 5 typed flags, 6-row idempotency matrix, outbox drain, and 3-layer boundary all verified against source. 16 Pass, 2 Partial (auth helpers naming, inventory movement lacks explicit idempotency unique constraint \u2014 covered by webhook_event guard). No Missing/Stub. Vendor confinement (stripe\u2192commerce, resend\u2192email) intact, proxy.ts correctly placed, RSC\u2192commerce\u2192actions\u2192ActionResult layering enforced.",
+    "findings": [
+      {
+        "id": "ARCH-DB-EXPORTS",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src/index.ts:1-3 + package.json:6-9 + src/client.ts:102-124",
+        "evidence": "packages/db/src/index.ts exports `db, pool, schema, ensureSeeded`; package.json exports `. \u2192 src/index.ts`, `./schema \u2192 src/schema/index.ts`, `./client \u2192 src/client.ts`",
+        "note": "\u00a74.7 authoritative exports confirmed. db/pool are lazy Proxies over globalThis singleton (audit C1 fix), schema barrel re-exports all tables, ensureSeeded from seed/ensure-seeded.ts. No package build step \u2014 transpilePackages in both next.config.ts."
+      },
+      {
+        "id": "ARCH-AUTH-EXPORTS",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/auth/package.json:6-9 + src/server.ts:18-45 + src/client.ts:1-8 + src/rbac.ts:44-78 + apps/admin/src/lib/admin-guard.ts:1-45",
+        "evidence": "package.json exports ./server, ./client, ./rbac, ./next-handler. src/server.ts exports `auth` (betterAuth instance with drizzleAdapter + trustedOrigins via requestOriginFromHeaders). src/client.ts exports `authClient`. rbac.ts exports ROLES/PERMISSIONS/MATRIX + can()/canAny(). No `requireUser`/`requireRole` symbol \u2014 admin gate uses `requirePermission()` in apps/admin/src/lib/admin-guard.ts",
+        "note": "\u00a74.7 requires session helpers `requireUser/requireRole` in packages/auth. Implemented equivalent is `requirePermission(permission)` + `toActionError()` in app layer (admin-guard) which calls auth.api.getSession + can(parseRoles()). Functionally correct RBAC matrix, but package-level helper names differ from PRD \u2014 callers must not invent inline checks (they don't). Rename or alias to match spec."
+      },
+      {
+        "id": "ARCH-COMMERCE-EXPORTS",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/package.json:6-18 + src/catalog.ts:1-8 + src/cart-service.ts:24-85 + src/checkout-service.ts:50-120 + src/order-state.ts:1-25 + src/jobs.ts:22-45",
+        "evidence": "package.json exports catalog, cart-service, checkout-service, dto, jobs, money, order-state, pricing, promotions, providers, rate-limit, request-dedupe, result, rich-text, search-provider. cart-service exports addLine(cartId,variantId,qty,requestId) with 5-min dedupe + createCartToken/verifyCartToken/ensureCart. checkout-service exports createPaymentIntent (server-re-derived totals) + placeOrderFromWebhook + resolvePlacementOutcome (amount re-verify). order-state exports transition() + InvalidOrderTransition + isTerminal.",
+        "note": "\u00a74.7 commerce surface complete. Verified: requestId dedupe window 5*60_000 in cart-service.ts:16, Stripe amount re-verification via resolvePlacementOutcome totalsTotal vs intentAmount in checkout-service (inside placement tx), PgJobRunner class, SearchProvider binding, dto/result/money/rich-text all present."
+      },
+      {
+        "id": "ARCH-UI-EXPORTS",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/ui/package.json:8-22 + src/tokens.css:1-45 + src/components/ + src/components/composites/",
+        "evidence": "package.json exports ./tokens.css, ./cn, ./button, ./badge, ./input, ./label, ./drawer, ./accordion, ./skeleton, ./quantity-stepper, ./price-block, ./lead-time-badge, ./product-card, ./media-image. tokens.css @theme block with literal hex shadcn tokens (no var() chains).",
+        "note": "\u00a74.7 UI exports confirmed: 6 primitives (button/badge/input/label/drawer/accordion/skeleton) + 5 composites (quantity-stepper/price-block/lead-time-badge/product-card/media-image). Zero commerce import \u2014 verified grep shows no @scandihaven/commerce in packages/ui. NFR-STACK-7/8 compliant."
+      },
+      {
+        "id": "ARCH-EMAIL-EXPORTS",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/email/package.json:6-9 + src/send.ts:14-27 + src/templates/index.ts:1-2",
+        "evidence": "package.json exports ./templates \u2192 src/templates/index.ts (OrderConfirmation, ShipmentUpdate) and ./send \u2192 src/send.ts. send.ts:14 `await import(/* turbopackIgnore: true */ \"react-dom/server\")` + Resend(Log) transport selection.",
+        "note": "\u00a74.7 email exports verified. Runtime react-dom/server resolved via turbopackIgnore dynamic import \u2014 static import would fail Next 16 Turbopack build (NFR-STACK-11). Resend SDK confined to this package; callers via PgJobRunner handler inject sendOrderConfirmation."
+      },
+      {
+        "id": "ARCH-CONFIG-EXPORTS",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/config/package.json:6-13 + src/env.ts:1-35 + src/flags.ts:1-20 + src/security-headers.ts + src/redirect-path.ts + src/chunk-recovery.ts + tsconfig.json + eslint/library.mjs",
+        "evidence": "package.json exports ./chunk-recovery, ./env, ./eslint/library, ./flags, ./redirect-path, ./security-headers, ./site-url. tsconfig.json at packages/config/tsconfig.json, eslint flat config at eslint/library.mjs (no-explicit-any error). All \u00a74.7 config surfaces present.",
+        "note": "\u00a74.7 config exports complete. env.ts Zod-validated parseServerEnv with fail-fast, flags.ts typed registry, security-headers manifest, redirect-path validator, chunk-recovery reload guard, plus shared tsconfig/eslint. turbo.json globalEnv includes DATABASE_URL/BETTER_AUTH_SECRET etc (NFR-STACK-11)."
+      },
+      {
+        "id": "ARCH-PROVIDERS-6-PORTS",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/providers.ts:18-210 + src/search-provider.ts:1-30 + src/providers.test.ts",
+        "evidence": "providers.ts declares SearchProvider.search({q,locale,limit,cursor}), ConsentProvider {load/has/grant/revoke/onChange}, TaxProvider.quote(TaxQuoteInput), ShippingRateProvider.quote(ShippingQuoteInput), EmailProvider.send({template,to,data}), JobRunner {enqueue/spec,drain}. TYPEAHEAD_MAX_LIMIT=10 enforced in search-provider.",
+        "note": "\u00a74.8 six ports verified with exact interface signatures. v1 bindings: SearchProvider \u2192 Postgres FTS via createPostgresSearchProvider delegating to searchTypeahead (FTS + ILIKE), ConsentProvider \u2192 createLocalConsentProvider (necessary=true immutable, in-memory listeners). TaxProvider consumed in checkout-service Stripe Tax path, ShippingRateProvider via rates table, EmailProvider via @scandihaven/email adapter, JobRunner via PgJobRunner."
+      },
+      {
+        "id": "ARCH-PROVIDERS-VENDOR-CONFINEMENT",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:1-3 + packages/email/src/send.ts:2 + apps/web/src/app/api/jobs/run/route.ts:7-13",
+        "evidence": "grep: `stripe` imports only in commerce/checkout-service.ts (Stripe SDK) and apps/web api/webhooks + checkout-flow client (@stripe/stripe-js/@stripe/react-stripe-js \u2014 allowed client SDK). `resend` only in packages/email/src/send.ts (Resend SDK). jobs/run route composes EmailProvider by wrapping sendOrderConfirmation \u2014 vendor SDK never leaves its package.",
+        "note": "\u00a74.8 vendor-SDK confinement verified. PgJobRunner is provider-agnostic (handlers injected at composition root). No direct Stripe import in UI/pages, no Resend import outside email package. Adding a new vendor requires implementing the port interface only."
+      },
+      {
+        "id": "ARCH-FLAGS-5-REGISTRY",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/config/src/flags.ts:14-45 + src/flags.test.ts:8-45",
+        "evidence": "FLAG_NAMES = [FEATURE_TRADE, FEATURE_GIFT_CARDS, FEATURE_REVIEWS, FEATURE_I18N, FEATURE_KLARNA] (exactly 5). FLAG_DEFAULTS {TRADE:false, GIFT_CARDS:false, REVIEWS:true, I18N:true, KLARNA:false}. parseFlagValue handles 1/true/on/yes/enabled vs 0/false/off/no/disabled/\"\" else throws naming flag.",
+        "note": "\u00a74.8 flag count, names and defaults match spec. Typed FlagName union ensures compile-time gate for isFlagEnabled."
+      },
+      {
+        "id": "ARCH-FLAGS-FAILFAST-TYPECHECK",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/config/src/flags.ts:42-58 + apps/web/src/instrumentation.ts:1-20 + apps/admin/src/instrumentation.ts:1-20",
+        "evidence": "flags.ts:46-55 iterates FEATURE_* keys, throws `Unknown feature flag FEATURE_TRADEE` if not in known Set, citing FLAG_NAMES. instrumentation.ts register() calls parseFlags() at boot (after parseServerEnv), failing process with actionable message. flags.test.ts verifies unknown FEATURE_* throws and unrelated env ignored.",
+        "note": "Unknown FEATURE_* fail-fast at boot verified (PRD \u00a74.8 typo protection) + type-check gate: FlagName is union of 5 literals, isFlagEnabled(flags, name: FlagName) rejects arbitrary strings at compile time (flags.test.ts: 'rejects unknown flag names at the type level')."
+      },
+      {
+        "id": "ARCH-IDEMPOTENCY-WEBHOOK",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src/schema/ops.ts:24-33 + apps/web/src/app/api/webhooks/stripe/route.ts:14-45 + packages/commerce/src/checkout-service.ts:115-140",
+        "evidence": "ops.ts webhookEvent uniqueIndex webhook_event_stripe_id_idx on stripeEventId. checkout-service.ts insert webhookEvent inside placement transaction with .onConflictDoNothing() \u2014 duplicate returns null \u2192 200 no-op (audit H4d fix: previously auto-committed before tx).",
+        "note": "\u00a74.8 webhook_event idempotency verified. Transaction-internal insert ensures failed placement rolls back the idempotency row so Stripe retry redelivers (verified by 500\u2192retry comment in route.ts)."
+      },
+      {
+        "id": "ARCH-IDEMPOTENCY-CART-REQUESTID",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/request-dedupe.ts:1-35 + src/cart-service.ts:15-16,60-68 + apps/web/src/actions/cart.ts:38-45",
+        "evidence": "request-dedupe.ts createRequestDedupe(windowMs) Map with checkAndReserve(key,now) + TTL eviction. cart-service.ts addLineDedupe = createRequestDedupe(5*60_000); check `addLineDedupe.checkAndReserve(`${cartId}:${requestId}`)` before mutation \u2014 duplicate returns current DTO.",
+        "note": "\u00a74.8 cart requestId 5-min dedupe verified. Client-generated requestId (8-64 chars, validated in actions/cart.ts lineInput schema) deduplicated per cart. Scope per-instance (Map) \u2014 documented v1.1 upgrade to cart_request_dedupe table noted in request-dedupe.ts header. Correct for single-instance Vercel deployment."
+      },
+      {
+        "id": "ARCH-IDEMPOTENCY-JOBS",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src/schema/ops.ts:34-53 + packages/commerce/src/jobs.ts:48-66 + src/jobs.test.ts:22-35",
+        "evidence": "ops.ts job uniqueIndex job_idempotency_idx on idempotencyKey. jobs.ts enqueue: dedupeKey ?? randomUUID + .onConflictDoNothing(). drain: FOR UPDATE SKIP LOCKED claim transaction, exponential backoff 500*2^(n-1).",
+        "note": "\u00a74.8 outbox job idempotency verified. enqueue idempotent per (kind, dedupeKey). Integration test confirms duplicate dedupeKey yields single row."
+      },
+      {
+        "id": "ARCH-IDEMPOTENCY-NEWSLETTER",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/ops.ts:64-74 + packages/db/src/schema/custom.ts",
+        "evidence": "ops.ts newsletterSubscriber table: email citext .notNull() + uniqueIndex newsletter_email_idx on email. citext extension ensures case-insensitive uniqueness.",
+        "note": "\u00a74.8 newsletter citext unique verified. citext import from ./custom (pgcrypto+pg_trgm init). Subscriber row upsert semantics rely on citext unique constraint \u2014 duplicate case-insensitive email conflicts at DB level."
+      },
+      {
+        "id": "ARCH-IDEMPOTENCY-INVENTORY",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:145-165 + packages/commerce/src/checkout-service.ts:155-220 + packages/db/src/schema/ops.ts:job placement",
+        "evidence": "inventoryLevel primaryKey(variantId,warehouseId), inventoryMovement indexed but no unique (variant_id,warehouse_id,order_id). checkout-service placement tx locks inventoryLevel FOR UPDATE, decrements qtyOnHand, inserts inventoryMovement with reason=sale referenceType=order referenceId=orderId inside same tx as webhook_event deduplication.",
+        "note": "\u00a74.8 inventory movement idempotency is transactional rather than constraint-backed. Correctness derives from webhook_event unique guard (duplicate webhook never reaches decrement). No unique index on inventoryMovement(referenceId) \u2014 idempotency_key style key not present. Acceptable v1 (audit confirms), but a future direct-write path to inventoryMovement outside checkout-service would lack dedupe. Consider adding idempotency_key to inventoryMovement or at least uniqueIndex on (referenceType,referenceId,variantId) for explicit protection."
+      },
+      {
+        "id": "ARCH-OUTBOX-DRAIN",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/jobs.ts:68-145 + apps/web/src/app/api/jobs/run/route.ts:13-45 + src/jobs.test.ts:56-145",
+        "evidence": "jobs.ts drain: transaction select pending+lte(runAfter) orderBy runAfter .for('update',{skipLocked:true}) limit JOB_BATCH_LIMIT(50), marks running+attempts++. Phase2 handlers run lock-free, settle done/dead/retry. Backoff 500*2^(attempts-1). Unknown kind \u2192 dead immediately. Concurrent-safe verified by 3-way parallel drain test (12 jobs, totalProcessed==12).",
+        "note": "\u00a74.8 outbox drain semantics fully verified: FOR UPDATE SKIP LOCKED, dead-letter on unknown kind and after maxAttempts, 0.5*2^n backoff (500ms base), concurrent-safe two-phase claim/execute. Verification ledger covers concurrent drain test."
+      },
+      {
+        "id": "ARCH-OUTBOX-CRON-GATE",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/api/jobs/run/route.ts:32-45",
+        "evidence": "route.ts authorized(): reads CRON_SECRET env, returns false if missing/set-me, compares provided (x-cron-secret || Authorization Bearer) via timingSafeEqual after length equality check. Returns 401 on failure. Both GET and POST delegate to same run().",
+        "note": "\u00a74.8 CRON_SECRET timing-safe gate verified. Length pre-check prevents timingSafeEqual exception on mismatched lengths, then constant-time comparison. Handles both header conventions (x-cron-secret and Authorization Bearer). ENV must be listed in turbo.json globalEnv \u2014 it is."
+      },
+      {
+        "id": "ARCH-LAYERING-RSC-ACTIONS",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/page.tsx:3 + app/products/[slug]/page.tsx:4-5 + shop/page.tsx:3 + app/api/webhooks/stripe/route.ts:2-3 vs apps/web/src/actions/cart.ts:1-58 + apps/admin/src/lib/admin-guard.ts",
+        "evidence": "RSC pages import @scandihaven/commerce/catalog, cart-service, rich-text directly (listProducts, getProduct, getCartDto). Mutations only via apps/web/src/actions/cart.ts Server Actions returning ActionResult<CartDto> (ok/fail union) \u2014 no REST endpoints for UI mutations. Stripe webhooks/typeahead/jobs/health are sole Route Handlers per PRD table.",
+        "note": "\u00a74.2/\u00a74.3 layering verified. RSC queries call commerce directly, actions revalidatePath and return typed ActionResult (never throw across boundary). Commerce never imports from apps; ui depends only on React/Radix/Tailwind; db has zero auth/commerce imports \u2014 direction enforced."
+      },
+      {
+        "id": "ARCH-LAYERING-PROXY",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/proxy.ts:1-22 + apps/admin/src/proxy.ts:1-35 + turbo.json (no middleware.ts)",
+        "evidence": "Both apps have proxy.ts at apps/*/src/proxy.ts (Next 16.3 convention \u2014 parent of app dir). No middleware.ts exists anywhere (ls confirms). web proxy sets x-request-id + securityHeaders() + config.matcher inline literal `/((?!_next/static|_next/image|favicon.ico|products/[^/]*\\.svg).*)`. admin proxy adds session gate + same headers, config.matcher `/((?!api|_next/static|_next/image|favicon.ico).*)`.",
+        "note": "\u00a74.4 proxy convention verified. Placement at src/proxy.ts (not repo-root) was audit H8d regression \u2014 now correct. Matcher stays inline literal as required by Next static parsing (pinned by proxy-matcher.test.ts). Security headers from central manifest (\u00a79.3) applied to every response including /sign-in."
+      }
+    ]
+  },
+  "data": {
+    "phase": "DATA",
+    "summary": "PRD \u00a77 Data Model audit: schema source (packages/db/src/schema/*) and generated migration (drizzle/0000_large_sphinx.sql) are largely aligned to the \u00a77.3-7.8 table contracts, money integers, enum domains, and cart/order identity constraints. Blocking gaps are DB-enforcement omissions rather than app-logic omissions: product.search_vector tsvector + GIN index absent, two_factor table absent, CHECK constraints for money/qty/rating not emitted to SQL, category.parent FK + hero_image absent, variant_price uses surrogate PK vs composite PK, promotion partial unique index missing, promotion_redemption scope uniqueness not enforced, cart_line/review CHECKs absent, updated_at triggers absent, and inventory reservation is not two-phase (qty_reserved never written, single-warehouse lock arbitrary). Placement amount re-verification (\u00a77.11), order-number generation with advisory lock + split_part, order state machine, and ops/content tables are correctly implemented. 16 Pass, 14 Partial, 4 Fail/Missing.",
+    "findings": [
+      {
+        "id": "\u00a77.1-uuid-convention",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:18-88, packages/db/src/schema/auth.ts:23-30",
+        "evidence": "catalog.ts:18 category id uuid defaultRandom(), product:51 id uuid defaultRandom(), product_variant:92 id uuid defaultRandom() \u2014 all gen_random_uuid(). auth.ts:23 user.id text PK (Better-Auth 1.x contract, not uuid) intentional deviation; drizzle/0000_large_sphinx.sql:18 user id text PRIMARY KEY",
+        "note": "All domain tables use uuid PK DEFAULT gen_random_uuid() correctly. user/session/account deviate to text PK per Better-Auth spec \u2014 intentional but undocumented vs \u00a77.1 'all tables uuid' convention. No functional break; document as explicit exception."
+      },
+      {
+        "id": "\u00a77.1-timestamps",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:27-28,52-53,100-101; drizzle/0000_large_sphinx.sql:category/product/warehouse",
+        "evidence": "catalog.ts category createdAt/updatedAt timestamptz defaultNow(); product same; media:40-43 only createdAt, no updatedAt; warehouse:167 only createdAt; inventory_level:189 only updatedAt; SQL confirms media (\"created_at\" only), inventory_level (\"updated_at\" only)",
+        "note": "Most tables have both created_at and updated_at timestamptz. media lacks updatedAt, warehouse lacks updatedAt, inventory_level lacks createdAt \u2014 diverges from 'all tables' rule. Harmless for append-only media/warehouse but should be stated as 'unless stated' exceptions or added for consistency."
+      },
+      {
+        "id": "\u00a77.1-naming-snake-camel",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:20 parentId uuid(\"parent_id\"), packages/db/src/schema/orders.ts:35 token text(\"token\")",
+        "evidence": "Drizzle pgTable maps camelCase JS (parentId, createdAt, variantId) to snake_case PG (parent_id, created_at, variant_id) consistently across all 8 schema files.",
+        "note": "snake_case in Postgres \u2194 camelCase in Drizzle mapping is consistent and verified via SQL column names in migration."
+      },
+      {
+        "id": "\u00a77.1-fk-restrict-cascade",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:95-102, orders.ts:56-58, ops.ts:119",
+        "evidence": "catalog.ts product_variant\u2192product onDelete:cascade, product_image both cascade, inventory_level variant cascade / warehouse restrict, inventory_movement both restrict; orders.ts cart_line cart cascade / variant restrict, orderLines order restrict, shipments order restrict; correct separation: cascade only where child meaningless (cart lines, variant images, join tables).",
+        "note": "FK direction matches PRD: cascade only for cart lines, image joins, collection_product etc.; orders/payments/shipments correctly restrict. One dubious case: order_address cascade (child meaningless) is correct per convention though PRD says restrict by default."
+      },
+      {
+        "id": "\u00a77.2-money-integer",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src/schema/catalog.ts:156, orders.ts:105-110, customers.ts:103, ops.ts:124",
+        "evidence": "variant_price.amount integer, order.subtotal/discount/shipping/tax/total/totalEur integer, order_line.unitPrice integer, payment.amount integer, shipping_rate.amount integer, gift_card initial/balance integer; schema.test.ts:58 asserts PgInteger for all /(amount|price|total|subtotal|discount|shipping|tax)/ columns",
+        "note": "All monetary values stored as integer minor units. No double/real/float columns touch money; rates use numeric."
+      },
+      {
+        "id": "\u00a77.2-money-check-amount-ge-0",
+        "status": "Fail",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:156 amount integer notNull() without checks; drizzle/0000_large_sphinx.sql: variant_price \"amount\" integer NOT NULL (no CHECK)",
+        "evidence": "Schema defines amount integer.notNull() with no .check(); SQL migration shows zero CHECK constraints for any amount/qty/rating column (rg found no CHECK in db/). PRD \u00a77.2/\u00a77.3 requires CHECK amount >=0 on variant_price and similar columns.",
+        "note": "App-level Zod validation exists but DB-level CHECK >=0 is absent for every money/quantity column \u2014 violates \u00a77.2/\u00a77.3 contract and allows negative values via direct SQL or Drizzle bypass. Add .check() or raw SQL CHECKs."
+      },
+      {
+        "id": "\u00a77.2-money-no-floats",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/orders.ts:101 fxRate numeric(18,8), orders.ts:142 taxRate numeric(6,4)",
+        "evidence": "Only numeric columns are fx_rate (18,8) and tax_rate (6,4) \u2014 legitimate rates, not money; zero float4/float8/double columns in catalog/customers/orders/ops.",
+        "note": "Floats never touch money; BigInt largest-remainder in commerce/pricing remains the sole arithmetic path."
+      },
+      {
+        "id": "\u00a77.3-category",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:16-30",
+        "evidence": "catalog.ts:20 parentId uuid('parent_id') with NO references(() => category.id); PRD requires parent_id \u2192 category FK; also missing hero_image_id \u2192 media column (PRD: hero_image_id \u2192 media?); SQL: category has no FK to category nor hero_image_id column; locus matches drizzle/0000: CREATE TABLE category (... \"parent_id\" uuid) with no FK.",
+        "note": "Slug citext UNIQUE via uniqueIndex correct, idx (parent_id,sort_order) correct. Missing: self-referential FK, hero_image_id column. Breaks category tree integrity and editorial hero image linkage."
+      },
+      {
+        "id": "\u00a77.3-product",
+        "status": "Fail",
+        "severity": "Blocking",
+        "locus": "packages/db/src/schema/catalog.ts:47-84; drizzle/0000_large_sphinx.sql: CREATE TABLE product",
+        "evidence": "product table has slug citext uniqueIndex, status enum, category_id FK, lead_time, is_new/is_preorder, materials text[], dimensions_json, indexes (status,sort_order) and (category_id) \u2014 all present. BUT zero search_vector tsvector column and zero GIN index in both schema.ts and SQL. PRD \u00a77.3 mandates search_vector tsvector + GIN index.",
+        "note": "FTS scope requires product.search_vector tsvector maintained by trigger + GIN index; synonym expansion and websearch_to_tsquery depend on it. Currently search-provider would have nothing to query server-side."
+      },
+      {
+        "id": "\u00a77.3-product_variant",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:87-110; drizzle/0000: product_variant_sku_idx UNIQUE",
+        "evidence": "catalog.ts:93-94 sku text notNull with uniqueIndex product_variant_sku_idx; product_id FK cascade; indexes on product_id; fields material/color/color_hex/size/dimensions/weight/leadTime overrides/is_default/is_active match spec.",
+        "note": "SKU uniqueness and variant shape match PRD; no divergence."
+      },
+      {
+        "id": "\u00a77.3-media-alt-check",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:36-43",
+        "evidence": "catalog.ts:38 alt text('alt').notNull() comment says empty rejected at app boundary; no CHECK (alt <> '') in drizzle schema; SQL: media \"alt\" text NOT NULL (no CHECK). PRD \u00a77.3: alt NOT NULL CHECK (alt <> '').",
+        "note": "NOT NULL present but empty-string guard is app-only; DB does not reject ''. Add CHECK (alt <> '') to enforce FR-301 at storage layer."
+      },
+      {
+        "id": "\u00a77.3-product_image-variant_image",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:115-140",
+        "evidence": "product_image: PK (product_id, media_id) both FK cascade, sort_order; variant_image: PK (variant_id, media_id) both FK cascade \u2014 matches PRD spec exactly; SQL confirms composite PK constraints.",
+        "note": "Join tables correctly PK'd and FK'd with cascade."
+      },
+      {
+        "id": "\u00a77.3-variant_price-pk",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:142-165; drizzle/0000: variant_price id uuid PK + variant_price_variant_currency_idx UNIQUE",
+        "evidence": "Schema defines surrogate id uuid PK + uniqueIndex (variantId, currency); PRD \u00a77.3 specifies PK (variant_id+currency) with CHECK amount>=0. Functionally equivalent uniqueness but diverges from spec PK shape; also missing CHECKs on amount/trade/sale.",
+        "note": "Uniqueness enforced, but extra surrogate id column deviates from spec composite PK. Keep if intentional; otherwise migrate to true composite PK to match PRD."
+      },
+      {
+        "id": "\u00a77.3-warehouse",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:167-175; packages/db/src/seed/ensure-seeded.ts:326-330",
+        "evidence": "warehouse code text unique, name/address/is_showroom/is_active; seed inserts AAL (Aalborg Warehouse) and CPH (Copenhagen Showroom Floor) onConflictDoNothing; SQL confirms code UNIQUE.",
+        "note": "Two seeded warehouses match PRD AAL/CPH requirement; multi-warehouse schema ready for N warehouses."
+      },
+      {
+        "id": "\u00a77.3-inventory_level",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:177-195; drizzle/0000: inventory_level PK (variant_id, warehouse_id)",
+        "evidence": "PK (variant_id, warehouse_id) via primaryKey correct, qty_on_hand/qty_reserved/safety_stock integer defaults 0 correct, FK variant cascade / warehouse restrict correct; BUT no CHECK qty>=0 on any of the three quantity columns in schema or SQL (spec: CHECK >=0 each).",
+        "note": "Key and FK correct, but DB allows negative stock. Add CHECK (qty_on_hand >=0 etc.) to uphold inventory invariant."
+      },
+      {
+        "id": "\u00a77.3-inventory_movement",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:197-215; drizzle/0000: inventory_movement_variant_created_idx",
+        "evidence": "inventory_movement variant_id+warehouse_id FK restrict, delta integer, reason enum 7 values, reference_type/id actor_id optional, idx (variant_id, created_at) present; append-only ledger shape matches PRD.",
+        "note": "Index and ledger shape match spec; FK restrict preserves history on variant/warehouse delete (correct)."
+      },
+      {
+        "id": "\u00a77.3-collection-collection_product",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:217-247",
+        "evidence": "collection slug citext uniqueIndex, title/subtitle/hero_media_id/story_html/is_active/starts_at/ends_at/seo fields; collection_product PK (collection_id, product_id) both FK cascade; SQL confirms.",
+        "note": "Collection editorial header + product membership match spec."
+      },
+      {
+        "id": "\u00a77.3-search_synonym",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:249-256; seed ensure-seeded: couch\u2192sofa etc.",
+        "evidence": "search_synonym PK (term, synonym) via primaryKey; seed inserts couch\u2192sofa, lamp\u2192lighting, rug\u2192throw onConflictDoNothing.",
+        "note": "PK shape feeds FTS expansion per \u00a77.3/FR-105."
+      },
+      {
+        "id": "\u00a77.3-review",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:258-285; drizzle/0000: review rating integer NOT NULL (no CHECK)",
+        "evidence": "review product_id FK cascade, customerId text FK to user, orderId uuid (FK-free to avoid circular import), rating integer NOT NULL with NO CHECK 1..5, status enum pending/approved/rejected correct, is_verified_purchase bool, idx (product_id,status,created_at) correct; SQL has no CHECK on rating, no CHECK on photos jsonb shape.",
+        "note": "Status enum + index correct. Missing DB CHECK rating BETWEEN 1 AND 5 (only app Zod guards). PRD explicitly requires CHECK 1..5. Also order_id lacks FK to order (intentional to avoid cycle) \u2014 application must enforce."
+      },
+      {
+        "id": "\u00a77.3-back_in_stock_request",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:287-303; drizzle/0000: back_in_stock_variant_email_idx UNIQUE",
+        "evidence": "back_in_stock_request variant_id FK cascade, email text notNull, notified_at optional, uniqueIndex (variantId, email) enforces UNIQUE(variant,email); SQL confirms uniqueIndex.",
+        "note": "Dedupe constraint matches PRD; notification batching is application-level."
+      },
+      {
+        "id": "\u00a77.4-cart",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/orders.ts:21-47; drizzle/0000: cart_token_idx UNIQUE",
+        "evidence": "cart token text notNull uniqueIndex, user_id FK set null, region enum EU/US/UK default EU, currency char3 default EUR, status enum 4 values default active, gift_message/gift_wrap/gift_receipt, shipping_method, totals_json jsonb, idx (status,updated_at) for abandonment jobs.",
+        "note": "Token uniqueness and status enum match \u00a77.4; FK set null preserves cart after user delete (correct per guest cart lifecycle)."
+      },
+      {
+        "id": "\u00a77.4-cart_line",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/orders.ts:49-71; drizzle/0000: cart_line \"qty\" integer NOT NULL (no CHECK)",
+        "evidence": "cart_line PK id uuid, cart_id FK cascade, variant_id FK restrict, qty integer notNull (no CHECK 1..99 in schema or SQL), unit_price_snapshot integer, is_gift_wrap bool, uniqueIndex (cart_id, variant_id, is_gift_wrap) correct; SQL has no CHECK qty BETWEEN 1 AND 99.",
+        "note": "Uniqueness scope correct (variant + giftWrap flag separate line per \u00a77.4). Missing CHECK qty 1..99 \u2014 allows 0 or 100+ qty via DB. Add CHECK."
+      },
+      {
+        "id": "\u00a77.4-cart_promotion",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/orders.ts:73-84",
+        "evidence": "cart_promotion PK (cart_id, promotion_id) both FK cascade; matches PRD PK spec; SQL confirms primaryKey constraint.",
+        "note": "Join PK shape correct for eligibility re-validation (E2E-3) \u2014 cart_promotion rows kept when ineligible per PRD \u00a77.4 note."
+      },
+      {
+        "id": "\u00a77.4-order-number-fx-status",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/db/src/schema/orders.ts:86-119; packages/commerce/src/checkout-service.ts:388-425",
+        "evidence": "order number text uniqueIndex; checkout-service serializes per-year with pg_advisory_xact_lock(hashtext('order_number:2026')) + SELECT MAX(split_part(number,'-',3)) +1 padded 6 (audit M2d fix); fx_rate numeric(18,8) default '1'; status enum 11 values matching PRD/order-state.ts; totalEur integer for EUR normalization; source enum web/trade/admin.",
+        "note": "Order identity, FX snapshot (EUR-only Phase 1 hardcoded '1' noted as intentional deferral), and status domain match \u00a77.4/\u00a77.7. Advisory lock prevents MAX+1 race correctly."
+      },
+      {
+        "id": "\u00a77.4-order_line-payment-shipment-return",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/orders.ts:121-275",
+        "evidence": "order_line order FK restrict, variant FK restrict, title/sku snapshots, qty, unit_price, tax_rate numeric(6,4), tax_amount, total, fulfillable_from; order_address order FK cascade, kind enum billing/shipping, fields jsonb; payment stripe_payment_intent_id uniqueIndex, amount/currency/status 6 values, amount_refunded; shipment warehouse FK restrict, status 5 values; shipment_line/return_line PK composites; return_request rma UNIQUE, status 9 values, reason/condition enums all present as per enums.ts.",
+        "note": "Order decomposition into lines/addresses/payments/shipments/returns matches PRD \u00a77.4 column-by-column; FK restrict preserves financial history."
+      },
+      {
+        "id": "\u00a77.5-user-extensions",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/auth.ts:28-51; enums.ts trade_status/payment_terms",
+        "evidence": "user table carries phone, marketing_opt_in, segment_tags text[], stripe_customer_id, trade_status enum none/pending/approved/rejected, trade_tier text, trade_company_name, trade_cvr, payment_terms enum card/net30 default card, notes \u2014 extensions ride on Better-Auth user as spec; trade_status index present.",
+        "note": "Better-Auth core plus \u00a77.5 extensions correctly colocated; trade tier is text (flexible) while status is enum as spec."
+      },
+      {
+        "id": "\u00a77.5-address-trade_application",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/customers.ts:13-48",
+        "evidence": "address user FK cascade, fields jsonb, is_default_shipping/billing; trade_application user FK set null, company/cvr/contact_email citext, certificate_media_id \u2192 media, status enum, reviewer_id/decision_note, idx status.",
+        "note": "Customer address and trade application workflow tables match spec; certificate media private storage via signed URLs per \u00a79.4."
+      },
+      {
+        "id": "\u00a77.5-promotion",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/customers.ts:50-72; drizzle/0000: promotion_code_idx UNIQUE (\"code\")",
+        "evidence": "promotion id uuid, code citext uniqueIndex (full UNIQUE), kind enum 5 values (fixed/percent/free_shipping/bogo/tiered) correct, value integer, tiers_json/conditions_json jsonb, starts/ends/usage limits/is_active; PRD \u00a77.5 requires partial unique index code WHERE is_active (null code \u21d2 automatic promotion) \u2014 schema enforces full UNIQUE on code (nulls allowed but multiple nulls would violate if not partial; Postgres citext UNIQUE treats nulls as distinct so automatic promos pass, but active vs inactive code collision not filtered).",
+        "note": "Functional but diverges from spec partial index `WHERE is_active`. Also missing DB-level CHECKs for tier/condition shapes \u2014 application validated via commerce/promotions Zod. Enforce partial index to allow reuse of deactivated codes."
+      },
+      {
+        "id": "\u00a77.5-promotion_redemption",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/customers.ts:74-88; drizzle/0000: promotion_redemption_scope_idx btree (promotion_id,user_id) non-unique",
+        "evidence": "promotion_redemption promotion FK restrict, orderId uuid (no FK), user FK set null, email_hash, idx (promotionId,userId) non-unique; PRD \u00a77.5 says UNIQUE per limit-scope to enforce per_customer limits \u2014 schema has only a plain index, not a UNIQUE constraint or partial unique covering usage_limit scope.",
+        "note": "Redemption Scott enforces limits in app (commerce/promotions usageCount=0 deferral noted in seed). DB does not enforce per-customer/usage limits \u2014 race may double-redeem. Add UNIQUE where needed or keep as application invariant with documented deferral."
+      },
+      {
+        "id": "\u00a77.5-gift_card",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/customers.ts:90-123; drizzle/0000: gift_card_code_hash_idx UNIQUE",
+        "evidence": "gift_card code_hash text uniqueIndex (CSPRNG hash), code_last4 char4, initial_amount/balance integer, currency, purchaser_order_id uuid, recipient_email citext, deliver_at/expires_at, status enum 4 values, idx status; gift_card_transaction gift_card FK restrict, delta/balance_after integer, kind enum 4 values, idx (gift_card_id,created_at) ledger append-only.",
+        "note": "CSPRNG code generation is commerce logic; DB stores only hash + last4 as spec requires. Ledger append-only correct."
+      },
+      {
+        "id": "\u00a77.6-reservation-semantics",
+        "status": "Partial",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:354-380; packages/db/src/schema/catalog.ts:177-195",
+        "evidence": "Availability check: `if (row.line.qty > level.qtyOnHand - level.qtyReserved - level.safetyStock)` correct formula (qty_on_hand - qty_reserved - safety_stock) in checkout-service:367; made-to-order bypass `if (!level) continue` correct (\u00a77.6 always purchasable); BUT transaction does NOT increment qty_reserved \u2014 it directly decrements qty_on_hand via `set({ qtyOnHand: fresh.qtyOnHand - row.line.qty })`. PRD says qty_reserved += qty until shipped, then qty_on_hand -= qty. Also inventory check uses single arbitrary locked row without warehouse_id predicate \u2014 multi-warehouse correctness missing (audit B1). SELECT FOR UPDATE present but without warehouse qualification.",
+        "note": "Formula and bypass correct. Two-phase reservation protocol violated: cancelled orders permanently lose stock (documented drift F-12). Also multi-warehouse FOR UPDATE must lock specific (variant,warehouse) rows used for fulfillment."
+      },
+      {
+        "id": "\u00a77.7-state-machine-statuses",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/order-state.ts:5-22; packages/db/src/schema/enums.ts:12-22",
+        "evidence": "ORDER_STATUSES 11 values exactly match PRD diagram + SQL order_status enum: pending_payment, review, confirmed, in_production, partially_shipped, shipped, delivered, closed, cancelled, refunded, partially_refunded; ORDER_EVENTS 11 values match PRD events (payment_succeeded, flag_for_review, release_to_production, etc.)",
+        "note": "Status and event enumerations are byte-identical to PRD \u00a77.7 diagram; enum types are additive-migration safe."
+      },
+      {
+        "id": "\u00a77.7-state-machine-transitions",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/order-state.ts:30-56",
+        "evidence": "TRANSITIONS: payment_succeeded [pending_payment] correct; flag_for_review [pending_payment] correct; release_to_production [review] correct; start_production [confirmed,review] correct per diagram variant; BUT refund_full allows [pending_payment,...review] includes pending_payment pre-payment (should be post-payment only per PRD 'any post-payment state'); mark_shipped/mark_partially_shipped both include review (PRD allows partially_shipped from review? diagram shows review \u2192 partially_shipped via mark_partially_shipped/mark_shipped \u2014 plausible). Terminal set only [closed,refunded] omits cancelled (PRD shows delivered/cancelled/refunded all closable).",
+        "note": "Illegal transitions correctly throw InvalidOrderTransition. Over-permissive refund_full from pending_payment should be restricted to post-payment states; verify mark_shipped from review matches intended fraud-hold escape hatch (release_to_production vs direct ship)."
+      },
+      {
+        "id": "\u00a77.7-order_event-timeline",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/orders.ts:135-148; packages/commerce/src/checkout-service.ts:468-490",
+        "evidence": "order_event order FK cascade, type text, actor default system, payload jsonb, idx (order_id,created_at); checkout-service inserts order_event for payment_succeeded and flag_for_review inside placement tx; other transitions via admin actions per audit-log.",
+        "note": "Timeline append-only rows exist and are written inside same transaction as status change as spec requires (\u00a77.7 every transition writes order_event)."
+      },
+      {
+        "id": "\u00a77.7-review-state",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/commerce/src/order-state.ts:34-43; packages/commerce/src/checkout-service.ts:513-545",
+        "evidence": "review state entered via flag_for_review (pending_payment\u2192review) per diagram 'pending_payment (flag_for_review) \u2192 review'; exit via release_to_production (review\u2192confirmed) and also direct to partially_shipped/shipped via mark_* allowed; \u00a78.7 orphan path uses transition(pending_payment, flag_for_review) inside placement tx for AMOUNT_MISMATCH/OUT_OF_STOCK.",
+        "note": "Fraud/CS hold state correctly models webhook-after-abort \u00a78.7 review-orphan path with payment_orphan job emission."
+      },
+      {
+        "id": "\u00a77.8-ops-core",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/ops.ts; packages/db/src/schema/auth.ts",
+        "evidence": "audit_log, webhook_event (stripe_event_id UNIQUE), job (kind/payload/status/idempotency_key UNIQUE, idx status/run_after), rate_limit_hit PK (bucket,window_start), redirect source_path UNIQUE, newsletter_subscriber email citext UNIQUE, fx_rate currency PK rate numeric(18,8), shipping_zone/rate with region/method/weight/amount/currency/eta, announcement, nav_entry, static_page, journal_post, lookbook \u2014 all tables present with correct column types and indexes per \u00a77.8 table; user/session/account/verification owned by Better-Auth per auth.ts.",
+        "note": "All \u00a77.8 tables except two_factor exist with column contracts matching PRD. Verified via schema + SQL."
+      },
+      {
+        "id": "\u00a77.8-two_factor",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/auth.ts (no two_factor table); packages/db/src/schema/enums.ts (no two_factor enum)",
+        "evidence": "PRD \u00a77.8 table: two_factor (plugin) TOTP secrets for admin roles required for Owner/Admin (\u00a79.2). Schema defines user/session/account/verification only; no two_factor table in any schema file; SQL migration creates no two_factor table. Better-Auth twoFactor plugin not provisioned in schema.",
+        "note": "Blocking for \u00a79.2 Admin 2FA enforcement at proxy. App currently shows '2FA lands with Phase 1' notice (apps/admin/src/app/sign-in/sign-in-form.tsx:41). Schema must add two_factor table before phase ships; track as Phase 1 blocker."
+      },
+      {
+        "id": "\u00a77.8-redirect-fx-shipping",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/ops.ts:96-130; drizzle/0000: redirect_source_idx UNIQUE, fx_rate PK, shipping_rate_zone_method_idx",
+        "evidence": "redirect source_path UNIQUE, kind enum 301/302, hits int; fx_rate currency char3 PK numeric(18,8); shipping_zone region/countries text[]; shipping_rate zone FK cascade, method enum, min/max weight, amount int, currency, etaDays \u2014 all match PRD figure; seed inserts EU/US/UK zones with standard/express/white_glove/pickup rates.",
+        "note": "Ops infra tables structurally correct and seeded."
+      },
+      {
+        "id": "\u00a77.8-content-journal-lookbook",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/content.ts:8-130",
+        "evidence": "static_page slug citext UNIQUE, title/body/seo/is_published/published_at; journal_post slug UNIQUE citext, category enum craft/home/people/sustainability, hero_media_id \u2192 media, related_product_ids jsonb, author_id \u2192 user set null, idx (category,published_at); lookbook slug UNIQUE, season, hero, hotspots jsonb (x%,y%,variantSlug per PRD), is_published; nav_entry menu enum header/footer_shop/about/help, parent_id, featured media/collection.",
+        "note": "Editorial CMS tables match \u00a77.8 column sets; lookbook hotspots as percentages resolution-independent as spec."
+      },
+      {
+        "id": "\u00a77.9-migrations-forward",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/db/drizzle.config.ts:1-12; packages/db/drizzle/0000_large_sphinx.sql",
+        "evidence": "drizzle.config schema ./src/schema/index.ts, out ./drizzle, dialect postgresql, strict true; migrations forward-only via drizzle-kit (0000 snapshot); PRD expand\u2192migrate\u2192contract implied; seed uses schema index with ON CONFLICT DO NOTHING + advisory lock.",
+        "note": "Drizzle-kit forward-only migrations enforced; no hand-edited SQL beyond generation."
+      },
+      {
+        "id": "\u00a77.9-updated_at-triggers",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:28 updatedAt defaultNow() without $onUpdate; drizzle/0000 SQL: \"updated_at\" timestamptz DEFAULT now() with NO trigger",
+        "evidence": "Spec says updated_at maintained by triggers or Drizzle $onUpdate; schema defines defaultNow() only, no $onUpdate() trigger and no CREATE TRIGGER in migration; admin concurrency is optimistic via last-read updated_at HTTP 409 (PRD \u00a77.9) \u2014 relies on app to supply stamped write.",
+        "note": "No DB trigger to auto-bump updated_at on UPDATE; rely on Drizzle.$onUpdateNow() or explicit set. Current code must manually set updatedAt on every update (checkout-service does set updatedAt: placedAt). Add $onUpdate trigger or document as app-managed."
+      },
+      {
+        "id": "\u00a77.9-concurrency",
+        "status": "Pass",
+        "severity": "Deferred",
+        "locus": "packages/commerce/src/checkout-service.ts:318-343,388-425; packages/db/src/seed/ensure-seeded.ts:276-280",
+        "evidence": "checkout-service uses db.transaction() at READ COMMITTED (default) with FOR UPDATE on cart + inventory rows; seed uses SELECT pg_advisory_xact_lock(742193001) + onConflictDoNothing idempotent; order numbers use pg_advisory_xact_lock(hashtext('order_number:YYYY')) + MAX(split_part) +1; jobs claim with FOR UPDATE SKIP LOCKED per jobs.ts.",
+        "note": "Concurrency primitives match PRD \u00a77.9: row locks for inventory, advisory locks for seed and order numbers, SKIP LOCKED for outbox drain."
+      },
+      {
+        "id": "\u00a77.10-worked-example",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/checkout-service.ts:175-190; packages/commerce/src/pricing.ts (largest-remainder via commerce tests)",
+        "evidence": "Spec example: Halden 129900 + Woo 2\u00d74500 =138900 subtotal, discount 10000 largest-remainder \u2192 9352/648 split, shipping 4900, total 133800, FX 1.0864. DB carries integer columns to hold these; pricing module computeCartTotals distributes discount largest-remainder (verified via pricing.test property tests per audit). Shipping via shipping_rates table (AAL stock) matches 4900 standard DK. Placement fxRate hardcoded '1' (EUR-only launch) so USD totalEur=total is correct today per comment FR-504.",
+        "note": "Integer money columns support worked example invariants exactly; promotion distribution property-tested. Seed correctly leaves Halden/Birch variants with no inventory rows (made-to-order) vs \u00d8resund etc. with stock. FX example correct at EUR-only; multi-currency follow-up tracked."
+      },
+      {
+        "id": "\u00a77.11-checkout-reverification",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:280-370,340-380",
+        "evidence": "placeOrderFromWebhook recomputes PriceLines from variant_price join (fallback unitPriceSnapshot), calls loadCartPromotionApplications(tx, cartId, context with subtotal/region/now/productIds/categoryIds/isGuest) filtered via filterEligiblePromotions, then computeCartTotals({lines, promotions, shippingMinor:0}); resolves outcome via resolvePlacementOutcome comparing totals.total vs intent.amount and stockShortages; webhook_event insert is INSIDE the same transaction (audit H4d fix); confirm path transitions to confirmed, review path to review with ops.payment_orphan job.",
+        "note": "Load-bearing \u00a77.11 control implemented symmetrically to createPaymentIntent (same context/promotion filter) and inside placement tx; mismatch no longer throws (would lose payment) but routes to review with payment_orphan alert per \u00a78.7."
+      }
+    ]
+  },
+  "storefront": {
+    "phase": "FR-STOREFRONT",
+    "summary": "Storefront PRD \u00a75 audit: 48 FRs inspected. Core happy-path (header/drawer, PLP category subtree, PDP buy-panel, cart drawer + persistence, pricing + Stripe SAQ-A + mismatch gate) is Aligned and E2E-pinned. 11 FRs are fully Missing/Stub (search results page, mega-menu, faceted URL rules, bento filters, cross-sell, sticky mobile CTA, Notify-me, preorder, shipping estimates, express pay, abandoned-cart jobs). Remaining FRs are Partial drift \u2014 API/port exists but UI, secondary variant logic, or SEO facets are absent. Evidence traces below.",
+    "findings": [
+      {
+        "id": "FR-101",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/site-header.tsx:12-45",
+        "evidence": "sticky top-0 z-40 border-b bg-bg/95; nav hidden md:flex Shop/Collections/Our Story/Journal; CartTrigger itemCount from getCartDto; no scroll-up hide/show logic",
+        "note": "Sticky header present and cart count live, but PRD requires sticky-on-scroll-up (hide on down, reveal on up). Implementation is always sticky. Focus outline non-overlap OK via Radix primitives."
+      },
+      {
+        "id": "FR-102",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/components/mobile-nav.tsx:1-43 + site-header.tsx:28",
+        "evidence": "MobileNav uses @scandihaven/ui/drawer (Radix Dialog) open state, DrawerTrigger p-2 md:hidden, DrawerContent side=left w-72, focus-trapped Esc+scrim close via primitive, storefront.spec.ts mobile navigation 390x844",
+        "note": "Al core aligned after E2E-6 fix; drift: PRD requires account link + locale switcher inside drawer, implementation lists only Shop/Collections/Our Story/Journal. Verified by live E2E audit 2026-09-10."
+      },
+      {
+        "id": "FR-103",
+        "status": "Stub",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/content.ts:nav_entry + packages/db/src/schema/catalog.ts:category",
+        "evidence": "nav_entry table with menu/parent_id exists; no NavigationMenu component, no featured thumbnail per column, no keyboard arrow handling in site-header",
+        "note": "Deferred per traceability matrix \u2014 schema-ready, UI not built. PRD M priority but slipped to Phase 1 backlog."
+      },
+      {
+        "id": "FR-104",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/api/search/typeahead/route.ts:1-45 + packages/commerce/src/search-provider.ts:1-28 + packages/commerce/src/catalog.ts:377-395",
+        "evidence": "GET ?q min2 max120 limit\u226410, consumeRateLimit 60/min/IP, searchTypeahead via websearch_to_tsquery + ILIKE, TYPEAHEAD_MAX_LIMIT 10, Zod response {products,categories,journal}",
+        "note": "API Aligned (FTS path, rate-limited, SearchProvider port). Drift: header has no search input, no \u2264250ms debounce, no keyboard listbox, no recent-searches localStorage. Header search UI = Deferred Phase 1. Trigram category/journal hits return empty arrays (reserved)."
+      },
+      {
+        "id": "FR-105",
+        "status": "Fail",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/catalog.ts:377-395",
+        "evidence": "searchTypeahead uses only to_tsvector + ilike(product.title); no pg_trgm similarity \u22650.5 fallback, no search_synonym table expansion",
+        "note": "PRD requires pg_trgm typo tolerance + synonym map (couch\u2192sofa) via SearchProvider. Neither implemented; products search works for exact/prefix only. Tracked Deferred per traceability."
+      },
+      {
+        "id": "FR-106",
+        "status": "Fail",
+        "severity": "Major",
+        "locus": "apps/web/src/app/shop/page.tsx:1 + apps/web/src/app/api/search/typeahead/route.ts",
+        "evidence": "No /search route under apps/web/src/app/search; shop page accepts ?q search param but not shareable /search?q=, no robots noindex for search, no faceted grid/suggestions/empty-state on search route",
+        "note": "Server-rendered /search?q= with faceted grid, empty suggestions, noindex missing entirely. Deferred."
+      },
+      {
+        "id": "FR-107",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/components/site-footer.tsx:1-68 + apps/web/src/app/page.tsx:NewsletterForm + apps/web/src/actions/newsletter.ts:1-53",
+        "evidence": "SiteFooter has Shop help/About, showroom Vestre Havnegade 4, payment marks text, no newsletter form; NewsletterForm on homepage, subscribeAction rate-limited 3/hour/IP, onConflictDoNothing duplicate handling",
+        "note": "Newsletter Server Action + rate limit + duplicate states Aligned, but placement is homepage not footer. Footer missing social icons, legal links locale switcher subset only. Placement deviation noted in traceability."
+      },
+      {
+        "id": "FR-108",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/site-header.tsx:14-27 + packages/db/src/schema/content.ts:announcement",
+        "evidence": "Announcement fetched via db.select announcement where isActive limit1; rendered as bg-dark banner, no dismiss button, no Zustand persist, no rotating logic",
+        "note": "Content-managed bar renders, but dismiss-persist (Zustand persist) and rotating behavior not implemented. Admin-editable via seed only; Deferred dismissal."
+      },
+      {
+        "id": "FR-109",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/not-found.tsx:1-42 + apps/web/src/app/error.tsx + apps/web/src/app/global-error.tsx + apps/web/src/app/lookbooks/not-found.tsx",
+        "evidence": "not-found.tsx server component 404 with Browse shop/Back home links, E2E asserts SSR body contains wandered off + shop link, global-error.tsx branded 500 with Try again + chunk-recovery, loookbooks [[...slug]] names FR-705",
+        "note": "Aligned after 2026-09-09 M-404 fix (converted from client to server so SSR payload contains recovery paths). Verified E2E SSR + live."
+      },
+      {
+        "id": "FR-201",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/shop/page.tsx + apps/web/src/app/shop/[category]/page.tsx:1-92",
+        "evidence": "Routes /shop and /shop/[category] with recursive CTE categoryIdsInSubtree, unknown slug \u2192 notFound() when total0, breadcrumbs nav, JSON-LD BreadcrumbList missing",
+        "note": "PRD requires /shop/{category}/{sub} two-level. Implementation supports only one segment [category]; second sub-level not routable. Category subtree recursion correct, 404 handling correct, but breadcrumbs lack JSON-LD."
+      },
+      {
+        "id": "FR-202",
+        "status": "Stub",
+        "severity": "Major",
+        "locus": "packages/commerce/src/catalog.ts:18-35 productQuerySchema + apps/web/src/app/shop/page.tsx",
+        "evidence": "Schema has material: string[], availability, search, ids; no colour, price range, leadTime, collection params; no FilterPanel UI; listProducts builds single material && text[] OR, no cross-facet AND counts",
+        "note": "Filters specified as multi-select OR-within AND-across with facet counts via aggregated CTEs. No facet UI, no price/colour/leadTime derivations. Facet semantics = backlog B4 Deferred."
+      },
+      {
+        "id": "FR-203",
+        "status": "Fail",
+        "severity": "Major",
+        "locus": "apps/web/src/app/shop/[category]/page.tsx:21 + packages/commerce/src/catalog.ts",
+        "evidence": "generateMetadata alternates canonical /shop/{category} static; no handling of ?material=&color= single-facet allow-list vs \u22652 noindex,follow; no robots meta injection based on facet count",
+        "note": "Spec requires single-facet allow-list (material,color) self-canonical indexable, \u22652 facets noindex,follow. Zero canonical logic for facets; Deferred B8."
+      },
+      {
+        "id": "FR-204",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/shop/page.tsx:15-27 + packages/commerce/src/catalog.ts:120-135",
+        "evidence": "SORTS featured/newest/price_asc/price_desc, sortHref ?sort=, orderBy maps featured\u2192sort_order, price_asc/desc, newest\u2192created_at DESC; bestselling not in SORTS nor orderBy",
+        "note": "Four sorts implemented and URL-persisted; best-selling missing. best-selling requires product_metrics view/materialized velocity (PRD \u00a78.8) \u2014 currently Deferred."
+      },
+      {
+        "id": "FR-205",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/shop/page.tsx:38-70 + packages/commerce/src/catalog.ts:20,140-155",
+        "evidence": "pageSize default 24 max48, offset (page-1)*24, pageHref creates crawlable <Link>?page=N, pageCount Math.ceil(total/24), LIMIT/OFFSET in cards CTE",
+        "note": "Pagination crawlable links implemented; page 1 canonical to base not yet (self-canonical only) \u2014 minor SEO delta, core pagination Aligned."
+      },
+      {
+        "id": "FR-206",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/ui/src/components/composites/product-card.tsx:1-95",
+        "evidence": "MediaImage absolute inset-0 group-hover:opacity-0/100 hover-swap, Badge new/sale/low_stock, materialLine, PriceBlock compare-at strikethrough, quickAdd slot outside Link semantics",
+        "note": "Card structure Aligned per PRD FR-206; drift: hoverImageUrl always null (card query selects only first image via lateral, no second image), quick-add button never passed from PLP (slot exists but unused)."
+      },
+      {
+        "id": "FR-207",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "packages/ui/src/components/composites/lead-time-badge.tsx + packages/ui/src/components/composites/product-card.tsx:46-55",
+        "evidence": "LeadTimeBadge derives madeToOrder vs inStock vs outOfStock, text In stock \u2014 ships in 2\u20134 days vs Made to order \u2014 ships in 6\u20138 weeks, inventory rollup avail = qty_on_hand - qty_reserved - safety_stock in catalog.ts avail CTE",
+        "note": "P2 persona lead-time badge in product card and PDP buy-panel share same availability rollup \u2014 Aligned."
+      },
+      {
+        "id": "FR-208",
+        "status": "Stub",
+        "severity": "Deferred",
+        "locus": "apps/web/src/app/shop/page.tsx",
+        "evidence": "No grid/list view toggle component, no session persistence; PLP always grid-cols-2 lg:grid-cols-4",
+        "note": "C priority, not v1 exit criterion \u2014 correctly Deferred/Stub per traceability."
+      },
+      {
+        "id": "FR-301",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:107-138",
+        "evidence": "Gallery aspect-[4/5] primary img + grid-cols-4 thumbnails slice(1,5) max 4 thumbs, fetchPriority high, alt fallback product.title, media.alt NOT NULL, no zoom-on-hover, no swipe, no video, keyboard nav none",
+        "note": "Core gallery renders but missing zoom-on-hover desktop, swipe mobile, optional video, and allows up to 4 thumbs not 8. Alt mandatory enforced at upload (media.alt NOT NULL) \u2014 partial."
+      },
+      {
+        "id": "FR-302",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/components/product-buy-panel.tsx:32-92",
+        "evidence": "fieldset swatches disabled when availability===out_of_stock aria-pressed, onSelectVariant replaceState ?variant=SKU, useSyncExternalStore hydration-safe URL read, no unavailable-combo tooltip/disabling matrix",
+        "note": "Variant selection + ?variant=SKU shareability Aligned via audit M-3 fix. Drift: unavailable combos not computed combinatorially (only per-variant availability), tooltip text is simple out of stock string, not material-aware."
+      },
+      {
+        "id": "FR-303",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/product-buy-panel.tsx:54-75 + packages/ui/src/components/composites/price-block.tsx",
+        "evidence": "formatMinor selected.priceMinor, compareAtMinor line-through, no save X% badge calculation, no tax-inclusive label per locale (EU incl VAT / US excl)",
+        "note": "Price/compare-at rendered; save badge, tax-inclusive label absent. Currency hard-coded EUR via CURRENCY_BY_REGION EU, multi-currency not exposed."
+      },
+      {
+        "id": "FR-304",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/product-buy-panel.tsx:64-72 + apps/web/src/app/products/[slug]/page.tsx:50",
+        "evidence": "LeadTimeBadge with availability + leadTimeDaysMin/Max rendered mt-2 self-start adjacent to CTA, same source as FR-207 (product.lead_time_days_*)",
+        "note": "Lead-time badge adjacent CTA \u2014 Aligned (same rollup as FR-207/FR-304)."
+      },
+      {
+        "id": "FR-305",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/components/product-buy-panel.tsx:96-125",
+        "evidence": "QuantityStepper + Button Add to cart -> addToCartAction({variantId,qty,requestId: crypto.randomUUID()}) -> useCartStore openDrawer + router.refresh(); wishlist mentioned store only",
+        "note": "Add-to-cart opens mini-cart drawer \u2014 Aligned. Wishlist secondary action not implemented beyond comment (guest localStorage + merge-on-login missing). Quantity stepper present."
+      },
+      {
+        "id": "FR-306",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:144-175",
+        "evidence": "Accordion Radix type single collapsible, Description + Materials & care (careHtml) + Sustainability + Shipping & returns; no Dimensions diagram, sanitizeRichText applied",
+        "note": "Three of five accordions present; Dimensions diagram missing. Rich text sanitized at render (H-2 fix) \u2014 Aligned subset."
+      },
+      {
+        "id": "FR-307",
+        "status": "Fail",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:35-36",
+        "evidence": "Comment cross-sell stub \u2014 no Pairs well with section, no merchandiser-curated query, no fallback bestseller algorithm",
+        "note": "Cross-sell 4 products with curated + conversion-proxy fallback (same collection trailing 30d) not built. PRD S priority \u2014 Deferred."
+      },
+      {
+        "id": "FR-308",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:178-204 + packages/db/src/schema/catalog.ts:review",
+        "evidence": "Reviews section StarsRating + 6 list items approved reviews, ratingAverage/Count computed, status pending/approved moderation, no distribution bars, no sort recent/helpfulness, no photo upload, verified-buyer via is_verified_purchase but submission form gated not built",
+        "note": "Star summary + paginated list display Aligned. Drift: distribution bars, photo thumbnails, sort controls, submission form (server-side delivered-order gating) not implemented."
+      },
+      {
+        "id": "FR-309",
+        "status": "Fail",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/product-buy-panel.tsx",
+        "evidence": "No sticky mobile add-to-cart bar component, no scroll-out detection; grep sticky.*cta/mobile.*cta found nothing",
+        "note": "PRD S priority sticky mobile bar (price + CTA after primary scrolls out) not built. Deferred."
+      },
+      {
+        "id": "FR-310",
+        "status": "Stub",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/catalog.ts:287 back_in_stock_request + apps/web/src/components/product-buy-panel.tsx:118",
+        "evidence": "back_in_stock_request variant_id+email UNIQUE table, PDP disables Add to cart when out_of_stock, but no Notify me email form, no action backInStock.request",
+        "note": "Schema + disabled state exist; Notify me form (rate-limited, dedupe per email+variant) not wired \u2014 Stub."
+      },
+      {
+        "id": "FR-311",
+        "status": "Stub",
+        "severity": "Deferred",
+        "locus": "packages/db/src/schema/catalog.ts:73-74 + packages/commerce/src/catalog.ts",
+        "evidence": "product.is_preorder + preorder_ships_on columns exist, catalog.ts reads is_preorder, but PDP never renders preorder badge/estimated ship date nor checkout line date",
+        "note": "Preorder is S priority Deferred \u2014 schema present, UI badge/distinct checkout display missing. No is_preorder badge logic."
+      },
+      {
+        "id": "FR-312",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:52-84",
+        "evidence": "JSON-LD @type Product name/sku/offers priceCurrency/price/availability + conditionally AggregateRating ratingValue/reviewCount via safeJsonLd escaping </script>, no BreadcrumbList, no Organization/WebSite/SearchAction sitewide",
+        "note": "Product/Offer/AggregateRating Aligned and escaped (H-2). BreadcrumbList not emitted despite breadcrumb nav. Organization+WebSite not present. E2E parse-validity check passes for Product."
+      },
+      {
+        "id": "FR-313",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:25 + apps/web/src/proxy.ts",
+        "evidence": "PDP generateMetadata alternates canonical /products/{slug} absolute, legacy /shop/.../{slug} 301 not found via redirect table \u2014 proxy.ts notes redirect table Phase 1",
+        "note": "Canonical Aligned; legacy /shop prefix 301 handling via admin redirect manager not wired (proxy.ts defers)."
+      },
+      {
+        "id": "FR-401",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/components/cart-drawer.tsx:1-95 + apps/web/src/stores/cart-store.ts:1-18 + apps/web/src/components/cart-view.tsx:30-65",
+        "evidence": "CartDrawer Drawer + Zustand drawerOpen/close, cart prop server-truth re-validated on open, run() surfaces ActionResult alert, cart-view optimistic updateQty with rollback to server payload on error",
+        "note": "Drawer Zustand + optimistic rollback Aligned after 2026-09-09 H1-CART fix (requireCart returns UUID untouched). Verified by cart-flows.spec 6 scenarios with reload assertions."
+      },
+      {
+        "id": "FR-402",
+        "status": "Fail",
+        "severity": "Major",
+        "locus": "apps/web/src/app/cart/page.tsx + apps/web/src/components/cart-view.tsx:100-140 + packages/commerce/src/providers.ts:ShippingRateProvider",
+        "evidence": "Cart page /cart Order summary Subtotal/Discount/Total, shipping shows Calculated at checkout static text, promo Input Apply; no postcode input, no ShippingRateProvider.quote call within 500ms",
+        "note": "Full cart page exists but shipping estimate by postcode not implemented; shippingMinor null throughout cart-service and checkout-service. Shipping rates table + provider port exist but not composed into cart."
+      },
+      {
+        "id": "FR-403",
+        "status": "Partial",
+        "severity": "Blocking",
+        "locus": "apps/web/src/lib/cart-session.ts:1-22 + packages/commerce/src/cart-service.ts:30-110",
+        "evidence": "createCartToken random 24hex + HMAC sha256/.32 slice, verifyCartToken timingSafeEqual, getCartId resolves token\u2192UUID, ensureCart token-lookup then insert, mergeGuestCartIntoUserCart dedupes qty sum min 99 capped, CART_COOKIE sh_cart 30d HttpOnly Lax",
+        "note": "Persistence + merge-dedupe logic Aligned. Drift: merge wiring via Better-Auth hooks not yet invoked (comment in cart-service notes queued remediation B5); login merge only via reuse of same token through ensureCart."
+      },
+      {
+        "id": "FR-404",
+        "status": "Fail",
+        "severity": "Major",
+        "locus": "packages/commerce/src/cart-service.ts:295-382 getCartDto",
+        "evidence": "getCartDto recomputes variants pricing + filterEligiblePromotions on every read; no inline NOTICE banner when variant price/purchasability changed (cart displays current truth silently)",
+        "note": "Re-validation of price/availability on every read Aligned per E2E-3 fix; customer-visible notice when values changed (PRD FR-404 acceptance) not rendered."
+      },
+      {
+        "id": "FR-405",
+        "status": "Stub",
+        "severity": "Minor",
+        "locus": "packages/db/src/schema/orders.ts:43-45,69 + packages/commerce/src/pricing.ts:13",
+        "evidence": "cart.gift_message/gift_wrap/gift_receipt, cart_line.is_gift_wrap, pricing discountable exclusion for gift wrap, no UI for gift wrap +\u20ac8 line, no gift message \u2264500 textarea in cart/checkout",
+        "note": "Gift wrap SKU +\u20ac8 line, message, receipt \u2014 S priority schema/plumbing Stub; cart UI has no gift options form."
+      },
+      {
+        "id": "FR-406",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/pricing.ts:1-170 + packages/commerce/src/cart-service.ts:340-375",
+        "evidence": "computeCartTotals pure largest-remainder distributeDiscount BigInt exact, selectBestPromotion caps fixed/percent at subtotal, resolveTierValue highest threshold, property tests pricing.test.ts, cart totals subtotal/discount/shipping/tax/total via pricing",
+        "note": "Totals breakdown via pure pricing functions \u2014 Aligned, property-tested invariants hold (covers cart and checkout re-verification)."
+      },
+      {
+        "id": "FR-501",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/checkout/page.tsx:1-55 + apps/web/src/components/checkout-flow.tsx:14-80",
+        "evidence": "CheckoutPage server-rendered cart summary aside, CheckoutFlow single form email+name+address \u2192 PaymentIntent, no accordion Information\u2192Shipping\u2192Payment\u2192Review steps, no inline per-step validation / no full reload preserved state",
+        "note": "Single-page address+payment flow; PRD requires accordion steps with inline validation and no reload failure preservation. State preserved partially (form not cleared), but steps concept not built."
+      },
+      {
+        "id": "FR-502",
+        "status": "Fail",
+        "severity": "Minor",
+        "locus": "packages/config/src/flags.ts:FEATURE_KLARNA + apps/web/src/components/checkout-flow.tsx",
+        "evidence": "FEATURE_KLARNA off by default, Stripe PaymentElement automatic_payment_methods enabled true, no Apple Pay/Google Pay/Klarna express UI gated by region matrix",
+        "note": "Express payments via Stripe Payment Element automatic methods enabled, but dedicated express wallet buttons (Apple Pay/Google Pay) and Klarna region-gating not implemented. S priority correctly Deferred."
+      },
+      {
+        "id": "FR-503",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/sign-in/sign-in-form.tsx:48 + packages/commerce/src/checkout-service.ts:metadata email",
+        "evidence": "Guest checkout via address+email in PaymentIntent metadata, order email from intent.receipt_email fallback metadata email, post-purchase save my details / attach order not implemented",
+        "note": "Guest checkout supported (no account required). Post-purchase account creation attaching order (save my details) not built."
+      },
+      {
+        "id": "FR-504",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/checkout-flow.tsx:48-66",
+        "evidence": "Inputs autoComplete email/address-line1/address-level2/postal-code/country, maxLength 2 country, no Google Places/Loqate autocomplete",
+        "note": "Progressive enhancement: manual entry fully valid (S priority). Autocomplete vendor not integrated \u2014 acceptable per PRD progressive fallback."
+      },
+      {
+        "id": "FR-505",
+        "status": "Stub",
+        "severity": "Major",
+        "locus": "packages/commerce/src/catalog.ts:10 CURRENCY_BY_REGION + packages/commerce/src/checkout-service.ts:326 fxRate:1 + packages/db/src/schema/ops.ts:fx_rate",
+        "evidence": "CURRENCY_BY_REGION EU EUR/US USD/UK GBP, FX table exists, order fxRate stored as 1 placeholder, checkout hard-coded EUR, no currency picker persisting choice",
+        "note": "Multi-currency charge in customer currency with fx_rate locked at order \u2014 schema placeholder. Launch is EUR-only; second-currency sale still needs fx_rates wiring. Stub."
+      },
+      {
+        "id": "FR-506",
+        "status": "Stub",
+        "severity": "Major",
+        "locus": "packages/commerce/src/providers.ts:TaxProvider + packages/commerce/src/checkout-service.ts",
+        "evidence": "TaxProvider.quote interface with taxInclusive flag, checkout-service taxMinor 0, no Stripe Tax call at PaymentIntent creation, EU VAT-inclusive display not differentiated",
+        "note": "TaxProvider port Aligned; Stripe Tax adapter not wired \u2014 tax breakdown line in review step not rendered. Deferred per backlog."
+      },
+      {
+        "id": "FR-507",
+        "status": "Stub",
+        "severity": "Major",
+        "locus": "packages/commerce/src/providers.ts:ShippingRateProvider + packages/db/src/schema/ops.ts:shipping_rate",
+        "evidence": "shipping_zone/rate tables with method standard/express/white_glove/pickup min/maxWeight, provider interface quote, checkout-service shippingMinor 0, no weight/size white-glove forcing >30kg",
+        "note": "Shipping methods Force-selected white-glove >30kg not enforced; rates table resolver not called. Schema+port Stub, Phase 1 slice."
+      },
+      {
+        "id": "FR-508",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/components/checkout-flow.tsx:20-140 + apps/web/src/actions/checkout.ts + packages/commerce/src/checkout-service.ts:72-150,280-300 + apps/web/src/app/api/webhooks/stripe/route.ts:1-55",
+        "evidence": "PaymentElement on our domain(elements submit + stripe.confirmPayment redirect if_required), createPaymentIntent server-side re-derives amount + promotions + idempotency cartId:total, webhook verifies stripe-signature, mismatch gate resolvePlacementOutcome AMOUNT_MISMATCH \u2192 order in review + ops.payment_orphan job no decrement stock",
+        "note": "SAQ-A + server amount verification + mismatch gate Aligned and live-verified; honest not configured state when Stripe keys absent also E2E asserted. Core load-bearing control."
+      },
+      {
+        "id": "FR-509",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/components/checkout-flow.tsx:78-140 + packages/commerce/src/checkout-service.ts:260 + apps/web/src/app/api/webhooks/stripe/route.ts:45",
+        "evidence": "PaymentForm shows confirmError message card_declined \u2260 insufficient_funds, state preserved on failure (form not cleared), retry allowed via second createPaymentIntent idempotency key cartId+total, failed intents never create order (pending_payment only)",
+        "note": "Failure recovery preserved state + retry Aligned; duplicate-submit guarded by idempotency; stripe confirmPayment with retry surfacing."
+      },
+      {
+        "id": "FR-510",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/checkout/success/page.tsx:1 + packages/commerce/src/checkout-service.ts:430-460",
+        "evidence": "checkout/success robots noindex, checkout page robots noindex, order_confirmation outbox job inserted in placement TX with idempotency order_confirmation:orderId, confirmation page reads order by number (no proof token query param)",
+        "note": "Confirmation email via outbox Aligned. Drift: PRD requires confirmation proof token query param + email; success page just pushes router.push success without token validation."
+      },
+      {
+        "id": "FR-511",
+        "status": "Fail",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/jobs.ts + packages/db/src/schema/orders.ts:cart status abandoned",
+        "evidence": "cart status abandoned/merged enum, jobs outbox PgJobRunner FOR UPDATE SKIP LOCKED, but no 30m/24h abandoned-checkout scheduler, no consent-compliant email capture job",
+        "note": "S priority \u2014 not built. Cart abandoned detection from updated_at heuristics + email jobs Deferred."
+      },
+      {
+        "id": "FR-512",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/checkout/page.tsx:10-11 + apps/web/src/app/cart/page.tsx:8-10 + apps/web/src/app/checkout/success/page.tsx:6",
+        "evidence": "metadata robots: { index:false } on /cart, /checkout, /checkout/success; /account same, no sitemap inclusion; /search route missing so moot",
+        "note": "Noindex on checkout/cart/account Aligned via Next Metadata API. Search page not yet indexable so not violating."
+      }
+    ]
+  },
+  "admin": {
+    "findings": [
+      {
+        "evidence": "packages/auth/src/server.ts:32-55 emailAndPassword enabled minPasswordLength 10, socialProviders conditionally added; betterAuth session expiresIn 30d updateAge 1d; packages/auth/src/server.ts:58-70 HttpOnly Secure SameSite Lax are Better-Auth secure defaults (no override needed due to audit)",
+        "id": "FR-601",
+        "locus": "packages/auth/src/server.ts, apps/web/src/app/sign-in/sign-in-form.tsx:1-40, apps/web/src/app/api/auth/[...all]/route.ts",
+        "note": "Email/password + Google/Apple OAuth present (OAuth conditional on AUTH_GOOGLE_ID/APPLE_ID). DB sessions 30-day rolling verified. Magic link NOT configured (no emailOTP/magicLink plugin), zxcvbn-lite check not wired \u2014 server allows any 10+ char password. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "apps/web/src/app/account/page.tsx:19-32 getSession + redirect /sign-in?redirect=%2Faccount; apps/web/src/app/sign-in/sign-in-form.tsx:38-45 validateRedirectPath gate before router.push",
+        "id": "FR-602",
+        "locus": "apps/web/src/app/account/page.tsx, apps/web/src/proxy.ts:14-22, packages/config/src/redirect-path.ts",
+        "note": "Dashboard auth-required via RSC getSession + redirect param carried and validated (open-redirect closed E2E-5). But proxy.ts gate missing \u2014 spec says proxy.ts gate, implementation is page-level only. Admin (staff) layout gates via admin-guard but web proxy only sets security headers. Partial.",
+        "severity": "Minor",
+        "status": "Partial"
+      },
+      {
+        "evidence": "apps/web/src/app/account/page.tsx \u2014 no profile edit form; packages/auth/src/server.ts user.additionalFields phone/marketingOptIn only",
+        "id": "FR-603",
+        "locus": "apps/web/src/app/account/page.tsx, packages/db/src/schema/auth.ts:28-35 phone field",
+        "note": "Profile (name/email/phone/default address/comms prefs) has no UI. Email change re-verification not implemented \u2014 Better-Auth emailVerified flag exists but no updateProfile action enforces re-verify flow. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/web/src/app/account/page.tsx:50-78 renders orders number/status/total/placedAt; packages/db/src/schema/orders.ts:92-138 order_line snapshot fields titleSnapshot/skuSnapshot",
+        "id": "FR-604",
+        "locus": "apps/web/src/app/account/page.tsx, packages/db/src/schema/orders.ts",
+        "note": "Order history lists recent orders deterministically from order_line snapshot (no live re-price). Invoice PDF never generated (no route/package), carrier deep-link not rendered \u2014 shipment.trackingUrl exists in schema but never displayed. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "rg reorder / Reorder \u2014 0 hits outside docs; apps/web/src/components/* no reorder button",
+        "id": "FR-605",
+        "locus": "\u2014 (no implementation)",
+        "note": "One-click reorder with skip-notice for OOS lines not implemented. No action, no UI, no tests. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/customers.ts:18-35 address table exists; index address_user_idx",
+        "id": "FR-606",
+        "locus": "packages/db/src/schema/customers.ts, \u2014 no address.upsert/delete UI",
+        "note": "Saved addresses schema present; no Server Actions, no account sub-pages, no Stripe payment-methods list (last4/brand/expiry) rendered. PAN not stored is true by omission. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/commerce no wishlist; apps/web no wishlist store; docs/traceability.md calls it Deferred",
+        "id": "FR-607",
+        "locus": "\u2014 (no wishlist-store, no guest merge beyond cart)",
+        "note": "Wishlist multiple lists + share token + guest merge-on-login not implemented. Only cart guest\u2192user attach via ensureCart(token,userId) exists, not wishlist. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts:341-358 review table + status enum pending/approved/rejected exists",
+        "id": "FR-608",
+        "locus": "packages/db/src/schema/catalog.ts, \u2014 no account reviews page",
+        "note": "Review status (submitted/pending moderation/published) stored in review.status but no account page surfaces it. Submission itself gated via verified purchase check in PDP not account. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/auth.ts:50-74 session table DB-backed; packages/auth/src/server.ts:62-67 expiresIn 2592000 updateAge 86400",
+        "id": "FR-609",
+        "locus": "packages/auth/src/server.ts, packages/db/src/schema/auth.ts, \u2014 no UI",
+        "note": "Better-Auth DB sessions support revocation; session table exists. But no list-active-sessions UI, no sign-out-all action wired (Better-Auth admin plugin provides ban but not used). Schema-level only. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/web/src/app/page.tsx:14-85 hero/trust marquee/featured categories/new arrivals/Hygge Edit dark/journal preview/newsletter \u2014 all RSC with Suspense fallback null catch hides blanks; CategoryTiles/NewArrivals/JournalPreview each return null on empty",
+        "id": "FR-701",
+        "locus": "apps/web/src/app/page.tsx",
+        "note": "Section order implemented largely per spec; hide-section degrade via catch\u2192null/empty guard verified. Missing brand-story teaser as distinct section, materials 3-card section, testimonials 3-up (approved reviews), and announcement bar dismiss not persisted (docs note). Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "apps/web/src/app/collections/[slug]/page.tsx:33-95 editorial header (title/subtitle/storyHtml sanitized) + product grid via listProducts({ids}) no N+1; revalidate 300",
+        "id": "FR-702",
+        "locus": "apps/web/src/app/collections/[slug]/page.tsx, packages/commerce/src/catalog.ts:110 listProducts ids filter",
+        "note": "Collections curated groups with editorial header + story copy + product grid fully implemented; indexable and revalidated via revalidate 300. Aligned M. Minor gap: collection active date window starts_at/ends_at not enforced.",
+        "severity": "Minor",
+        "status": "Pass"
+      },
+      {
+        "evidence": "apps/web/src/app/journal/page.tsx:12-45 listLatestJournal; packages/commerce/src/rich-text.ts:30-50 sanitizeRichText allow-list + safeJsonLd breakout guard",
+        "id": "FR-703",
+        "locus": "apps/web/src/app/journal/page.tsx, packages/commerce/src/rich-text.ts, packages/commerce/src/catalog.ts:362 listLatestJournal",
+        "note": "Journal index lists published posts; rich text sanitized at render (Verified). Missing detail route /journal/{category}/{slug}: no matching app/journal/[slug] \u2014 category prefix not routed, product embeds (shop this post) not resolved. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "apps/web/src/app/[slug]/page.tsx:17-35 static_page isPublished gate + sanitizeRichText; packages/db/src/seed/ensure-seeded.ts:465 seed static pages including FAQ/Our Story/etc",
+        "id": "FR-704",
+        "locus": "apps/web/src/app/[slug]/page.tsx, packages/db/src/seed/ensure-seeded.ts",
+        "note": "Static pages managed via static_page table, seed includes Our Story/Sustainability/Materials/Showrooms/Trade/FAQ/Shipping/Returns/Privacy/Terms/Cookies/Accessibility. Versioned via updated_at + isPublished flag but no explicit version history table. Pass M.",
+        "severity": "Minor",
+        "status": "Pass"
+      },
+      {
+        "evidence": "apps/web/src/app/lookbooks/[[...slug]]/page.tsx:4-11 notFound(); apps/web/src/app/lookbooks/not-found.tsx:10-18 renders FR-705 honest 404; apps/web/e2e/storefront.spec.ts:93-98 asserts SSR body contains FR-705",
+        "id": "FR-705",
+        "locus": "apps/web/src/app/lookbooks/[[...slug]]/page.tsx, apps/web/src/app/lookbooks/not-found.tsx",
+        "note": "Lookbooks Phase5 correctly returns server-rendered honest 404 naming FR ID \u2014 never 500/empty. Verified by E2E. Hotspot jsonb schema present for future. Pass S.",
+        "severity": "Minor",
+        "status": "Pass"
+      },
+      {
+        "evidence": "packages/db/src/schema/ops.ts redirect table + packages/db/src/schema/content.ts redirect definition unique sourcePath; apps/web/src/proxy.ts:14-22 \u2014 no redirect lookup, no loop detection, no 404 top-N",
+        "id": "FR-706",
+        "locus": "packages/db/src/schema/content.ts:102-115 redirect table, apps/web/src/proxy.ts",
+        "note": "Redirect manager schema present (sourcePath UNIQUE) but zero proxy.ts integration: no before-routing 301 table check, no loop detection on save, no 404 log/top-N admin surface. Deferred M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/admin/src/app/(staff)/page.tsx:12-55 revenue SUM totalEur WHERE status NOT IN cancelled/pending_payment, pending fulfilment query, catalog/customer counts",
+        "id": "FR-801",
+        "locus": "apps/admin/src/app/(staff)/page.tsx",
+        "note": "Dashboard shows all-time revenue normalized to EUR via totalEur (correct), pending fulfilment list, counts. Missing today/7d/30d buckets, low-stock alerts, top products, conversion funnel (server events table exists but not queried). Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts product.slug citext UNIQUE product_slug_idx; apps/admin/src/actions/products.ts:27-95 updateProductAction Zod + audit log; apps/admin/src/app/(staff)/products/page.tsx lists products",
+        "id": "FR-802",
+        "locus": "packages/db/src/schema/catalog.ts, apps/admin/src/actions/products.ts",
+        "note": "Slug uniqueness enforced at DB citext UNIQUE (not just UI). Product CRUD is edit-only (title/status/price/stock), publish gate hero image+alt+variant+price NOT enforced \u2014 any title/status passes. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts inventoryLevel qtyOnHand/qtyReserved no CHECK \u22650 in DDL (should be CHECK); packages/db/src/schema/catalog.ts inventory_movement append-only index; apps/admin/src/actions/products.ts:77-95 movement insert reason adjustment",
+        "id": "FR-803",
+        "locus": "packages/db/src/schema/catalog.ts, apps/admin/src/actions/products.ts:77, packages/db/src/schema/orders.ts inventoryMovement",
+        "note": "Inventory per variant per warehouse seeded AAL/CPH, movements append-only ledger, admin delta writes movement. But negative stock NOT impossible at DB constraint level \u2014 missing CHECK >=0, only Math.max(0,\u2026) in action. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts variantPrice saleAmount/saleStartsAt/saleEndsAt; no validation start<end in schema or action",
+        "id": "FR-804",
+        "locus": "packages/db/src/schema/catalog.ts:78-88 variantPrice",
+        "note": "Pricing base per currency + tradeAmount + sale window columns present, but no sale schedule validation (start<end), no auto-render logic branching on active sale, trade tier resolver not wired. Schema-only. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "rg csv import / dry-run / bulk \u2014 0 hits outside seed",
+        "id": "FR-805",
+        "locus": "\u2014 (no CSV import/export)",
+        "note": "Catalog bulk import/export CSV with dry-run error report + async signed download not implemented. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/admin/src/app/(staff)/orders/page.tsx:12-55 simple order list limit 100; apps/admin/src/app/(staff)/orders/[id]/page.tsx:12-95 detail lines/addresses/events timeline asc createdAt",
+        "id": "FR-806",
+        "locus": "apps/admin/src/app/(staff)/orders/page.tsx, apps/admin/src/app/(staff)/orders/[id]/page.tsx",
+        "note": "Order list+detail+timeline append-only (order_event insert only) implemented. Missing mandated filters (status/date/channel/value/country) \u2014 list is unfiltered. Detail is single workspace as required. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "apps/admin/src/actions/orders.ts:47-95 transitionOrderAction authenticated, row-locked, transition() + order_event + audit + CONFLICT on stale from; packages/commerce/src/order-state.ts:80 transition pure; no Stripe capture/refund calls",
+        "id": "FR-807",
+        "locus": "apps/admin/src/actions/orders.ts, packages/commerce/src/order-state.ts",
+        "note": "Order state machine enforced via transition() only writer (no illegal moves), idempotency via webhook_event UNIQUE stripeEventId, timeline. But capture/refund/print packing slip/split-ship not implemented \u2014 only fulfill/cancel transitions. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/orders.ts:236-275 returnRequest/returnLine schema; no actions/pages",
+        "id": "FR-808",
+        "locus": "packages/db/src/schema/orders.ts",
+        "note": "Returns workflow states defined (requested\u2192approved\u2192awaiting_shipment\u2192in_transit\u2192inspecting\u2192refunded/exchanged/rejected/closed) in enum, but no workflow UI, no actor+timestamp per transition beyond generic returned table. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/content.ts staticPage/journalPost isPublished+publishedAt; lookbook isPublished; navEntry/announcement tables; no admin editor",
+        "id": "FR-809",
+        "locus": "packages/db/src/schema/content.ts, packages/db/src/schema/ops.ts",
+        "note": "Content tables carry draft\u2192published lifecycle (isPublished) and scheduling via publishedAt, but no admin CRUD editor, no navigation menu editor, no announcement bar admin, no revalidateTag on publish. Schema-only. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/commerce/src/pricing.ts:18-150 computeCartTotals pure + distributeDiscount largest-remainder BigInt + cap; packages/commerce/src/promotions.ts:30-85 evaluate/filter + tier resolve; packages/commerce/src/promotions.test.ts + pricing.test.ts fast-check property tests cap & sum conservation",
+        "id": "FR-810",
+        "locus": "packages/commerce/src/pricing.ts, packages/commerce/src/promotions.ts, packages/commerce/src/cart-service.ts getCartDto + loadCartPromotionApplications",
+        "note": "Pure promotion engine with property-tested invariants discount\u2264subtotal and subtotal-discount+ship+tax=total (Verified). Per-read re-validation via filterEligiblePromotions on every getCartDto/placement (E2E-3 fix). Gaps: free_shipping/bogo kinds carry value 0 in loader so tiered tiersJson dropped (known M1d), usage limits not counted (backlog B3). Partial M \u2014 core invariants pass.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/customers.ts:97-135 giftCard codeHash UNIQUE + status active/depleted/expired/disabled; no generation code \u2014 rg CSPRNG/randomBytes codeHash 0 hits",
+        "id": "FR-811",
+        "locus": "packages/db/src/schema/customers.ts",
+        "note": "Gift card schema present (codeHash UNIQUE, balance ledger giftCardTransaction append-only). No CSPRNG code generation, no configurable denominations UI, no scheduled delivery, balance lookup, fraud limits, or redemption as payment method in checkout. Schema-only S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/admin/src/app/(staff)/page.tsx minimal metrics only; no reporting module",
+        "id": "FR-812",
+        "locus": "\u2014 (no reporting pages)",
+        "note": "Reporting sales by day/week/month/product/category/channel/country/discount + CSV + cohort not built. Dashboard shows only all-time revenue/counts from order tables (correct source) but not the required breakdowns. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/auth/src/rbac.ts:44 owner alone has settings:manage; apps/admin/src/app/(staff)/* no settings route",
+        "id": "FR-813",
+        "locus": "packages/auth/src/rbac.ts, \u2014 no settings pages",
+        "note": "Settings (regions/currencies/tax/shipping zones/rates/payment providers/team & roles/webhooks/API keys) have RBAC gate settings:manage on owner only, but no UI pages and no destructive Owner+typed-confirmation flow implemented. Schema shippingZone/Rate present. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "apps/admin/src/app/(staff)/customers/page.tsx:6-12 stub naming FR-814 Phase1; packages/auth/src/rbac.ts customers:gdpr on admin/owner",
+        "id": "FR-814",
+        "locus": "apps/admin/src/app/(staff)/customers/page.tsx, packages/auth/src/rbac.ts",
+        "note": "Customer directory/GDPR export/anonymize stubbed with typed placeholder naming FR ID per spec \u2014 no fake data. LTV/segments/search/notes not implemented. GDPR tools missing. Correct stub per v1 honesty. Stub S.",
+        "severity": "Minor",
+        "status": "Stub"
+      },
+      {
+        "evidence": "\u2014 no fraud queue; packages/commerce/src/checkout-service.ts flag_for_review + payment_orphan job but no Radar score ingestion",
+        "id": "FR-815",
+        "locus": "\u2014 (no fraud queue UI)",
+        "note": "Fraud review queue risk-scored (Radar+mismatch) not implemented. Only primitive flag_for_review state and payment_orphan ops job exist. Queue does not filter nor block. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/customers.ts:55-72 tradeApplication with certificateMediaId FK media; \u2014 no upload/action, no signed expiring URL, no rate-limit",
+        "id": "FR-901",
+        "locus": "packages/db/src/schema/customers.ts",
+        "note": "Trade application form business details + cert upload schema present but no UI, no private signed expiring access, no rate limit 5/day/IP enforcement (rate-limit.ts exists but not wired to trade). Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/auth/src/rbac.ts trade:review on admin/owner; no decide action",
+        "id": "FR-902",
+        "locus": "packages/auth/src/rbac.ts, \u2014 no tradeApplication.decide action",
+        "note": "Manual approval workflow (48h SLA) not built: no admin queue, no role+tier grant on approval, no reason recording, no email on approve/reject. RBAC permission exists. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts variantPrice.tradeAmount; packages/commerce/src/catalog.ts getProduct/listProducts never filters tradeAmount",
+        "id": "FR-903",
+        "locus": "packages/db/src/schema/catalog.ts, packages/commerce/src/catalog.ts",
+        "note": "Trade-only pricing column present but server-stripping for unauthorized sessions not enforced \u2014 catalog queries return retail only and ignore tradeAmount rather than conditionally resolving. Missing M (data leak risk is currently non-exposure by omission).",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/orders.ts:104 paymentTermsEnum card/net30; packages/db/src/schema/auth.ts user.paymentTerms default card; order.paymentTerms default card",
+        "id": "FR-904",
+        "locus": "packages/db/src/schema/orders.ts, packages/db/src/schema/auth.ts",
+        "note": "Net-30 carry payment_terms column ships now on user + order (default card) so invoicing slots without migration \u2014 Phase5 invoicing not yet. Pass S by design.",
+        "severity": "Minor",
+        "status": "Pass"
+      },
+      {
+        "evidence": "\u2014 no bulk pad; docs/traceability notes deferred Phase5 CSV schema reserved but no code",
+        "id": "FR-905",
+        "locus": "\u2014",
+        "note": "Bulk order pad (CSV SKUs) deferred Phase5 \u2014 correctly not built. CSV schema not reserved in code. Deferred C by design.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "\u2014 no trade-gated static concierge block",
+        "id": "FR-906",
+        "locus": "\u2014",
+        "note": "Dedicated trade concierge contact on trade pages/confirmations not present. Trade pages themselves absent (trade feature flag off). Missing M (but gated behind FEATURE_TRADE).",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/commerce/src/jobs.ts:30-120 PgJobRunner enqueue onConflictDoNothing + drain FOR UPDATE SKIP LOCKED + backoff + dead-letter; packages/commerce/src/jobs.test.ts; apps/web/src/app/api/jobs/run/route.ts:30-60 timingSafeEqual CRON_SECRET + handlers email.order_confirmation; packages/email/src/send.ts:30-60 resend/log transport + hashEmail PII scrub",
+        "id": "FR-910",
+        "locus": "packages/commerce/src/jobs.ts, apps/web/src/app/api/jobs/run/route.ts, packages/email/src/send.ts, packages/commerce/src/checkout-service.ts:553 outbox job",
+        "note": "Order status email via outbox idempotent (kind+dedupeKey UNIQUE, SKIP LOCKED drain). Order confirmation wired end-to-end (TX-snapshot payload, dedupe order_confirmation:orderId). Shipment-update template exists but not enqueued on shipment state. Other statuses (in-production/out-for-delivery/delivered) not wired. Partial M.",
+        "severity": "Major",
+        "status": "Partial"
+      },
+      {
+        "evidence": "packages/db/src/schema/orders.ts shipment.trackingUrl/trackingNumber; apps/web/src/app/account/page.tsx never renders tracking",
+        "id": "FR-911",
+        "locus": "packages/db/src/schema/orders.ts, \u2014 no tracking page",
+        "note": "Carrier-agnostic tracking: carrier deep-link fields exist on shipment but no tracking page (carrier deep-link vs AfterShip) implemented; account order detail does not show tracking. Missing S.",
+        "severity": "Minor",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/orders.ts returnRequest/returnLine; \u2014 no portal",
+        "id": "FR-912",
+        "locus": "packages/db/src/schema/orders.ts",
+        "note": "Returns portal self-service (guest via order number+email proof, reason codes, damage photo, label generation, refund status) not implemented. Schema supports reasonCode/photoMediaIds/refundAmount but no UI or carrier stub. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "rg review-request / delivered_at +21 \u2014 0 hits; packages/commerce/src/jobs.ts supports runAfter but no enqueue at delivered_at+21d",
+        "id": "FR-913",
+        "locus": "\u2014",
+        "note": "Review request email 21d post-delivery via scheduled outbox job not wired \u2014 no enqueue on shipment.deliveredAt, no single-send guard, no unsubscribe respect. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      },
+      {
+        "evidence": "packages/db/src/schema/catalog.ts backInStockRequest UNIQUE(variantId,email); \u2014 no batch \u22641/day logic, no inventory movement hook",
+        "id": "FR-914",
+        "locus": "packages/db/src/schema/catalog.ts",
+        "note": "Back-in-stock notifications (from FR-310 submissions) have DRY dedupe constraint but no trigger on inventory movement crossing safety threshold, no batch \u22641 per variant per day per subscriber throttling. Missing M.",
+        "severity": "Major",
+        "status": "Missing"
+      }
+    ],
+    "phase": "FR-ADMIN",
+    "summary": "FR-600..999 audit: 41 FRs inspected. Strong: money/promotions invariants + outbox idempotency + order state machine are pure, tested, and wired into checkout re-verification (FR-801/810/910 cores pass or partial-pass). Homegrown: homepage/collections/journal/static/lookbooks cores largely aligned with degrade-to-hide and sanitization. Gaps cluster in Phase1/Phase5 deferred surfaces stubbed honestly \u2014 accounts (profile/wishlist/addresses/reorder/sessions), admin advanced (CSV, returns, content editing, promotions edge kinds, gift cards, reporting, settings, fraud), and full trade/post-purchase (cert handling, trade price gating, returns portal, review + back-in-stock batches). No FR falsely claims Pass that is Stub. Auth missing magic link/zxcvbn and proxy gate should be page-level \u2192 proxy migration. Highest severity is additive Missing on M priorities, mitigated by schema-first + honest stubs + fail-fast flags that keep future migrations safe."
+  },
+  "apiSec": {
+    "phase": "API-SEC-QUALITY",
+    "summary": "PRD \u00a78\u2013\u00a712 audit: \u00a78 doctrine core (RSC/ActionResult, 5 route handlers, PI re-verification, webhook deduplication inside TX, outbox same-TX) is Pass and load-bearing. Stripe matrix is Partial (SAQ-A intent plumbing done, express/Tax/FX/refunds still stubs). Search \u00a78.8 is Partial (websearch_to_tsquery present but relaxed facets/trigram/synonym/trigger/metrics view missing). Auth \u00a79 RBAC/headers/Zod/rich-text/secret hygiene Pass with 2FA and upload hardening Missing. Design tokens literal-hex Pass, composite inventory Partial. SEO sitemap/robots/hreflang/facet-indexing Missing, JSON-LD/track/i18n Partial. Quality pyramid 90/85, real-PG, audit gates and ledger Pass; E2E/axe/observability/SLO automation Partial.",
+    "findings": [
+      {
+        "id": "\u00a78-doctrine-RSC",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/commerce/src/catalog.ts:341+ apps/web/src/app/products/[slug]/page.tsx:43",
+        "evidence": "catalog.ts listProducts/getProduct are async Drizzle queries called directly from RSC pages (getProduct in PDP, listProducts in PLP/shop); no client fetch layer",
+        "note": "RSC default read path per \u00a78.1.1 implemented; DTOs returned are serializable."
+      },
+      {
+        "id": "\u00a78-doctrine-actions",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/actions/cart.ts:1 apps/admin/src/actions/orders.ts:1 packages/commerce/src/result.ts:12",
+        "evidence": "5 'use server' files (web cart/checkout/newsletter + admin products/orders); every mutation returns ActionResult<T> with closed ErrorCode union (9 codes) and fail()/ok() helpers; no throw across boundary",
+        "note": "Mutation doctrine per \u00a78.1.2 satisfied; pages call actions, not fetch."
+      },
+      {
+        "id": "\u00a78-route-whitelist-count",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/api/webhooks/stripe/route.ts apps/web/src/app/api/search/typeahead/route.ts apps/web/src/app/api/jobs/run/route.ts apps/web/src/app/api/health/route.ts apps/web/src/app/api/auth/[...all]/route.ts",
+        "evidence": "Exactly 5 whitelisted families present (auth, webhooks/stripe, search/typeahead, jobs/run, health) across web+admin; rg 'route.ts' shows no outbound REST endpoints for UI mutations",
+        "note": "No public outbound REST per \u00a78.1.4. Admin mirrors auth+health for its origin."
+      },
+      {
+        "id": "\u00a78-webhook",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/app/api/webhooks/stripe/route.ts:14 packages/commerce/src/checkout-service.ts:306",
+        "evidence": "route verifies stripe-signature via stripe.webhooks.constructEvent (default 300s tolerance); inserts webhook_event inside the placement transaction with .onConflictDoNothing() on unique stripe_event_id; duplicate returns 200 {duplicate:true}; failure rolls back idempotency row so retry redelivers",
+        "note": "Fix H4d: event insert moved inside TX; audit 2026-09-09 verification ledger confirms."
+      },
+      {
+        "id": "\u00a78-typeahead",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "apps/web/src/app/api/search/typeahead/route.ts:13 packages/commerce/src/catalog.ts:216",
+        "evidence": "querySchema limit 1..10 (default 6) with max 10 per PRD; handler rate-limits via consumeRateLimit 60/min/IP and returns 429 RATE_LIMITED with Retry-After header; response validated by responseSchema",
+        "note": "Limit\u226410 and per-IP rate limit implemented; Zod at boundary."
+      },
+      {
+        "id": "\u00a78-jobs-run",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "apps/web/src/app/api/jobs/run/route.ts:43 packages/commerce/src/jobs.ts:55",
+        "evidence": "route authorized via CRON_SECRET with timingSafeEqual on x-cron-secret/Authorization; runner drains with FOR UPDATE SKIP LOCKED, exponential backoff 0.5s\u00b72\u207f, dead-letter after maxAttempts=5; concurrent ticks verified (12 jobs \u00d7 3 ticks, no double-process)",
+        "note": "Outbox semantics per \u00a78.4/S-17 verified by 7 integration tests."
+      },
+      {
+        "id": "\u00a78-health",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "apps/web/src/app/api/health/route.ts:7 packages/db/src/schema/ops.ts:138",
+        "evidence": "GET executes SELECT 1 and returns {status:\"ok\",db:true,version} or 503 {degraded,db:false}; admin mirror logs with console.error",
+        "note": "Health probe contract satisfied for uptime/SLO."
+      },
+      {
+        "id": "\u00a78-action-catalog",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/actions/cart.ts:42 apps/web/src/actions/checkout.ts:24 apps/admin/src/actions/products.ts:17",
+        "evidence": "Implemented actions: cart.addLine/updateQty/removeLine/applyPromotion/getCart, checkout.createPaymentIntent, newsletter.subscribe, admin product.save/order.transition; missing catalog entries per PRD table: cart.removePromotion/setGiftOptions, account register/signIn/wishlist.merge/review.submit/backInStock.request/return.request, admin promotion/giftCard/redirect/content/tradeApplication.decide",
+        "note": "Phase-1 deferred items are stubbed with FR IDs per \u00a713.6; full Zod coverage only for shipped actions. Gate: catalog completeness is not PR-blocking per traceability Deferred."
+      },
+      {
+        "id": "\u00a78-checkout-reverify",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:230 packages/commerce/src/checkout-service.ts:333",
+        "evidence": "placeOrderFromWebhook recomputes PriceLines + loadCartPromotionApplications inside TX (same filtered promotion set as createPaymentIntent including category-gated R1); calls resolvePlacementOutcome({totalsTotal,intentAmount,stockShortages}); mismatch \u2192 review path, never creates order with mismatched amount",
+        "note": "\u00a77.11 load-bearing control implemented; pure seam resolvePlacementOutcome has 4 unit tests."
+      },
+      {
+        "id": "\u00a78.5-SAQ-A",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "apps/web/src/components/checkout-flow.tsx:14 packages/commerce/src/checkout-service.ts:82",
+        "evidence": "Checkout uses Stripe Payment Element via loadStripe(NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY); server creates PaymentIntent (amount derived server-side, idempotencyKey cart:{id}:{total}); no PAN field in codebase; client only confirms with elements",
+        "note": "SAQ-A: no card data touches our servers."
+      },
+      {
+        "id": "\u00a78.5-express",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/checkout-service.ts:128",
+        "evidence": "PaymentIntent uses automatic_payment_methods:{enabled:true} which enables Apple Pay/Google Pay wallets but no explicit Express Checkout Element or PayPal/Klarna per METHOD matrix; FR-502 deferred in traceability",
+        "note": "Express methods are implicitly enabled via automatic_pm, but not explicitly asserted; Klarna gated by FEATURE_KLARNA=off per flags.ts:14."
+      },
+      {
+        "id": "\u00a78.5-capture",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/checkout-service.ts:16 packages/admin/src/actions/orders.ts:1",
+        "evidence": "Intents use automatic capture (default, no capture_method:manual); admin 'capture' transition not present \u2014 only cancel/fulfill lifecycle; PRD auto-capture satisfied but manual-capture fraud-queue action missing",
+        "note": "Not blocking for v1 auto-capture; manual capture is backlog."
+      },
+      {
+        "id": "\u00a78.5-tax",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/pricing.ts:43 packages/commerce/src/checkout-service.ts:195 packages/db/src/schema/orders.ts:189",
+        "evidence": "Order/line tables have tax/taxRate columns and pricing.ts has taxMinor field, but checkout-service computes totals with shippingMinor:0 and tax:0; no Stripe Tax API call (TaxProvider interface exists but no adapter wired); tax display logic stubbed as EU-inclusive vs US/UK exclusive",
+        "note": "PRD Stripe Tax decision (TaxProvider.port) is interfaced, not yet bound \u2014 Phase-1 backlog B1."
+      },
+      {
+        "id": "\u00a78.5-FX",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/checkout-service.ts:440 packages/db/src/schema/ops.ts:96 packages/commerce/src/money.ts:24",
+        "evidence": "order.fxRate column exists (numeric 18,8) and fx_rate seed table, but placement writes fxRate:\"1\" with comment 'Phase-1 slice launch EUR-only'; money.convertFx exists but not wired into Stripe amount; computeCartTotals not Fx-aware",
+        "note": "Multi-currency FX lock scoped as Phase-1; current EUR-only behavior is documented and correct."
+      },
+      {
+        "id": "\u00a78.5-refunds",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "apps/admin/src/actions/orders.ts:41 packages/commerce/src/checkout-service.ts:673",
+        "evidence": "No admin.order.refund action calling Stripe refunds with idempotency key order:{id}:refund:{n}; RBAC has orders:refund_small/large but no caller; webhook handles charge.refunded as handled:false stub",
+        "note": "Refund flow (FR-807) is deferred; idempotency key shape is specified in PRD but not implemented."
+      },
+      {
+        "id": "\u00a78.5-webhooks-4types",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/api/webhooks/stripe/route.ts:44",
+        "evidence": "Switch handles payment_intent.succeeded fully; payment_intent.payment_failed, charge.refunded, charge.dispute.created return {handled:false} stubs; prd requires 4 typed handlers with refund reconciliation and dispute fraud queue",
+        "note": "Only succeeded is load-bearing for v1; other three are explicitly Phase-1 stubs per traceability."
+      },
+      {
+        "id": "\u00a78.5-test-cards",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "apps/web/src/components/checkout-flow.tsx:58 README.md:152",
+        "evidence": "Checkout renders explicit 'Stripe is not configured' state when keys contain set-me; E2E asserts that honest state; docs list test cards 4242\u2026 and 4000 0000 0000 3220 (3DS)",
+        "note": "E2E does not fake payment per AGENTS rule; honest-not-configured is verified path."
+      },
+      {
+        "id": "\u00a78.6-outbox-TX",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:555 packages/db/src/schema/ops.ts:41",
+        "evidence": "Order placement inserts job rows (email.order_confirmation + ops.payment_orphan) and analytics_event inside the same db.transaction as order+lines+payment+inventory; job table has idempotencyKey unique + onConflictDoNothing",
+        "note": "Events\u2192outbox same TX per \u00a78.3/\u00a74.3; verified by TX code inspection."
+      },
+      {
+        "id": "\u00a78.6-payment_failed-stays",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/api/webhooks/stripe/route.ts:52 packages/commerce/src/checkout-service.ts:15",
+        "evidence": "payment_failed handler updates no state \u2014 cart remains active by omission (no order row exists for failed intent, no cart status change); but no recovery email/job (FR-511) and no payment row status update; checkout-flow preserves form state client-side via retry, not server-driven",
+        "note": "Cart-stays semantics holds by default; PRD recovery sequence (code-specific message, fresh PI) is partially fulfilled."
+      },
+      {
+        "id": "\u00a78.7-webhook-after-abort",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/src/checkout-service.ts:333 packages/commerce/src/checkout-service.ts:492",
+        "evidence": "resolvePlacementOutcome returns review on AMOUNT_MISMATCH or stockShortages; placeOrderFromWebhook then transitions pending_payment\u2192review (flag_for_review), inserts ops.payment_orphan job, converts cart to prevent double-charge, skips stock decrement and confirmation email; stripe route returns 200 {review:true} so Stripe stops retrying",
+        "note": "\u00a78.7 worst-case failure explicitly covered and unit-tested (4 decisions); advisory lock prevents order-number race that would lose payment on retry."
+      },
+      {
+        "id": "\u00a78.8-catalog-query",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/catalog.ts:10 packages/commerce/src/catalog.ts:84",
+        "evidence": "productQuerySchema is single Zod (categorySlug/material/ids/availability/sort/search/page/pageSize/region) \u2014 matches PRD shape but missing explicit facets color/price/best-selling currency pairing and price range object; implementation uses single CTE round-trip but facet counts are NOT relaxed (no per-facet CTEs), no aggregated CTEs for zero-count suggestions",
+        "note": "Basic contract Pass; relaxed facet semantics and pagination via LIMIT/OFFSET (keyset is v1.1 path) \u2014 facet zero states not fully per \u00a78.8."
+      },
+      {
+        "id": "\u00a78.8-search-stack",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/catalog.ts:215 packages/db/drizzle/0000_large_sphinx.sql:393",
+        "evidence": "search path does websearch_to_tsquery('english', title) plus ILIKE fallback, but no pg_trgm similarity \u22650.5 union, no search_synonym expansion, no trigger-maintained search_vector (search_vector column not in product table), no GIN indexes on vector/trgm; synonym table never queried",
+        "note": "SearchProvider port exists and Postgres FTS is wired, but trigram+synonym+trigger vector are backlog B4 per traceability."
+      },
+      {
+        "id": "\u00a78.8-bestselling",
+        "status": "Missing",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/catalog.ts:61 packages/db/src/schema/catalog.ts",
+        "evidence": "sort enum includes bestselling but listProducts ORDER BY falls through to p.sort_order default for that case; no product_metrics view (units per 30d) referenced; no 15-min refresh via job runner",
+        "note": "Bestselling sort is unimplemented \u2014 traceability marks it as deferred."
+      },
+      {
+        "id": "\u00a79-auth-password",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/auth/src/server.ts:82",
+        "evidence": "minPasswordLength:10 enforced via Better-Auth; no zxcvbn\u22653 check, no breached-password check, magic-link (15-min single-use) plugin not mounted, OAuth allow-list exists (AUTH_GOOGLE_ID/APPLE when env present) but not allow-listed redirect URI validation beyond Better-Auth defaults",
+        "note": "10-char floor Pass; zxcvbn/magic/OAuth hard-list Partial."
+      },
+      {
+        "id": "\u00a79-RBAC",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/auth/src/rbac.ts:10 apps/admin/src/lib/admin-guard.ts:1",
+        "evidence": "7 roles ROLES constant, 15 PERMISSIONS, MATRIX with can(role,permission); \u2264\u20ac500 split via orders:refund_small vs refund_large; Server Actions call requirePermission() and write audit_log; no inline role checks; rbac.test.ts covers small vs large",
+        "note": "Single-source matrix per \u00a79.2; least privilege (CS small only, warehouse fulfill) enforced."
+      },
+      {
+        "id": "\u00a79-2FA",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "packages/auth/src/server.ts:11 apps/web/src/proxy.ts:14",
+        "evidence": "two_factor TOTP table exists in schema but server.ts plugins=[admin()] only \u2014 no twoFactor plugin; proxy does not gate /admin on second factor; PRD requires Owner/Admin TOTP at proxy level",
+        "note": "Phase-1 per verification ledger; documented as scaffold gap."
+      },
+      {
+        "id": "\u00a79-headers",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/config/src/security-headers.ts:10 apps/web/src/proxy.ts:14",
+        "evidence": "securityHeaders() returns HSTS (63072000 preload), XCTO nosniff, Referrer strict-origin-when-cross-origin, Permissions-Policy minimal, XFO DENY, CSP default-src self + script-src self unsafe-inline https://js.stripe.com + static.cloudflareinsights.com + frame-src hooks; via proxy.ts on every response with x-request-id correlation",
+        "note": "CSP uses unsafe-inline not nonce per comment 'strict nonce lands Phase-1 hardening' (live E2E-7 beacon fix). Manifest is centrally unit-tested (security-headers.test.ts)."
+      },
+      {
+        "id": "\u00a79-session",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/auth/src/server.ts:95",
+        "evidence": "Session expiresIn 60*60*24*30 (30 days), updateAge 1 day, DB-backed sessions via drizzleAdapter; cookies HttpOnly Secure SameSite Lax are Better-Auth secure defaults; trustedOrigins derives per-request origin from proxy-controlled headers only (never Origin/Referer)",
+        "note": "Auth origin trust (H-AUTH audit) verified via trusted-origins.test.ts 7 cases + server-origin 19 cases."
+      },
+      {
+        "id": "\u00a79-input-Zod",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/config/src/env.ts:48 apps/web/src/actions/cart.ts:41",
+        "evidence": "Zod at every boundary: env parseServerEnv fail-fast on boot (instrumentation.ts), Server Action inputs via safeParse, route query/response schemas (typeahead), webhook payload post-signature; sql.raw absent repo-wide (rg 0 hits)",
+        "note": "Env fail-fast runs in both apps' instrumentation before import; sql.raw lint-banned."
+      },
+      {
+        "id": "\u00a79-rich-text",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/commerce/src/rich-text.ts:12 apps/web/src/app/products/[slug]/page.tsx:36",
+        "evidence": "sanitizeRichText with sanitize-html allow-list (typography/links/lists/tables/images) + safeJsonLd escaping (<> & U+2028/29) wired to all 6 dangerouslySetInnerHTML sites; PDP accordions and JSON-LD use it",
+        "note": "Audit H-2 fix verified with 11 unit tests and grep every __html wrapped."
+      },
+      {
+        "id": "\u00a79-upload",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts: media table",
+        "evidence": "No upload handler found (trade certificate, return photos, review photos); no type allow-list, size caps, randomized keys, private storage or signed URLs; media.url is plain text",
+        "note": "FR-901/FR-912 uploads are deferred; security upload surface is unimplemented beyond schema."
+      },
+      {
+        "id": "\u00a79-env-gitignore",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": ".gitignore:14 .github/workflows/ci.yml:60",
+        "evidence": ".gitignore lists .env/.env.local/docs/bak.env/**/**.bak/docs/env.tgz/ssh-key.txt; git ls-files shows only .env.example tracked; CI secret scan uses rg --no-ignore with PCRE2 patterns for BETTER_AUTH_SECRET/CRON_SECRET non-placeholder plus 8 other secret shapes and --hidden",
+        "note": "Historical exposure in 262d3cc rotated-flagged as ops; current branch clean (verified ledger \u00a7C2r/C-CI)."
+      },
+      {
+        "id": "\u00a79-rate-limits",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/commerce/src/rate-limit.ts:55 apps/web/src/app/api/search/typeahead/route.ts:29",
+        "evidence": "Postgres sliding-window via rate_limit_hit PK(bucket,windowStart) with atomic upsert and RETRY_AFTER; implemented: typeahead 60/min/IP (429 RATE_LIMITED) and newsletter 3/hour/IP; missing: auth 5/min/IP+email, checkout 30/min/cart, trade 5/day/IP \u2014 no consumeRateLimit call sites for those scopes",
+        "note": "Limiter primitive Pass; per-route coverage is 2/5 PRD buckets \u2014 remainder Phase-1."
+      },
+      {
+        "id": "\u00a79-privacy-GDPR",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/email/src/send.ts:49 packages/auth/src/rbac.ts:31 docs/traceability.md:14",
+        "evidence": "PII scrub: email hashed in logs (hashEmail), audit_log ipHash not raw IP, analytics_event carries IDs only; SAQ-A via Elements; missing: GDPR export/anonymize workflows (FR-814 stub only), 7y retention enforcement, DSA trader block, EXIF strip on review photos, 'Do Not Sell' footer link, consent banner/categories",
+        "note": "Privacy controls are scaffolded (RBAC customers:gdpr) but DSR/CCPA/DSA surfaces are Deferred B8."
+      },
+      {
+        "id": "\u00a79-STRIDE",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "packages/commerce/src/checkout-service.ts:230 packages/auth/src/rbac.ts:11 packages/db/src/schema/ops.ts:18",
+        "evidence": "Threat controls mapped: Spoofing (HttpOnly Secure SameSite + rotation), Tampering (server-side price re-derive \u00a77.11 + intent amount check), Repudiation (audit_log append-only with before/after digests), Info disclosure (trade fields stripped server-side, never in client bundle), DoS (rate limits + WAF note + webhook tolerance), EoP (single RBAC matrix + Server-Action re-auth + proxy gate)",
+        "note": "STRIDE excerpt in PRD \u00a79.7 is traceable to controls; residual EoP via missing 2FA is above."
+      },
+      {
+        "id": "\u00a710-tokens",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/ui/src/tokens.css:5 apps/web/src/app/globals.css:1",
+        "evidence": "@theme block defines --color-bg:#faf7f2 --color-muted:#6F665C --color-accent-2:#8F4326 exactly per \u00a710.1 AA-verified values; shadcn tokens are literal hex (--color-primary:#8F4326 etc.) with comment 'var() chains dropped by Tailwind v4 build \u2014 keep in sync'",
+        "note": "NFR-STACK-8 Pass; globals.css imports tokens.css and declares @source reaching packages/ui."
+      },
+      {
+        "id": "\u00a710-shadcn-var-chain",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/ui/src/tokens.css:19",
+        "evidence": "Semantic tokens (--background, --foreground, --primary, --border, --ring) are literal hex, not var() references; palette block above is source of truth \u2014 no var() chain inside @theme",
+        "note": "Build drops var() chains; literal-hex discipline prevents silent missing CSS."
+      },
+      {
+        "id": "\u00a710-component-inventory",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/ui/src/components/accordion.tsx packages/ui/src/components/button.tsx",
+        "evidence": "shadcn primitives present (Button/Badge/Input/Accordion/Dialog/Drawer etc.) and SH composites ProductCard/ProductGallery/VariantSelector/CartDrawer partially present; missing per inventory: FilterPanel (facets), QuantityStepper, LeadTimeBadge, ReviewSummary/list, StarsRating, SortSelect, AddressForm, ShippingMethodSelector, PaymentElement wrapper, OrderTimeline in packages/ui (some live in apps/web/components)",
+        "note": "Inventory is partially in apps/web rather than packages/ui canonical composites \u2014 drift from \u00a710.3 location."
+      },
+      {
+        "id": "\u00a710-zustand",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "apps/web/src/stores/cart-store.ts:8",
+        "evidence": "Zustand stores: cart-store {drawerOpen,lastError} only \u2014 no server data; no persist (server is truth); mount-safe; admin has no server-data store",
+        "note": "\u00a710.4 'No store holds server data \u2014 RSC props stay source of truth' satisfied; persist/consent-gated wishlist not yet persisted (acceptable per phase)."
+      },
+      {
+        "id": "\u00a710-loading-motion-images",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/ui/src/tokens.css:52 apps/web/src/app/products/[slug]/page.tsx:58",
+        "evidence": "Motion tokens --ease-brand + 4 durations (200/300/400/800) defined; focus-visible ring present; images use raw <img> not next/image, no AVIF/WebP sizes, no hero \u2264200KB / product \u226480KB enforcement; ledger notes image budgets not gate-enforced; prefers-reduced-motion collapse not observed",
+        "note": "Loading/empty/error 4-state contract partially met (error.tsx + skeletons present but not systematic); image budget is FR-iron fence, not enforced."
+      },
+      {
+        "id": "\u00a711-SEO-RSC",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "apps/web/src/app/layout.tsx:34 apps/web/src/app/shop/page.tsx:1",
+        "evidence": "Shop/collections/PDP/pages are RSC (no 'use client' on page modules); client islands are leaves (ProductBuyPanel, cart drawer) that receive RSC props",
+        "note": "Every indexable page is server-rendered HTML per \u00a711.1."
+      },
+      {
+        "id": "\u00a711-metadata",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:16",
+        "evidence": "PDP generateMetadata returns title absolute (avoids double suffix), description, canonical /products/{slug}, og images; shop/collections have canonical; missing: collection/journal/static-page seoTitle template fallbacks, twitter/og sitewide, but layout metadataBase + title template present",
+        "note": "Metadata API is used, but not all catalog entities use admin seo_title fallback template."
+      },
+      {
+        "id": "\u00a711-sitemap",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "apps/web/src/app/sitemap.ts",
+        "evidence": "No sitemap.ts file exists (ls negative); PRD requires daily weights (products highest) + image entries + exclusions (cart/checkout/account/search/admin); traceability marks B8 Deferred",
+        "note": "SEO hard-gate per \u00a712.1; missing file is PR-blocking for launch."
+      },
+      {
+        "id": "\u00a711-robots",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "apps/web/src/app/robots.ts",
+        "evidence": "No robots.ts file exists; PRD requires disallow /admin,/account,/cart,/checkout,/search,/api and sitemap reference",
+        "note": "Backlog B8; live robots.txt is Cloudflare default \u2014 L-2 in audit."
+      },
+      {
+        "id": "\u00a711-facet-indexing",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "apps/web/src/app/shop/[category]/page.tsx:1 packages/commerce/src/catalog.ts:60",
+        "evidence": "No noindex/follow logic for \u22652 facets, no self-canonical for 0/single-curated facet, no pagination canonical ?page=N or rel next/prev; facet queries not emitted as indexable URLs beyond categorySlug/material",
+        "note": "FR-203 \u00a711.1 facet indexing rules not implemented \u2014 PR-blocking SEO."
+      },
+      {
+        "id": "\u00a711-JSON-LD",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/products/[slug]/page.tsx:44",
+        "evidence": "PDP emits Product+Offer+AggregateRating (when reviews >0) JSON-LD via safeJsonLd escaped script tag; missing: Organization+WebSite(SearchAction) sitewide, BreadcrumbList on PLP/PDP/collections, Article on journal; PLP/collections/journal have no JSON-LD",
+        "note": "E2E asserts parse-valid PDP JSON-LD; remaining types are Deferred B8."
+      },
+      {
+        "id": "\u00a711-hreflang",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "apps/web/src/app/layout.tsx:34",
+        "evidence": "No hreflang alternates (EN default, /da /de /sv, x-default\u2192EN) emitted; rg 'hreflang|next-intl' across apps/web shows 0 hits; FEATURE_I18N flag exists but wiring is absent",
+        "note": "\u00a711.1 hreflang required on all indexable routes; deferred as B8."
+      },
+      {
+        "id": "\u00a711-analytics",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/ops.ts:138 packages/commerce/src/checkout-service.ts:543",
+        "evidence": "order_completed is server-authoritative: inserted into analytics_event inside placement TX (non-review path) with revenueMinor/currency/itemCount; but typed analytics.track(event,payload) client module and 11 other events (page_viewed/product_viewed/etc.) per \u00a711.2 table not implemented; no GA4 Measurement Protocol forward",
+        "note": "Revenue truth Pass; client analytics module is Deferred B8."
+      },
+      {
+        "id": "\u00a711-i18n",
+        "status": "Missing",
+        "severity": "Major",
+        "locus": "packages/db/src/schema/catalog.ts:1 packages/config/src/flags.ts:14",
+        "evidence": "No next-intl routing (proxy does not negotiate locale), no translation tables (product_locale etc.), region\u22a5locale orthogonality not present; FEATURE_I18N defaults true but has zero callers (misleading posture per audit F-19)",
+        "note": "i18n is Phase-2 per \u00a713.6; flag should document unimplemented posture."
+      },
+      {
+        "id": "\u00a711-perf-budgets",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "PRD.md:852 turbo.json:3 next.config.ts:20",
+        "evidence": "Budgets defined PRD 11.4 (LCP<2.0/1.5 INP<200/100 CLS<0.05/0.02 JS<180-250KB) and documented, but no Lighthouse CI budgets on PR, no next/font hero priority enforcement, no Bundle Analyzer gate; next.config unoptimized toggle exists via DISABLE_IMAGE_OPTIMIZER in turbo globalEnv",
+        "note": "Budgets are Reasoned not Verified \u2014 no E2E perf measurement in CI; observability beacons (\u00a712.3 RUM) absent."
+      },
+      {
+        "id": "\u00a712-pyramid-coverage",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "packages/commerce/vitest.config.ts:10 docs/verification-ledger.md:62",
+        "evidence": "vitest.config coverage thresholds lines 90 functions 85 on pure domain modules (money/pricing/promotions/order-state/result); ledger shows 90.68-90.9% stmts / 89.28-90.32% funcs across gates; commerce suite 118 passed with fast-check invariants",
+        "note": "PRD \u00a712.1 gate Pass; DB-backed services excluded from pure coverage by design."
+      },
+      {
+        "id": "\u00a712-integration-realPG",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "packages/commerce/src/jobs.test.ts:12 packages/commerce/src/checkout-promotions.integration.test.ts:1",
+        "evidence": "Integration suites use skipIf(!dbReady) (db points at localhost) and run in CI PG 17 service after migrate+seed (ci.yml Migrate+seed precedes Unit tests); evidence includes jobs (7), rate-limit, catalog-price, checkout-promotions specs that executed in 2026-09-10 local PG provision",
+        "note": "Real-PG semantics verified in CI; local sandbox without PG auto-skips by design."
+      },
+      {
+        "id": "\u00a712-E2E-journeys",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/e2e/cart-flows.spec.ts apps/web/e2e/storefront.spec.ts",
+        "evidence": "2 spec files covering ~6 critical paths (guest browse\u2192cart\u2192qty/remove\u2192promo apply/persistence, storefront health/a11y, checkout honest-not-configured); missing explicit journeys per PRD: account purchase\u2192reorder, return request on delivered order, admin product publish\u2192PDP revalidation, inventory adjust\u2192badge, review submission",
+        "note": "E2E critical paths are core-satisfied; full 8-journey matrix is Phase-1."
+      },
+      {
+        "id": "\u00a712-axe",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/e2e/storefront.spec.ts:76",
+        "evidence": "Chromium+WebKit projects configured, axe-core used on PDP/home/PLP/checkout in ledger (serious/critical=0 on tested routes); but not all key templates scanned systematically per PRD and visual diff is advisory only",
+        "note": "WCAG AA gate Partial Pass; axe clean on covered routes verified."
+      },
+      {
+        "id": "\u00a712-audit-secrets",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": ".github/workflows/ci.yml:48 packages/commerce/vitest.config.ts:1",
+        "evidence": "CI jobs: pnpm audit --audit-level high is PR-blocking (verified 1 moderate 0 high) + secret scan step with if rg --no-ignore ... then fail semantics (fixes H6d inversion) and PCRE2 patterns for 8 credential shapes + non-placeholder BETTER_AUTH/CROM secrets",
+        "note": "Security gates are load-bearing after audit C2/C-CI remediation."
+      },
+      {
+        "id": "\u00a712-WCAG-keyboard-ARIA",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/app/layout.tsx:36 packages/ui/src/tokens.css:58",
+        "evidence": "Skip-to-content link present, focus-visible ring (2px ring token), drawer ARIA (Radix Drawer focus-trap/Esc/scrim/scroll-lock via mobile-nav.tsx), muted/accent-2 contrast AA-verified, alt text enforced (CHECK alt<>''); but target size 44px not everywhere (<44px audit L-5) and review live regions incomplete",
+        "note": "WCAG 2.2 AA partially verified; axe zero serious on covered templates but not blanket."
+      },
+      {
+        "id": "\u00a712-observability",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "apps/web/src/proxy.ts:8 apps/web/src/app/api/health/route.ts:7",
+        "evidence": "x-request-id correlation generated in proxy and returned as response header; health checks DB round-trip with 1-min synthetic probe; logs use console.error with context on caught errors; missing: centralized JSON structured logs, Sentry release tagging, SLO alert wiring (error rate >1% / TTFB >800ms / webhook lag >5m / dead-letter>0)",
+        "note": "Observability baseline Pass for health+correlation; alerting/Sentry/RUM are Phase-1 hardening."
+      },
+      {
+        "id": "\u00a712-ledger",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "docs/verification-ledger.md:1",
+        "evidence": "261-line ledger exists with Verified/Reasoned/Assumed/Unverifiable labels, command executed/workspace/result, canonical commands (turbo lint typecheck test build, migrate+seed, e2e --project=chromium); PRs touching money/auth/orders must append",
+        "note": "Evidence discipline per \u00a712.4 is the repo's strongest quality control \u2014 exemplary."
+      },
+      {
+        "id": "\u00a712-fixtures",
+        "status": "Partial",
+        "severity": "Minor",
+        "locus": "packages/db/src/testing/index.ts:1 packages/commerce/src/pricing.test.ts:1",
+        "evidence": "Testing builders aCart(TEST_IDS) with deterministic IDs exist; fast-check property tests for pricing/promotions/RB coverage; but builders not Zod-validated against app schemas as PRD requires ('Every fixture builder validates against same Zod schemas') and catalog fixture coverage is thin (catalog-price integration supplies seed catalog Halden et al. instead)",
+        "note": "Fixtures Pass for money-heavy invariants; Zod-validated builder contract Partial."
+      },
+      {
+        "id": "\u00a712-SLO-burn",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "PRD.md:912",
+        "evidence": "SLO table (availability 99.95/30d, error rate <1%/5m, TTFB<800ms, webhook lag<5m, dead-letter 0) and error-budget burn-rate policy (freeze after 2 budget-burn weeks) defined in PRD and docs/start_server.sh; no runtime SLO monitoring, burn-rate alerting, or /api/health threshold alignment in code",
+        "note": "SLOs are specced and health probed, but burn-rate alerting is Reasoned not Verified \u2014 Phase-1 ops."
+      }
+    ]
+  },
+  "infra": {
+    "phase": "INFRA",
+    "summary": "INFRA (\u00a713\u2013\u00a714 + \u00a71.5/\u00a71.6/\u00a715) audit: docker-compose.yml fully compliant (postgres:17-alpine, scandihaven_postgres, postgres_data, scandihaven_net, PGDATA, init pgcrypto+pg_trgm with healthcheck). .env.example covers \u00a713.4 manifest plus typed FEATURE_* (5 flags, fail-fast) and deliberately omits SEED_ADMIN_PASSWORD (no default creds \u2014 seed-admin.ts requires SEED_ADMIN_PASSWORD\u226510). CI implements all 6 logical gates with correct rg --no-ignore/--hidden secret-scan inversion and pnpm audit --audit-level high, but collapses PRD\u2019s \u201c6 jobs\u201d into a single `quality` job \u2014 functionally complete, structurally Partial. Deployment topology (Vercel Node proxy \u2192 managed PG multi-AZ \u2192 private bucket+CDN) and DR (PITR+daily snapshots, 30-day retention, RTO 4h/RPO 15m, quarterly drill) are contractually documented in PRD \u00a713.5 \u2014 quarterly drill and multi-AZ not provable from repo (Unverifiable). Phase 0 exit gates green on executed ledger (lint/typecheck/test/build 8/8, migrate+seed idempotent, Playwright 22/22 locally after 2026-09-10 round 3 \u2014 CI was historically red on cart-flows strict-mode, now fixed). Runbooks (oversell, webhook outage replay, forward-only migration expand/contract, non-local guard via local-db.ts), risk register (11 risks L/I/mitigation), and traceability (docs/traceability.md vs Appendix B) are present and honest after 2026-09-09/2026-09-10 corrections (FR-102/FR-104/FR-703 overclaims fixed). Closed-decisions registry \u00a71.5 (7 items), DoR/DoD \u00a71.6, and agent contract \u00a715 (Always/Ask-first/Never + ANALYZE\u2192PLAN\u2192VALIDATE\u2192IMPLEMENT\u2192VERIFY\u2192DELIVER) are fully codified and mirrored in AGENTS.md/CLAUDE.md.",
+    "findings": [
+      {
+        "id": "\u00a713.1-docker-compose",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "docker-compose.yml:10-35, infrastructure/postgres/init/00-create-extensions.sql:5-9",
+        "evidence": "image: postgres:17-alpine; container_name: scandihaven_postgres; volumes: postgres_data:/var/lib/postgresql/data; PGDATA=/var/lib/postgresql/data/pgdata; ./infrastructure/postgres/init:/docker-entrypoint-initdb.d; networks: scandihaven_net; healthcheck pg_isready -U scandihaven_user -d scandihaven_dev; init does CREATE EXTENSION IF NOT EXISTS pgcrypto + pg_trgm",
+        "note": "All six composition tokens load-bearing per \u00a713.1 present. Init runs on first docker compose up; start_server.sh pg_isready wait (60s) and healthcheck start_period 10s align."
+      },
+      {
+        "id": "\u00a713.4-env-manifest",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".env.example:1-46, PRD.md \u00a713.4 table",
+        "evidence": "DATABASE_URL, BETTER_AUTH_SECRET (set-me-with-openssl-rand-base64-32 \u226532), BETTER_AUTH_URL + NEXT_PUBLIC_SITE_URL, AUTH_GOOGLE_ID/SECRET, AUTH_APPLE_ID/SECRET, STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, RESEND_API_KEY/EMAIL_FROM (\"Scandi Haven <orders@\u2026>\"), CRON_SECRET (set-me-with-openssl-rand-hex-16) all present; secrets documented as set-me placeholders with generation commands; .env* git-ignored per AGENTS.md",
+        "note": "Manifest complete vs \u00a713.4 Env var table. BETTER_AUTH_TRUSTED_ORIGINS additive (H-AUTH remarediation) correctly added as commented extra \u2014 not a \u00a713.4 omission."
+      },
+      {
+        "id": "\u00a713.4-feature-flags",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".env.example:39-46, packages/config/src/flags.ts:10-50, apps/web/src/instrumentation.ts:12-20",
+        "evidence": "FLAG_NAMES 5: FEATURE_TRADE/GIFT_CARDS/REVIEWS/I18N/KLARNA; defaults false/false/true/true/false per \u00a74.8; parseFlags throws on unknown FEATURE_* (fail-fast) and on invalid value; instrumentation.ts calls parseFlags() at boot (NEXT_RUNTIME edge guard); turbo.json globalEnv lists all env vars including FEATURE impl",
+        "note": "Typed port per \u00a74.8 respected: unknown flag fails typecheck + boot. .env.example ships commented defaults with on/off values. Verified by 22 flag unit tests (ledger 2026-09-08)."
+      },
+      {
+        "id": "\u00a713.4-seed-admin-no-defaults",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "apps/web/scripts/seed-admin.ts:10-18, apps/web/package.json: seed:admin, .env.example (absent), README.md:121, AGENTS.md:23",
+        "evidence": "seed-admin.ts: if (!password || password.length <10) exit 1 'set SEED_ADMIN_PASSWORD (>=10 chars)'; no hardcoded default; email defaults to admin@scandihaven.test; goes through Better-Auth signUpEmail then promote to owner; pnpm --filter @scandihaven/web seed:admin requires SEED_ADMIN_PASSWORD env; no root alias; README/AGENTS document 'no default credentials exist'",
+        "note": "Deliberate absence from .env.example is correct \u2014 SEED_ADMIN_PASSWORD is an ops-only secret, not part of \u00a713.4 commitable manifest. Idempotent via advisory-lock + upsert; refuses non-local DB."
+      },
+      {
+        "id": "\u00a713.3-ci-jobs-structure",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": ".github/workflows/ci.yml:7-75, PRD.md \u00a713.3",
+        "evidence": "PRD mandates 6 jobs: install frozen, lint+typecheck, test, build, Playwright preview+DB, audit+secret-scan. Repo implements 1 job `quality` (ubuntu-latest) with 10 sequential steps covering all 6 stages. No separate jobs matrix; concurrency group ci-${{github.ref}} present.",
+        "note": "Functionally complete (all gates execute in order) but structurally Partial vs spec wording. No parallelism benefit; single failure cancels all. Accepted in prior audits (2026-09-08/09/10) as Verified locally \u2014 not review-blocking if kept."
+      },
+      {
+        "id": "\u00a713.3-ci-install-frozen",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".github/workflows/ci.yml:28-30",
+        "evidence": "pnpm/action-setup@v4 10.15.0 + actions/setup-node@v4 (node-version-file .nvmrc, cache: pnpm) \u2192 run: pnpm install --frozen-lockfile",
+        "note": "Matches NFR-STACK-2 lockfile respect; pnpm-lock.yaml never hand-edited."
+      },
+      {
+        "id": "\u00a713.3-ci-lint-typecheck-test-build-order",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".github/workflows/ci.yml:32-48",
+        "evidence": "Steps: pnpm lint (turbo lint), pnpm typecheck (turbo typecheck), Migrate + seed (pnpm db:migrate && pnpm db:seed \u2014 comment notes must precede test for real-PG suites), pnpm test (turbo test, real-PG integration via skipIf(!dbReady)), pnpm build (turbo build). Env DATABASE_URL/BETTER_AUTH_SECRET at job level with PG17 service (postgres:17, pg_isready health). Services postgres:17 health-cmd pg_isready -U scandihaven",
+        "note": "Order matters: migrate+seed before test fixed in R01 (2026-09-08) \u2014 previously tests hit unmigrated DB. Build after test respects \u00a712.4 ledger canonical sequence."
+      },
+      {
+        "id": "\u00a713.3-ci-playwright-preview-db",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".github/workflows/ci.yml:50-55",
+        "evidence": "pnpm --filter @scandihaven/web exec playwright install --with-deps chromium webkit \u2192 pnpm --filter @scandihaven/web exec playwright test --project=chromium; runs against preview with migrated+seeded PG17 (job-level DATABASE_URL). Prior gate verified 22/22 locally after E2E-2 scoping fix; historical 7/7 recent main runs failure due to cart-flows strict-mode resolved 2026-09-10.",
+        "note": "Projects Chromium only in CI (WebKit nightly per \u00a712.1). Provisioned local PG 17.5 in 2026-09-10 round 3 proved hermetic seeded runs; axe scans included."
+      },
+      {
+        "id": "\u00a713.3-ci-audit-high",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": ".github/workflows/ci.yml:57-59",
+        "evidence": "run: pnpm audit --audit-level high (PR-blocking per \u00a712.1, verified 1 moderate/0 high at ledger). Comment: PR-blocking gate.",
+        "note": "Post-launch adds CodeQL + OWASP ZAP baseline per \u00a712.1 \u2014 currently audit+secret-scan only, as specced for Phase 0."
+      },
+      {
+        "id": "\u00a713.3-ci-secret-scan-rg-no-ignore",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": ".github/workflows/ci.yml:61-75",
+        "evidence": "rg -n --hidden --no-ignore --no-messages -g '!.git/' -g '!node_modules/' -g '!.next/' -g '!.env.example' -g '!pnpm-lock.yaml' -g '!skills/**' -g '!infrastructure/**' -g '!.github/workflows/ci.yml' -g '!docs/audits/**' -g '!docs/ssh-key.txt' -g '!.turbo/' -e 'BEGIN (RSA|EC|OPENSSH)?PRIVATE KEY' -e 'sk_(live|test)_' -e 'whsec_' -e 're_' -P -e 'BETTER_AUTH_SECRET=(?!set-me-with-openssl-rand-base64-32$)[A-Za-z0-9+/=]{32,}' -P -e 'CRON_SECRET=(?!set-me-with-openssl-rand-hex-16$)[0-9a-f]{32,}' . ; if match then echo ::error & exit 1 else clean. --no-ignore load-bearing (rg honors .gitignore, tracked-but-ignored .env/.env.local invisible without it \u2014 H6d/C-CI). Gate corrected from inverted &&/|| chaining 2026-09-09.",
+        "note": "Hardened after 262d3cc re-exposed .env/.env.local/docs/bak.env (C2r). Non-placeholder BETTER_AUTH_SECRET/CRON_SECRET PCRE2 patterns exclude set-me placeholders so .env.example stays clean. Verified clean on tracked files; untracked ssh-key.txt correctly ignored."
+      },
+      {
+        "id": "\u00a713.5-deployment-topology",
+        "status": "Partial",
+        "severity": "Major",
+        "locus": "PRD.md \u00a713.5 (953-955), turbo.json: globalEnv, apps/web/src/proxy.ts + apps/admin/src/proxy.ts, start_server.sh: ensure_postgres+build_app+start_servers",
+        "evidence": "PRD topology: Vercel (both Next apps; Node runtime proxy) \u2192 managed PostgreSQL 17 (multi-AZ) \u2192 object storage private bucket + CDN. Proxy runs Node (not Edge) due to DB reads \u2014 Next 16.3 src/proxy.ts at apps/*/src/proxy.ts with inline matcher literal and runtime: nodejs; both builds log \u0192 Proxy (Middleware) and functions-config-manifest _middleware. Local replica is docker-compose PG17 single-node; managed multi-AZ is prod contract only \u2014 no Terraform/ IaC in repo.",
+        "note": "Local \u2194 prod parity: compose is single AZ; multi-AZ/CDN are documented topology, not IaC-verifiable from repo. Node proxy and stateless web tier (DB sessions) verified. Partial = documented, not infra-proven."
+      },
+      {
+        "id": "\u00a713.5-dr-pitr-rto-rpo",
+        "status": "Unverifiable",
+        "severity": "Major",
+        "locus": "PRD.md \u00a713.5 lines 954-955",
+        "evidence": "DR: PITR + daily snapshots, 30-day retention, RTO 4h / RPO 15 min, quarterly restore drill rehearsed into scratch instance; backups alert on failure (not silent). No backup schedule/cron, snapshot retention config, or restore drill log in repo; envelope estimates ~12k orders/year, 20\u00d7 peak, <5k SKUs.",
+        "note": "Contractual SLO documented per spec; requires managed PG console evidence (snapshot schedule, PITR window, restore drill runbook) \u2014 cannot be verified from code alone. Label Unverifiable per \u00a712.4."
+      },
+      {
+        "id": "\u00a713.4-env-manifest-table",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a713.4 table, turbo.json:4-16, packages/config/src/env.ts:10-30",
+        "evidence": "Manifest rows mapped 1:1 to .env.example + turbo.json globalEnv: DATABASE_URL, BETTER_AUTH_SECRET (\u226532), BETTER_AUTH_URL/NEXT_PUBLIC_SITE_URL, AUTH_GOOGLE_ID/SECRET, AUTH_APPLE_ID/SECRET, STRIPE_SECRET_KEY/WEBHOOK_SECRET/NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, RESEND_API_KEY/EMAIL_FROM, CRON_SECRET, FEATURE_* (via flags.ts). Env parsed via Zod at boot in instrumentation.ts \u2014 fails fast with actionable message.",
+        "note": "Env passed through turbo globalEnv so next.config.ts reads correct values (NFR-STACK-11). DISABLE_IMAGE_OPTIMIZER also listed (local/E2E sharp deadlock guard; prod keeps optimization on)."
+      },
+      {
+        "id": "\u00a713.2-phase0-exit-gates",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "docs/verification-ledger.md \u00a72026-09-08..2026-09-10, PRD.md \u00a713.2, start_server.sh: health_check",
+        "evidence": "Gates: pnpm lint 8/8, typecheck 8/8, test 7/7 (commerce 118 incl. integration, coverage 90.9%/90.32% \u226590/85), build 2/2 both \u0192 Proxy; migrate+seed from empty PG17 idempotent (advisory-lock+upsert); E2E guest-checkout smoke 22/22 Chromium locally after E2E-2 fix (historically CI red due to price-text strict-mode \u2014 now green); start_server.sh health_check asserts /api/health db:true, /shop Halden, PDP halden-linen-armchair, /cart, CSP present, admin 307 gate.",
+        "note": "Exit criteria defined in \u00a713.2 met on executed ledger; README quickstart verified via start_server.sh fresh-clone \u2192 prod path (pg_isready wait, quoted .env handling fixed 2026-09-10 Edge 8\u21920)."
+      },
+      {
+        "id": "\u00a713.6-phase-gating",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a713.6 table (Phases 0-5), docs/traceability.md, docs/plans/2026-09-08-remediation-plan.md \u00a73 backlog",
+        "evidence": "Phase 0 Foundations (4 wks) exit \u00a713.2; Phase 1 MVP storefront (6 wks) E2E critical paths + perf budgets on staging; Phase 2 polish (Lighthouse, axe, SEO); Phase 3 soft launch (error-budget hold); Phase 4 public launch (rollback via feature flags + immutable build); Phase 5 post-launch Trade/Gift-cards/Net-30. Traceability maps each FR to Deferred vs Aligned; backlog B1-B12 slices Phase 1 hardening explicitly NOT done pre-launch.",
+        "note": "Gating honored: no scope creep beyond Phase 0 scaffold; Phase 1 items (facets UI, reviews submission, i18n, returns portal) correctly Stub/Deferred with FR IDs \u2014 not silently missing."
+      },
+      {
+        "id": "\u00a713.7-runbooks",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a713.7, packages/commerce/src/checkout-service.ts (oversell tx), packages/db/src/seed/ensure-seeded.ts + packages/db/src/local-db.ts, docs/traceability.md Known deviations",
+        "evidence": "Oversell: SELECT \u2026 FOR UPDATE + tx re-check \u00a77.6; runbook locate inventory_movement where reason='sale' below zero-floor, compensate (apology+refund/backorder), adjust safety_stock. Webhook outage: /api/jobs/run FOR UPDATE SKIP LOCKED drain, webhook_event dedupe (unique stripe_event_id), replay via stripe events resend. Migration forward-only: drizzle-kit forward-only, expand/contract \u00a77.9, corrective forward migration only. Dev guard: pnpm db:reset = drop\u2192migrate\u2192seed, seed/migrate assert isLocalDatabaseUrl (localhost/127.0.0.1/::1 bracketed, 6 unit tests) \u2014 refuses non-local hosts.",
+        "note": "Runbooks documented in PRD \u00a713.7 and mirrored in verification-ledger ops notes; redeploy via ./start_server.sh kills prior :3000/:3001 (E2E-1 stale-chunk fix) documented as ops action."
+      },
+      {
+        "id": "\u00a714.1-risk-register",
+        "status": "Pass",
+        "severity": "Minor",
+        "locus": "PRD.md \u00a714.1 table (11 rows), \u00a73.2 swap triggers, \u00a79.4 rate-limit tuning",
+        "evidence": "Rows: made-to-order lead times H/H \u2192 lead-time badges; cross-border tax M/H \u2192 Stripe Tax; oversell M/M \u2192 tx re-check + runbook; carrier damage M/M \u2192 white-glove >30kg; image bloat H/M \u2192 caps+AVIF/Lighthouse CI; scope creep M/H \u2192 FR discipline+R13.6 freeze; PG rate limiting L/M \u2192 WAF+Redis trigger; trade abuse L/M \u2192 cert+approval; SEO migration M/H \u2192 301 manager; oak supplier L/H; key-person M/M \u2192 ADRs+skills. Mirrors \u00a73.2/\u00a71.5 triggers (Redis/Algolia/Trigger.dev gated on capacity math).",
+        "note": "Coverage is contractual and complete; residual risks sliced into backlog (e.g., jobs running-lease reaper M4d, shipping zero-cost H4-doc) intentionally queued."
+      },
+      {
+        "id": "\u00a714.2-traceability-matrix",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "docs/traceability.md (full matrix FR-101..FR-914 + cross-cutting contracts), docs/audits/2026-09-10-recent-changes-review/evidence/traceability-diff.txt",
+        "evidence": "Matrix per PRD \u00a714.2 maintained from Phase 1: FR\u2192locus\u2192verification\u2192status (Aligned/Drift/Stub/Deferred/Unverifiable). 2026-09-10 review corrected 3 honest overclaims: FR-102 hamburger missing \u2192 now Aligned after mobile-nav drawer; FR-104 API Aligned / header UI Deferred; FR-703 journal detail Deferred; FR-201 card price default-variant fix (E2E-4). Verification cites file:line (e.g., apps/web/src/components/mobile-nav.tsx) and E2E spec. Cross-cutting contracts table links provider ports, flags, idempotency, outbox, rate limits, headers, money, state machine.",
+        "note": "Accuracy now honest: Partial alignment explicitly labeled; Deferred items still name FR IDs per \u00a715.3. Pass after corrections \u2014 prior overclaims were remediated, not hidden."
+      },
+      {
+        "id": "\u00a714.2-appendix-B-inventory",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a714.4 Appendix B, docs/traceability.md, docs/verification-ledger.md 2026-09-08 remediation evidence",
+        "evidence": "Appendix B inventories Phase 0 scaffold: root tooling (pnpm/turbo/eslint/tsconfig/.env.example/docker-compose/CI), packages/db (Drizzle schema \u00a77 + migrations + idempotent seed), auth (RBAC matrix), ui (tokens.css @theme literal hex, shadcn), commerce (money/pricing/promotions/order-state + unit/property tests), email (log transport), apps/web+admin surfaces, Playwright smoke. Deferred surfaces stubbed with FR IDs. V4 remediation 5 slices evidence: flags (22 tests), provider ports (13), cart idempotency, promotion caps, outbox drainer (7 real-PG integration). 2026-09-09 audit pass evidence (pool caching, proxy registration, sanitizer, webhook atomicity) and 2026-09-10 live E2E remediation (E2E-1..E2E-8) reconcile with Appendix B claims.",
+        "note": "Scaffold \u2194 spec reconciliation verified; traceability vs Appendix B no silent drift. Phase 1 hardening backlog (import/no-restricted-paths lint, concrete Tax/Shipping adapters, consent banner UI) explicitly queued, not overclaimed."
+      },
+      {
+        "id": "\u00a71.5-closed-decisions-registry",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a71.5 table (7 rows, 97-107), \u00a714.6 Appendix D, packages/config/src/flags.ts",
+        "evidence": "Q1 currencies EUR/DKK/SEK/USD/GBP (EU=EUR/US=USD/UK=GBP defaults, schema carries any set); Q2 Net-30 Stripe Invoicing Phase 5 (payment_terms column ships now); Q3 Consent Cookiebot behind ConsentProvider (local impl soft-launch); Q4 Editorial CMS in-house admin WYSIWYG (\u00a77 tables) vs Sanity Phase 5; Q5 Klarna off via FEATURE_KLARNA Phase 5 gated; Q6 3PL Southern Europe open Q+2 business (schema multi-warehouse ready); Q7 Rate limiting PG sliding window \u2192 Redis on \u00a73.2 trigger (p95 lock wait >20ms). Each row has Disposition + Revisit trigger; reopening requires ADR + product sign-off (\u00a74.6).",
+        "note": "Registry closed per PRD \u00a71.5 contract; no engineer may relitigate unilaterally. All 7 decisions implemented in code (currency schema, payment_terms, ConsentProvider port, flags, multi-warehouse inventory_level)."
+      },
+      {
+        "id": "\u00a71.6-dor-dod",
+        "status": "Pass",
+        "severity": "Major",
+        "locus": "PRD.md \u00a71.6, docs/traceability.md + docs/verification-ledger.md evidence gates",
+        "evidence": "DoR: FR ID named, testable acceptance criteria, schema impact stated (or 'none'), feature flag named if gated, \u22641 material ambiguity. DoD: turbo lint typecheck test build green; every FR covered by automated test or explicit Unverifiable label; money/auth/order PRs include ledger entry (\u00a712.4); no any/skipped tests; remaining stubs name FR IDs. Ledger enforces Verified/Reasoned/Assumed/Unverifiable tags.",
+        "note": "DoR/DoD binding per \u00a71.6 \u2014 audit found DoD honored in remediation slices (TDD red\u2192green, ledger append required). Minor note: visual regression advisory (not blocking) aligns with DoD's 'explicit Unverifiable label' allowance."
+      },
+      {
+        "id": "\u00a715-agent-contract",
+        "status": "Pass",
+        "severity": "Blocking",
+        "locus": "PRD.md \u00a715.1-15.4, AGENTS.md \u00a715 mirroring, CLAUDE.md workflow, docs/plans/* remediation slices",
+        "evidence": "Always (\u00a715.1 7 bullets: read PRD+code in full before writing; name FR/NFR; pnpm only; money integers + transition() only; ActionResult envelope + never throw; test-first at pre-agreed seams; run turbo lint typecheck test build before claiming; ledger-tagged claims). Ask-first (\u00a715.2 3: non-additive schema, new deps, CI/CSP/auth, flag enables, swap-path vendors pre-trigger). Never (\u00a715.3 6: no secrets/.env commit, no hand-edit lockfile, no weakening gates, no REST for UI mutations/vendor SDK outside adapter, no any/sql.raw/float, no package build step, no static react-dom/server, no fake Stripe). Workflow: ANALYZE\u2192PLAN\u2192VALIDATE\u2192IMPLEMENT\u2192VERIFY\u2192DELIVER thin vertical slice red\u2192green (remediation plans 2026-09-08..2026-09-10 follow it).",
+        "note": "Contract binding on human+AI implementers; reviewers treat violations as review-blocking. AGENTS.md extends with surgical-change, simplicity-first, and per-IP rate-limit rules. All 2026-09-08..09-10 slices obeyed Ask-first (FLAGS, proxy/CSP/auth changes gated). No violations found in INFRA scope."
+      }
+    ]
+  }
+}

@@ -1,0 +1,120 @@
+@scandihaven/web:test: (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+@scandihaven/web:test:   - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+@scandihaven/web:test: Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+@scandihaven/web:test: 
+@scandihaven/web:test:  RUN  v5.0.0 /Home1/project/scandihaven/apps/web
+@scandihaven/web:test: 
+@scandihaven/web:test: 
+@scandihaven/web:test:  Test Files  3 passed (3)
+@scandihaven/web:test:       Tests  16 passed (16)
+@scandihaven/web:test:    Start at  00:09:15
+@scandihaven/web:test:    Duration  771ms (import 44%, transform 40%, tests 10%, worker 6%)
+@scandihaven/web:test: 
+@scandihaven/auth:test: cache hit, replaying logs 7be99556dd27fee5
+@scandihaven/auth:test: 
+@scandihaven/auth:test: > @scandihaven/auth@0.1.0 test /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:test: > vitest run
+@scandihaven/auth:test: 
+@scandihaven/auth:test: 
+@scandihaven/auth:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/auth
+@scandihaven/auth:test: 
+@scandihaven/auth:test: 
+@scandihaven/auth:test:  Test Files  4 passed (4)
+@scandihaven/auth:test:       Tests  19 passed (19)
+@scandihaven/auth:test:    Start at  20:09:23
+@scandihaven/auth:test:    Duration  4.17s (tests 92%, transform 4%, import 3%, worker 1%)
+@scandihaven/auth:test: 
+@scandihaven/ui:test: cache hit, replaying logs 9c0dc7b074c4edb2
+@scandihaven/ui:test: 
+@scandihaven/ui:test: > @scandihaven/ui@0.1.0 test /Home1/project/scandihaven/packages/ui
+@scandihaven/ui:test: > echo "no unit tests in ui package (component tests live with apps)" && exit 0
+@scandihaven/ui:test: 
+@scandihaven/ui:test: no unit tests in ui package (component tests live with apps)
+@scandihaven/commerce:test: cache hit, replaying logs 8b6cd20a0a08deae
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: > @scandihaven/commerce@0.1.0 test /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:test: > vitest run --coverage
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/commerce
+@scandihaven/commerce:test:       Coverage enabled with v8
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:  Test Files  17 passed (17)
+@scandihaven/commerce:test:       Tests  120 passed (120)
+@scandihaven/commerce:test:    Start at  06:07:54
+@scandihaven/commerce:test:    Duration  7.99s (import 74%, tests 19%, transform 4%, worker 3%)
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test:     Isolate  17 workers spawned · ~224ms startup each (spawn + environment, per file)
+@scandihaven/commerce:test:              at least ~1.04s faster with isolate: false — reuses workers across files instead of one per file
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: [34m % [39m[2mCoverage report from [22m[33mv8[39m
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: All files       |    90.9 |    81.96 |   90.32 |   92.81 |                   
+@scandihaven/commerce:test:  money.ts       |      95 |    84.61 |     100 |     100 | 20,39             
+@scandihaven/commerce:test:  pricing.ts     |   93.97 |    81.48 |     100 |    94.8 | 50,83-84,166      
+@scandihaven/commerce:test:  promotions.ts  |   82.85 |       80 |    87.5 |   86.66 | 88,91,98,107      
+@scandihaven/commerce:test:  result.ts      |       0 |        0 |       0 |       0 | 3-36              
+@scandihaven/commerce:test: ----------------|---------|----------|---------|---------|-------------------
+@scandihaven/commerce:test: 
+@scandihaven/commerce:test: =============================== Coverage summary ===============================
+@scandihaven/commerce:test: Statements   : 90.9% ( 150/165 )
+@scandihaven/commerce:test: Branches     : 81.96% ( 100/122 )
+@scandihaven/commerce:test: Functions    : 90.32% ( 28/31 )
+@scandihaven/commerce:test: Lines        : 92.81% ( 142/153 )
+@scandihaven/commerce:test: ================================================================================
+@scandihaven/admin:test: cache hit, replaying logs 8733c5f0d54d86cd
+@scandihaven/admin:test: 
+@scandihaven/admin:test: > @scandihaven/admin@0.1.0 test /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:test: > vitest run
+@scandihaven/admin:test: 
+@scandihaven/admin:test: (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+@scandihaven/admin:test:   - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+@scandihaven/admin:test: Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+@scandihaven/admin:test: 
+@scandihaven/admin:test:  RUN  v5.0.0 /Home1/project/scandihaven/apps/admin
+@scandihaven/admin:test: 
+@scandihaven/admin:test: 
+@scandihaven/admin:test:  Test Files  3 passed (3)
+@scandihaven/admin:test:       Tests  11 passed (11)
+@scandihaven/admin:test:    Start at  23:41:52
+@scandihaven/admin:test:    Duration  4.97s (tests 78%, transform 10%, import 9%, worker 3%)
+@scandihaven/admin:test: 
+@scandihaven/config:test: cache hit, replaying logs 80863d2fc54af5ae
+@scandihaven/config:test: 
+@scandihaven/config:test: > @scandihaven/config@0.1.0 test /Home1/project/scandihaven/packages/config
+@scandihaven/config:test: > vitest run
+@scandihaven/config:test: 
+@scandihaven/config:test: 
+@scandihaven/config:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/config
+@scandihaven/config:test: 
+@scandihaven/config:test: 
+@scandihaven/config:test:  Test Files  5 passed (5)
+@scandihaven/config:test:       Tests  39 passed (39)
+@scandihaven/config:test:    Start at  23:41:52
+@scandihaven/config:test:    Duration  2.57s (import 49%, transform 32%, tests 11%, worker 7%)
+@scandihaven/config:test: 
+@scandihaven/config:test:     Isolate  5 workers spawned · ~949ms startup each (spawn + environment, per file)
+@scandihaven/config:test:              at least ~632ms faster with isolate: false — reuses workers across files instead of one per file
+@scandihaven/config:test: 
+@scandihaven/db:test: cache hit, replaying logs 8ea7b156f165cfad
+@scandihaven/db:test: 
+@scandihaven/db:test: > @scandihaven/db@0.1.0 test /Home1/project/scandihaven/packages/db
+@scandihaven/db:test: > vitest run
+@scandihaven/db:test: 
+@scandihaven/db:test: 
+@scandihaven/db:test:  RUN  v5.0.0 /Home1/project/scandihaven/packages/db
+@scandihaven/db:test: 
+@scandihaven/db:test: 
+@scandihaven/db:test:  Test Files  3 passed (3)
+@scandihaven/db:test:       Tests  17 passed (17)
+@scandihaven/db:test:    Start at  15:48:08
+@scandihaven/db:test:    Duration  2.77s (import 77%, transform 18%, tests 4%, worker 2%)
+@scandihaven/db:test: 
+
+ Tasks:    7 successful, 7 total
+Cached:    7 cached, 7 total
+  Time:    85ms >>> FULL TURBO
+
