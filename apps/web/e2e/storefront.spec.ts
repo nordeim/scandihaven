@@ -39,6 +39,12 @@ test.describe("storefront smoke", () => {
     await expect(page.getByText("Subtotal")).toBeVisible();
   });
 
+  test("PDP title carries the site suffix exactly once (M-TITLE)", async ({ page }) => {
+    await page.goto("/products/oresund-table-lamp");
+    const title = await page.title();
+    expect(title.match(/\| Scandi Haven/g)?.length ?? 0).toBe(1);
+  });
+
   test("cart page shows totals and persists across reload", async ({ page }) => {
     await page.goto("/products/oresund-table-lamp");
     await page.getByRole("button", { name: "Add to cart" }).click();
@@ -77,6 +83,19 @@ test.describe("storefront smoke", () => {
     const response = await page.goto("/this-page-does-not-exist");
     expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { name: /wandered off/i })).toBeVisible();
+    // M-404 regression: the branded 404 must ship in the SSR payload, not
+    // only after hydration — crawlers and non-JS clients see this body.
+    const ssrBody = (await response?.text()) ?? "";
+    expect(ssrBody).toContain("This page has wandered off");
+    expect(ssrBody).toContain("Browse the shop");
+  });
+
+  test("lookbooks deferred surface returns honest SSR 404 naming FR-705", async ({ page }) => {
+    const response = await page.goto("/lookbooks");
+    expect(response?.status()).toBe(404);
+    // FR-705 / §15.3: the deferred surface names its FR ID in the SSR body.
+    const ssrBody = (await response?.text()) ?? "";
+    expect(ssrBody).toContain("FR-705");
   });
 });
 
