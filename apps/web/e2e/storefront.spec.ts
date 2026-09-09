@@ -97,6 +97,41 @@ test.describe("storefront smoke", () => {
     const ssrBody = (await response?.text()) ?? "";
     expect(ssrBody).toContain("FR-705");
   });
+
+  test("sign-in carries the ?redirect= path back to the destination (FR-602, E2E-5)", async ({
+    page,
+  }) => {
+    const response = await page.goto("/account");
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe("/account");
+  });
+});
+
+/**
+ * Mobile navigation (PRD FR-102; live E2E audit 2026-09-10, E2E-6): the
+ * primary nav is hidden below md and NO menu existed — mobile users could
+ * not reach Shop/Collections/Journal at all. The drawer trigger must be
+ * present, open the nav, and navigate.
+ */
+test.describe("mobile navigation (FR-102)", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("menu drawer exposes the primary nav on a phone viewport", async ({ page }) => {
+    await page.goto("/");
+    const menuButton = page.getByRole("button", { name: "Open menu" });
+    await expect(menuButton).toBeVisible();
+
+    await menuButton.click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible();
+    for (const label of ["Shop", "Collections", "Our Story", "Journal"]) {
+      await expect(drawer.getByRole("link", { name: label })).toBeVisible();
+    }
+
+    await drawer.getByRole("link", { name: "Shop" }).click();
+    await expect(page).toHaveURL(/\/shop$/);
+    await expect(page.getByRole("heading", { level: 1, name: /shop all/i })).toBeVisible();
+  });
 });
 
 test.describe("accessibility (PRD §12.2)", () => {

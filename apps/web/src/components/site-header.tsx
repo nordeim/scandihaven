@@ -5,6 +5,7 @@ import { announcement } from "@scandihaven/db/schema";
 import { getCartDto } from "@scandihaven/commerce/cart-service";
 import { getCartId } from "@/lib/cart-session";
 import { CartTrigger } from "@/components/cart-trigger";
+import { MobileNav } from "@/components/mobile-nav";
 
 /**
  * Global header (PRD FR-101): announcement bar, primary nav, account, cart.
@@ -38,9 +39,14 @@ export async function SiteHeader() {
         </div>
       ) : null}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-5 md:px-8">
-        <Link href="/" className="font-display text-xl tracking-tight">
-          Scandi Haven
-        </Link>
+        {/* Order is logo / mobile menu / spacer actions — the menu sits with
+            the logo block on the left like the nav it stands in for. */}
+        <div className="flex items-center gap-1">
+          <MobileNav />
+          <Link href="/" className="font-display text-xl tracking-tight">
+            Scandi Haven
+          </Link>
+        </div>
 
         <nav aria-label="Primary" className="hidden items-center gap-7 text-sm md:flex">
           <Link href="/shop" className="text-ink-2 transition-colors hover:text-accent-2">
