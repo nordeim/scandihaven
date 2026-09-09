@@ -4,8 +4,12 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
- * Pooled Drizzle client (PRD §4.7). In dev the pool is cached on globalThis so
- * Next.js HMR and CLI tools share one pool instead of leaking connections.
+ * Pooled Drizzle client (PRD §4.7). The pool is cached on globalThis in ALL
+ * environments: the globalThis indirection exists so Next.js HMR and CLI tools
+ * share one pool instead of leaking connections — production needs that
+ * sharing even more than dev (audit 2026-09-09 C1: env-conditional caching
+ * built a fresh Pool per property access under `next start`, exhausting PG
+ * max_connections and intermittently 500-ing DB-backed routes).
  *
  * Lazily created so `next build` can collect page data (which imports the
  * auth route → this module) without a live DATABASE_URL. The first real
@@ -71,21 +75,23 @@ function createPool(): Pool {
   });
 }
 
+/**
+ * Exposed for the caching-contract test (`client-caching.test.ts`) — the
+ * slots are the single source of truth for instance reuse in every mode.
+ */
+export const __dbCache = globalForDb;
+
 function getPool(): Pool {
   if (globalForDb.__scandihavenPool) return globalForDb.__scandihavenPool;
   const pool = createPool();
-  if (process.env.NODE_ENV !== "production") {
-    globalForDb.__scandihavenPool = pool;
-  }
+  globalForDb.__scandihavenPool = pool;
   return pool;
 }
 
 function getDb(): Database {
   if (globalForDb.__scandihavenDb) return globalForDb.__scandihavenDb;
   const db = drizzle(getPool(), { schema });
-  if (process.env.NODE_ENV !== "production") {
-    globalForDb.__scandihavenDb = db;
-  }
+  globalForDb.__scandihavenDb = db;
   return db;
 }
 
