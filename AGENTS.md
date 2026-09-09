@@ -19,9 +19,10 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm db:setup` | `db:migrate && db:seed` — fresh container init (migrate + idempotent seed, local hosts only) |
 | `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | drizzle-kit migrate / idempotent seed / drop+recreate (local hosts only) |
 | `pnpm db:generate` | Regenerate drizzle migrations after schema edits |
+| `./start_server.sh` | Fresh-clone → prod: `ensure_env` (quoted `.env`) → `sudo docker compose up -d` (pg_isready wait) → `pnpm db:setup` (migrate+seed, idempotent) → `pnpm build` → `pnpm prod` `:3000` + `pnpm prod:admin` `:3001` (kills prior `:3000/:3001`, health checks `/api/health` + CSP/admin gate) — `DB_RESET=1 ./start_server.sh` for drop+recreate; logs `server.log`/`server-admin.log` |
 | `pnpm --filter @scandihaven/web seed:admin` | Provision test admin; **requires** `SEED_ADMIN_PASSWORD` env (no default credentials exist). Lives in `apps/web` — there is no root alias |
 
-Order matters for a clean check: `pnpm lint typecheck test build` works without a database (real-PG integration suites auto-skip unless `DATABASE_URL` points at localhost). With a local PG up, run `pnpm db:setup` (`db:migrate && db:seed`) BEFORE `pnpm db:setup`-dependent steps — CI runs migrate+seed before Unit tests so the integration suites execute, then E2E needs a migrated+seeded DB.
+Order matters for a clean check: `pnpm lint typecheck test build` works without a database (real-PG integration suites auto-skip unless `DATABASE_URL` points at localhost). With a local PG up, run `pnpm db:setup` (`db:migrate && db:seed`) BEFORE `pnpm db:setup`-dependent steps — CI runs migrate+seed before Unit tests so the integration suites execute, then E2E needs a migrated+seeded DB. For a freshly cloned repo with a fresh `postgres` volume, `./start_server.sh` is the canonical one-command path (see README Quick Start); it wraps the same steps with `pg_isready` waits and quoted `.env` handling (line 21 `EMAIL_FROM` fix, 2026-09-10).
 
 ## Architecture invariants
 
@@ -70,3 +71,4 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - `PRD.md` — the authoritative spec (v4.0): FR-100…FR-999 requirement IDs, §4.8 cross-cutting contracts (ports/flags/idempotency), §7 schema, §8 action contracts, §12.6 SLOs, §15 agent operating contract, §13 rollout phases. Stubs in code name their FR ID.
 - `docs/audits/2026-09-09-code-review-security-audit/` — tiered code review + security audit (2 Critical / 9 High, evidence-backed, incl. runtime-verified proxy and admin-gate fixes).
 - `README.md` — human onboarding (setup, verification, design tokens).
+- `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).

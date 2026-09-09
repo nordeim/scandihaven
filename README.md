@@ -86,12 +86,21 @@ Requests read through RSC → `commerce` queries → Drizzle. Mutations flow thr
 📄 docker-compose.yml.example  Template — cp to docker-compose.yml
 📄 infrastructure/postgres/init/00-create-extensions.sql  pgcrypto + pg_trgm (run on first docker compose up)
 📄 turbo.json               Task graph (+ globalEnv manifest)
+📄 start_server.sh          Fresh-clone → prod (migrate+seed + prod :3000 + prod:admin :3001, idempotent)
 ```
 
 ## Quick Start
 
 Prerequisites: **Node.js ≥ 22**, **PNPM 10** (`corepack enable`), **Docker** (or any local PostgreSQL 17).
 
+**Fresh clone (one command):**
+```bash
+./start_server.sh              # .env → sudo docker compose up -d (pg_isready) → db:setup → build → prod :3000 + prod:admin :3001
+DB_RESET=1 ./start_server.sh   # drop+recreate DB first
+tail -f server.log server-admin.log
+```
+
+**Manual (step-by-step):**
 ```bash
 pnpm install
 docker compose up -d               # PostgreSQL 17 (postgres:17-alpine, service `postgres`; logs: docker compose logs -f postgres)
@@ -181,12 +190,14 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | Image optimizer hangs in CI/sandbox | Set `DISABLE_IMAGE_OPTIMIZER=1` (local only — production keeps the optimizing pipeline) |
 | Responses carry no security headers | `proxy.ts` must live at `apps/*/src/proxy.ts` (Next 16.3 discovers it at the app-dir parent); a repo-root placement compiles but never registers (audit 2026-09-09 H8d) |
 | Admin redirects forever on `/sign-in` | The auth gate lives in the `(staff)` route-group layout; a gate that also wraps `/sign-in` loops (audit 2026-09-09 H7d) |
+| `./start_server.sh` fails `line 21: syntax error` on `EMAIL_FROM` | Fixed in `start_server.sh` `ensure_env` (quotes `EMAIL_FROM` + `BETTER_AUTH_SECRET`); if you source `.env` manually, use `load_env()` or ensure `.env` is quoted |
 
 ## Documentation
 
 - [`PRD.md`](./PRD.md) — final build-ready product requirements (v4.0): personas, 90+ requirement IDs with acceptance criteria, DDL-level schema, action/API contracts, provider ports & feature flags (§4.8), SLOs, closed-decisions registry, agent operating contract, rollout plan. `PRD_v3a.md`/`PRD_v3b.md` remain as reviewed proposal inputs.
 - [`AGENTS.md`](./AGENTS.md) — high-signal instructions for AI coding agents.
 - [`CLAUDE.md`](./CLAUDE.md) — conventions and workflow contract for assistant-driven development.
+- [`start_server.sh`](./start_server.sh) — fresh-clone → prod bootstrapper (see Quick Start; `start_server_log.txt` is a captured build log).
 - [`docs/traceability.md`](./docs/traceability.md) — FR → implementation → verification matrix (PRD §14.2).
 - [`docs/verification-ledger.md`](./docs/verification-ledger.md) — running evidence ledger (PRD §12.4).
 - [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08) and the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.

@@ -61,6 +61,9 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 
 ### Environment Setup
 
+**Fresh clone (one command):** `./start_server.sh` — handles `.env` creation (quoted `BETTER_AUTH_SECRET`/`EMAIL_FROM` line 21 fix), `sudo docker compose up -d` with health wait, `pnpm db:setup` (migrate+seed, idempotent), `pnpm build`, and both `pnpm prod` `:3000` + `pnpm prod:admin` `:3001` with health checks. Use `DB_RESET=1 ./start_server.sh` for a clean DB. See `start_server.sh` header for phases. Logs: `server.log` / `server-admin.log`.
+
+**Manual (step-by-step):**
 ```bash
 pnpm install
 docker compose up -d                  # PostgreSQL 17 (postgres:17-alpine, service `postgres` → scandihaven_postgres, healthy in ~10s; logs: docker compose logs -f postgres)
@@ -81,6 +84,7 @@ pnpm dev                              # storefront :3000  (pnpm dev:admin → :3
 | `pnpm e2e` | Playwright Chromium (needs migrated+seeded DB; `E2E_BASE_URL` to target a running server) |
 | `pnpm db:setup` | Fresh DB init (`db:migrate && db:seed`) |
 | `pnpm db:migrate` / `db:seed` / `db:reset` / `db:generate` | Database lifecycle |
+| `./start_server.sh` / `DB_RESET=1 ./start_server.sh` | Fresh-clone prod boot (both apps) — `ensure_env` → `ensure_postgres` → `db:setup` → `build` → `prod` `:3000` + `prod:admin` `:3001`; logs `server.log`/`server-admin.log`, PIDs `server.pid`/`server-admin.pid` |
 | `pnpm seed:admin` | Test admin (`SEED_ADMIN_PASSWORD` required — no default credentials exist) |
 
 Single test: `pnpm --filter @scandihaven/commerce test -- src/pricing.test.ts`. Single E2E: `pnpm e2e -- -g "cart page"`.
