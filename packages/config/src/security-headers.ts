@@ -18,9 +18,12 @@ export function securityHeaders(): HeaderMap {
     "Content-Security-Policy": [
       "default-src 'self'",
       // Next.js injects inline bootstrap scripts; strict nonce CSP lands in Phase 1 hardening.
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+      // https://static.cloudflareinsights.com: both live origins sit behind Cloudflare,
+      // which injects its RUM beacon — blocking it logged a violation on every
+      // production pageview (live E2E audit 2026-09-10, E2E-7).
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://static.cloudflareinsights.com",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
-      "connect-src 'self' https://api.stripe.com",
+      "connect-src 'self' https://api.stripe.com https://cloudflareinsights.com",
       "img-src 'self' data: blob:",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",

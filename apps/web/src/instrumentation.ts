@@ -17,4 +17,13 @@ export async function register(): Promise<void> {
   const { parseServerEnv } = await import("@scandihaven/config/env");
   parseServerEnv();
   parseFlags();
+  // E2E-8: canonical/OG URLs silently resolved against localhost on the
+  // deployed site because NEXT_PUBLIC_SITE_URL was unset. Warn loudly at
+  // boot (warn, not throw — the deployment contract predates the guard).
+  const { productionSiteUrlWarning } = await import("@scandihaven/config/site-url");
+  const warning = productionSiteUrlWarning(
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NODE_ENV,
+  );
+  if (warning) console.warn(warning);
 }

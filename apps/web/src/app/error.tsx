@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { reloadOnStaleChunk } from "@scandihaven/config/chunk-recovery";
+
 /**
  * 500 boundary (PRD FR-109): error surfaces name their FR ID and keep the
  * site chrome (root layout) with a recovery affordance.
@@ -11,6 +14,12 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Stale-chunk self-heal (E2E-1): a cached page hydrating against purged
+    // build chunks self-heals with one hard reload (cooldown-guarded).
+    reloadOnStaleChunk(error);
+  }, [error]);
+
   return (
     <div className="mx-auto max-w-2xl px-5 py-32 text-center md:px-8">
       <p className="text-sm uppercase tracking-[0.2em] text-accent-2">Something went wrong</p>

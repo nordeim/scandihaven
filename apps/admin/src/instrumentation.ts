@@ -17,4 +17,12 @@ export async function register(): Promise<void> {
   const { parseServerEnv } = await import("@scandihaven/config/env");
   parseServerEnv();
   parseFlags();
+  // E2E-8: same guard as the storefront — the admin origin's absolute URLs
+  // (metadata) silently resolved against localhost when unset.
+  const { productionSiteUrlWarning } = await import("@scandihaven/config/site-url");
+  const warning = productionSiteUrlWarning(
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NODE_ENV,
+  );
+  if (warning) console.warn(warning);
 }
