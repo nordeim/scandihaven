@@ -62,6 +62,10 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - Cart identity: signed HMAC cookie (`sh_cart`, secret = `BETTER_AUTH_SECRET`); the cookie holds a **token**, the DB keys on the cart **UUID** — `getCartId()` in `apps/web/src/lib/cart-session.ts` resolves token→UUID. Actions and pages must not interchange them. Concretely (audit 2026-09-09 round 2, H1-CART): `requireCart()` must return `getCartId()`'s UUID **untouched** — never pass it into `ensureCart()`, which keys on the token and would silently mint a junk cart row (symptom: "Cart line not found" on every qty change, removes that resurrect on reload, second add-to-cart lost). Pinned by `apps/web/src/actions/cart.test.ts` + `apps/web/e2e/cart-flows.spec.ts`.
 - Admin authorization: single RBAC matrix in `packages/auth/src/rbac.ts`; Server Actions call `requirePermission()` from `apps/admin/src/lib/admin-guard.ts` and write to `audit_log`. No inline role checks.
 - Errors caught at page level must be logged, never silently swallowed (`catch(() => null)` needs a `console.error` alongside).
+- **Promotion eligibility is per-read** (audit 2026-09-10 E2E-3): conditions (`minSpendMinor` etc.) checked only at `applyPromotionByCode` time let a below-threshold cart keep its discount through placement. `getCartDto` and `loadCartPromotionApplications` re-validate via `filterEligiblePromotions` on every read/tx — new totals paths must do the same. Don't delete the `cart_promotion` row when ineligible (re-crossing the threshold re-applies it).
+- **Card prices come from the default variant** (E2E-4): the cards CTE uses `COALESCE(MAX(amount) FILTER (WHERE is_default), MIN(amount))` — never a bare `MIN`, which advertises the cheapest variant while PDP/quick-add price the default.
+- **E2E price assertions must be scoped** (E2E-2, CI was red on every run because of this): the same amount legitimately renders in the line-total span AND the Subtotal/Total `<dd>`s — assert within the order-summary aside or the line group, never page-wide `getByText("€X")`.
+- **Post-auth `?redirect=` params are never trusted raw**: validate through `@scandihaven/config/redirect-path` (`validateRedirectPath`) in both apps — the admin previously pushed the raw value into `router.push` (open redirect).
 
 ## Environment
 
@@ -71,5 +75,6 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 
 - `PRD.md` — the authoritative spec (v4.0): FR-100…FR-999 requirement IDs, §4.8 cross-cutting contracts (ports/flags/idempotency), §7 schema, §8 action contracts, §12.6 SLOs, §15 agent operating contract, §13 rollout phases. Stubs in code name their FR ID.
 - `docs/audits/2026-09-09-code-review-security-audit/` — tiered code review + security audit (2 Critical / 9 High, evidence-backed, incl. runtime-verified proxy and admin-gate fixes).
+- `docs/audits/2026-09-10-live-e2e-audit/` — live E2E round 3 (checkout stale-chunk crash, CI-red cart specs, promo re-validation, card price, mobile nav FR-102, CSP beacon, canonical boot guard) + remediation plan in `docs/plans/2026-09-10-live-e2e-remediation.md`.
 - `README.md` — human onboarding (setup, verification, design tokens).
 - `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).

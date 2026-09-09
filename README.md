@@ -195,6 +195,9 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | `./start_server.sh` fails `line 21: syntax error` on `EMAIL_FROM` | Fixed in `start_server.sh` `ensure_env` (quotes `EMAIL_FROM` + `BETTER_AUTH_SECRET`); if you source `.env` manually, use `load_env()` or ensure `.env` is quoted |
 | Quantity changes fail with "Cart line not found"; removed items reappear; second add-to-cart is lost | Fixed 2026-09-09 (audit H1-CART): `requireCart()` fed the resolved cart UUID into token-keyed `ensureCart()`. Redeploy after pulling; one-time cleanup of junk `cart` rows (token shaped like a UUID) recommended |
 | Admin `/admin`-prefixed URL 404s after sign-in | Fixed 2026-09-09 (audit H2-ADMIN): `apps/admin/next.config.ts` beforeFiles rewrites strip the `/admin` deployment prefix and the gate allows `/admin/sign-in`. Redeploy to take effect |
+| One page (e.g. `/checkout`) crashes after hydration with no branded error | The deployment rebuilt (`pnpm build`) **without restarting the server** — the running process renders HTML referencing build-N chunks that no longer exist on disk. Fixed in code 2026-09-10 (E2E-1): `global-error.tsx` + one-shot chunk-reload self-heal in both apps. Ops fix: always restart via `./start_server.sh` (it kills prior PIDs after building), never leave a server running across a rebuild |
+| Canonical/OG URLs point at `http://localhost:3000` | `NEXT_PUBLIC_SITE_URL` is unset on the deployment — `metadataBase` falls back to localhost and harms SEO (FR-313). Set it to the public origin and redeploy. Since 2026-09-10 (E2E-8) a production boot logs an actionable `[boot] NEXT_PUBLIC_SITE_URL …` warning when this is misconfigured |
+| Console shows a CSP violation for `static.cloudflareinsights.com` on every page | Fixed 2026-09-10 (E2E-7): the edge-injected Cloudflare Insights beacon is allow-listed in `packages/config/security-headers.ts`. Redeploy to pick up the header change |
 
 ## Documentation
 
@@ -204,7 +207,7 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 - [`start_server.sh`](./start_server.sh) — fresh-clone → prod bootstrapper (see Quick Start; `start_server_log.txt` is a captured build log).
 - [`docs/traceability.md`](./docs/traceability.md) — FR → implementation → verification matrix (PRD §14.2).
 - [`docs/verification-ledger.md`](./docs/verification-ledger.md) — running evidence ledger (PRD §12.4).
-- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08) and the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
+- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08), the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path), and the live E2E audits (2026-09-09 rounds 1–2; **2026-09-10 round 3: live checkout stale-chunk crash, CI-red cart specs, promo min-spend re-validation, card-price consistency, mobile nav FR-102**) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
 - [`PRD_draft.md`](./PRD_draft.md) — original draft (stack recommendation superseded; domain scope preserved).
 
 ## License
