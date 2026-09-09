@@ -59,3 +59,12 @@ server*.pid
 .idea/
 .vscode/
 *.swp
+
+# Python tool caches under skills/ (round 4, R4-9 — 8aacd13 committed 17 cache
+# files incl. a 3.1MB mypy cache.db and a .venv symlink; skills/ stays excluded
+# from checks/tests/compilation per the operator contract, but caches are not
+# repo content)
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
