@@ -1,14 +1,28 @@
-$ rm -rf .next */.next */*/.next
-cleaned
+$ ./start_server.sh
+[start] === Scandi Haven — fresh-clone production start ===
+[start] repo: /Home1/project/scandihaven
+[start] storefront: http://localhost:3000
+[start] admin:      http://localhost:3001
 
-$ pnpm install
+[start] Checking prerequisites …
+[ok] node v24.19.0 / pnpm 10.15.0 / OpenSSL 3.6.1 27 Jan 2026 (Library: OpenSSL 3.6.1 27 Jan 2026)
+[start] Ensuring .env (production) …
+[start]   .env exists — patching missing/short secrets, preserving existing values
+[ok] .env ready (DATABASE_URL + BETTER_AUTH_SECRET ≥32, see .env.example for optional)
+[start] Ensuring PostgreSQL 17 container (docker compose up -d) …
+ Container scandihaven_postgres Running 
+[ok]   docker compose up -d issued
+[start]   waiting for postgres to be healthy (pg_isready) …
+[ok]   postgres healthy after 1s
+[start] Installing dependencies (pnpm install) …
 [WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
 Scope: all 9 workspace projects
 Lockfile is up to date, resolution step is skipped
 Already up to date
-Done in 2s using pnpm v10.15.0
-(venv) pete@pop-os:/Home1/project/scandihaven
-$ pnpm db:setup
+
+Done in 2.1s using pnpm v10.15.0
+[ok] deps installed
+[start] Database setup (migrate + seed) …
 [WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
 
 > scandihaven@ db:setup /Home1/project/scandihaven
@@ -32,54 +46,29 @@ $ pnpm db:setup
 > tsx src/scripts/seed.ts
 
 [db] seed complete (idempotent run=ok)
-
-$ pnpm build  — 2026-09-10 clean build after B-1 Edge guard (0 Edge warnings, was 8)
-[db] seed complete (idempotent run=ok)
-
-$ pnpm build
-[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
-
-> scandihaven@ build /Home1/project/scandihaven
-> turbo run build
-
-• turbo 2.10.12
-
-   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
-   • Running build in 8 packages
-   • Remote caching disabled
-
-@scandihaven/web:build: cache miss, executing 64b178ee6ce15507
-@scandihaven/admin:build: cache miss, executing 0e280ee2fe0a4a75
+[ok] database ready (migrate + seed)
+[start] Building (pnpm build — Turbopack, both apps) …
 @scandihaven/admin:build: 
 @scandihaven/admin:build: > @scandihaven/admin@0.1.0 build /Home1/project/scandihaven/apps/admin
 @scandihaven/admin:build: > next build
 @scandihaven/admin:build: 
-@scandihaven/web:build: 
-@scandihaven/web:build: > @scandihaven/web@0.1.0 build /Home1/project/scandihaven/apps/web
-@scandihaven/web:build: > next build
-@scandihaven/web:build: 
-@scandihaven/admin:build: ▲ Next.js 16.3.4 (Turbopack)
 @scandihaven/web:build: ▲ Next.js 16.3.4 (Turbopack)
-@scandihaven/admin:build: ✓ Running next.config.ts took 44ms
-@scandihaven/web:build: ✓ Running next.config.ts took 45ms
+@scandihaven/admin:build: ▲ Next.js 16.3.4 (Turbopack)
+@scandihaven/web:build: ✓ Running next.config.ts took 32ms
+@scandihaven/admin:build: ✓ Running next.config.ts took 30ms
 @scandihaven/admin:build: 
 @scandihaven/web:build: 
 @scandihaven/admin:build:   Creating an optimized production build ...
 @scandihaven/web:build:   Creating an optimized production build ...
-@scandihaven/admin:build: ✓ Compiled successfully in 19.7s
-@scandihaven/web:build: ✓ Compiled successfully in 26.5s
-@scandihaven/admin:build: ✓ Finished TypeScript in 11.9s 
-  Collecting page data using 3 workers  ...2026-09-09T03:58:31.336Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-@scandihaven/admin:build: 2026-09-09T03:58:31.402Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Collecting page data using 3 workers  .2026-09-09T03:58:31.513Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: ✓ Collecting page data using 3 workers in 1268ms 
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Generating static pages using 3 workers (0/3)  [=   ]2026-09-09T03:58:31.865Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-✓ Generating static pages using 3 workers (3/3) in 414ms
-@scandihaven/admin:build: ✓ Finalizing page optimization in 29ms 
+@scandihaven/admin:build: ✓ Compiled successfully in 1250ms
+@scandihaven/admin:build:   Running TypeScript ...
+@scandihaven/web:build: ✓ Compiled successfully in 1374ms
+@scandihaven/web:build:   Running TypeScript ...
+@scandihaven/admin:build:   Finished TypeScript in 8.2s ...
+@scandihaven/admin:build:   Collecting page data using 3 workers ...
+@scandihaven/admin:build:   Generating static pages using 3 workers (0/3) ...
+@scandihaven/admin:build: ✓ Generating static pages using 3 workers (3/3) in 205ms
+@scandihaven/admin:build:   Finalizing page optimization ...
 @scandihaven/admin:build: 
 @scandihaven/admin:build: Route (app)
 @scandihaven/admin:build: ┌ ƒ /
@@ -99,15 +88,14 @@ $ pnpm build
 @scandihaven/admin:build: ○  (Static)   prerendered as static content
 @scandihaven/admin:build: ƒ  (Dynamic)  server-rendered on demand
 @scandihaven/admin:build: 
-@scandihaven/admin:build: 
-@scandihaven/web:build: ✓ Finished TypeScript in 10.4s 
-  Collecting page data using 3 workers  ...2026-09-09T03:58:36.479Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Collecting page data using 3 workers  .2026-09-09T03:58:36.688Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-@scandihaven/web:build: ✓ Collecting page data using 3 workers in 1330ms 
-✓ Generating static pages using 3 workers (9/9) in 353ms
-@scandihaven/web:build: ✓ Finalizing page optimization in 9ms 
+@scandihaven/web:build:   Finished TypeScript in 11.7s ...
+@scandihaven/web:build:   Collecting page data using 3 workers ...
+@scandihaven/web:build:   Generating static pages using 3 workers (0/9) ...
+@scandihaven/web:build:   Generating static pages using 3 workers (2/9) 
+@scandihaven/web:build:   Generating static pages using 3 workers (4/9) 
+@scandihaven/web:build:   Generating static pages using 3 workers (6/9) 
+@scandihaven/web:build: ✓ Generating static pages using 3 workers (9/9) in 307ms
+@scandihaven/web:build:   Finalizing page optimization ...
 @scandihaven/web:build: 
 @scandihaven/web:build: Route (app)
 @scandihaven/web:build: ┌ ƒ /
@@ -135,9 +123,29 @@ $ pnpm build
 @scandihaven/web:build: 
 @scandihaven/web:build: ƒ  (Dynamic)  server-rendered on demand
 @scandihaven/web:build: 
-@scandihaven/web:build: 
 
  Tasks:    2 successful, 2 total
 Cached:    0 cached, 2 total
-  Time:    41.247s
+  Time:    16.841s 
+
+[ok] build complete (apps/web + apps/admin, Turbopack)
+[start] Starting production servers …
+[start]   starting storefront (pnpm prod → :3000) …
+[start]   storefront pid 2287383 → /Home1/project/scandihaven/server.log
+[start]   starting admin (pnpm prod:admin → :3001) …
+[start]   admin pid 2287400 → /Home1/project/scandihaven/server-admin.log
+[start]   waiting for storefront to be ready …
+[ok]   storefront ready
+[start]   waiting for admin to be ready …
+[ok]   admin ready
+[start] Health check …
+[start]   ✓ storefront health http://localhost:3000/api/health → 200
+[start]   ✓ storefront shop http://localhost:3000/shop → 200
+[warn]   storefront product PDP http://localhost:3000/products/halden-armchair → HTTP 404 (want 200/307)
+[start]   ✓ storefront cart http://localhost:3000/cart → 200
+[start]   ✓ storefront security headers (CSP present)
+[start]   ✓ admin / → 307 (gate)
+[start]   ✓ admin sign-in http://localhost:3001/sign-in → 200
+[start]   ✓ admin sign-in security headers (CSP present)
+[fail] Health check failed — see warnings above and /Home1/project/scandihaven/server.log / /Home1/project/scandihaven/server-admin.log
 
