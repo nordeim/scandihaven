@@ -21,10 +21,17 @@ import { getCartId } from "@/lib/cart-session";
 /**
  * Cart Server Actions (PRD §8.3). Each action: parse → execute → revalidate →
  * return the typed result union. The cart cookie is set here (server boundary).
+ *
+ * Cart identity invariant (audit 2026-09-09 round 2, H1-CART): `getCartId()`
+ * returns the cart row's UUID and commerce services key on that UUID — when a
+ * cart already exists, the UUID must flow through untouched. Passing it back
+ * through `ensureCart()` (which keys on the signed TOKEN) misses the lookup,
+ * silently mints a junk cart row with the UUID as its token, and strands every
+ * mutation on a cart the customer's cookie doesn't point at.
  */
 async function requireCart(): Promise<string> {
   const existing = await getCartId();
-  if (existing) return ensureCart(existing);
+  if (existing) return existing;
   const token = createCartToken();
   const store = await cookies();
   store.set(CART_COOKIE_NAME, token, {
