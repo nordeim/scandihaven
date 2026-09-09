@@ -179,4 +179,25 @@ describe("filterEligiblePromotions (attached-promo re-validation, E2E-3)", () =>
       ),
     );
   });
+
+  it("category-gated promos require a matching categoryId in the cart context (R1)", () => {
+    const categoryPromo = {
+      ...basePromotion,
+      id: "promo-cat",
+      conditions: { categoryIds: ["30000000-0000-4000-8000-000000000002"] },
+    };
+    // Cart contains a product from the gated category → kept
+    expect(filterEligiblePromotions([categoryPromo], baseContext)).toHaveLength(1);
+    // Empty categoryIds → dropped (the bug R1 fixed: [] would have dropped)
+    expect(
+      filterEligiblePromotions([categoryPromo], { ...baseContext, categoryIds: [] }),
+    ).toHaveLength(0);
+    // Wrong category → dropped
+    expect(
+      filterEligiblePromotions([categoryPromo], {
+        ...baseContext,
+        categoryIds: ["99999999-0000-4000-8000-000000000009"],
+      }),
+    ).toHaveLength(0);
+  });
 });

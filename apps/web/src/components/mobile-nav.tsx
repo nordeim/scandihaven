@@ -27,7 +27,6 @@ export function MobileNav() {
       <DrawerTrigger
         aria-label="Open menu"
         className="rounded-pill p-2 text-ink transition-colors hover:bg-bg-2 md:hidden"
-        onClick={() => setOpen(true)}
       >
         <Menu className="size-5" aria-hidden />
       </DrawerTrigger>

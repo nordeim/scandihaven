@@ -24,13 +24,14 @@ const PROMO_CODE = "test-welcome";
 const MIN_SPEND_PROMO_CODE = "test-min-spend";
 const CART_TOKEN = "test-checkout-token";
 
-/** Re-validation context builder (E2E-3) — subtotal drives min_spend checks. */
+/** Re-validation context builder (E2E-3 + R1) — subtotal drives min_spend checks. */
 function contextFor(subtotalMinor: number) {
   return {
     subtotalMinor,
     region: "EU" as const,
     now: new Date("2026-10-01T12:00:00Z"),
-    productIds: [],
+    productIds: [] as string[],
+    categoryIds: [] as string[],
     isGuest: true,
   };
 }

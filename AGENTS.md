@@ -78,3 +78,10 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - `docs/audits/2026-09-10-live-e2e-audit/` — live E2E round 3 (checkout stale-chunk crash, CI-red cart specs, promo re-validation, card price, mobile nav FR-102, CSP beacon, canonical boot guard) + remediation plan in `docs/plans/2026-09-10-live-e2e-remediation.md`.
 - `README.md` — human onboarding (setup, verification, design tokens).
 - `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).
+
+---
+
+pnpm install 
+cp .env.example .env   # + openssl rand -base64 32 for BETTER_AUTH_SECRET 
+pnpm lint && pnpm typecheck && pnpm test   # 8/8, 8/8, 7/7 — commerce 90.79%/89.65% 
+DATABASE_URL=… BETTER_AUTH_SECRET=… pnpm build  # 2/2, ƒ Proxy

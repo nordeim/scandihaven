@@ -1,6 +1,6 @@
 /** Cart service (PRD §7.4, FR-401..406) — server-side cart keyed by signed cookie token. */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@scandihaven/db/client";
 import {
   cart,
@@ -226,6 +226,23 @@ export async function removeLine(cartId: string, lineId: string): Promise<CartDt
   return getCartDto(cartId);
 }
 
+/**
+ * Resolve distinct categoryIds for a set of variantIds (R1). Shared by
+ * getCartDto, applyPromotionByCode, and the checkout promotion loader so
+ * category-gated promotions evaluate correctly on every read, not just at
+ * attach time. Returns [] for empty input or products without a category.
+ */
+async function resolveCategoryIdsForVariants(variantIds: readonly string[]): Promise<string[]> {
+  if (variantIds.length === 0) return [];
+  const rows = await db.execute<{ category_id: string }>(sql`
+    SELECT DISTINCT p.category_id
+    FROM product_variant pv
+    JOIN product p ON p.id = pv.product_id
+    WHERE pv.id IN ${variantIds} AND p.category_id IS NOT NULL
+  `);
+  return rows.rows.map((r) => r.category_id);
+}
+
 async function loadPromotions(cartId: string): Promise<{ inputs: PromotionInput[]; rows: { id: string; code: string | null }[] }> {
   const joins = await db
     .select({ promotion })
@@ -261,6 +278,7 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
   if (!promo || !promo.isActive) throw new CartError("Promotion code not found", "NOT_FOUND");
 
   const dto = await getCartDto(cartId);
+  const categoryIds = await resolveCategoryIdsForVariants(dto.lines.map((l) => l.variantId));
   const evaluation = evaluatePromotion(
     {
       id: promo.id,
@@ -281,7 +299,7 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
       region: dto.region,
       now: new Date(),
       productIds: dto.lines.map((l) => l.variantId),
-      categoryIds: [],
+      categoryIds,
       isGuest: true,
     },
   );
@@ -354,17 +372,18 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
   }
 
   const promotionInfo = await loadPromotions(cartId);
-  // Re-validate attached promotions against the CURRENT cart (E2E-3):
-  // min-spend/schedule/region conditions are checked at every read, so a code
-  // applied above the threshold stops discounting once mutations drop below
-  // it. The cart_promotion row stays — re-crossing re-applies the code.
+  // Re-validate attached promotions against the CURRENT cart (E2E-3 + R1):
+  // min-spend/schedule/region/category conditions are checked at every read,
+  // so a code applied above the threshold stops discounting once mutations
+  // drop below it. The cart_promotion row stays — re-crossing re-applies.
   const subtotalMinor = priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0);
+  const categoryIds = await resolveCategoryIdsForVariants(lines.map((l) => l.variantId));
   const eligiblePromotions = filterEligiblePromotions(promotionInfo.inputs, {
     subtotalMinor,
     region: cartRow.region,
     now: new Date(),
     productIds: lines.map((l) => l.variantId),
-    categoryIds: [],
+    categoryIds,
     isGuest: cartRow.userId === null,
   });
   const totals = computeCartTotals({

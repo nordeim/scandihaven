@@ -1,0 +1,33 @@
+{
+  "reportId": "2026-09-11-recent-changes-validation",
+  "scope": "840e8f1..ccadc78 (7 commits, 37 files, +1270/-119) + docs/session_5.md worklog",
+  "date": "2026-09-11",
+  "method": "full diff + full file read per commit, NFR-STACK + invariant checks, PRD traceability cross-read, pnpm lint/typecheck/test/build re-executed",
+  "gates": {
+    "lint": "8/8 pass",
+    "typecheck": "8/8 pass",
+    "test": "7/7 tasks pass (commerce 118, auth 19, config 39, web 16, admin 11, db 17)",
+    "build": "2/2 pass",
+    "coverage": "90.9% stmts / 90.32% funcs (commerce pure domain)"
+  },
+  "verdict": "PASS — 7/7 commits approved",
+  "slices": [
+    { "id": "S1", "commit": "dfa405f", "subject": "E2E-2 scoped cart price assertions", "verdict": "PASS", "severity": "none" },
+    { "id": "S2", "commit": "7cf858f", "subject": "E2E-3 promo re-validation per read", "verdict": "PASS", "observations": ["R1 categoryIds deferred"] },
+    { "id": "S3", "commit": "3597f8b", "subject": "E2E-4 card price = default variant", "verdict": "PASS", "observations": ["R2 no-default compare_at legacy"] },
+    { "id": "S4", "commit": "3c3b3e6", "subject": "E2E-5 same-origin redirect validation", "verdict": "PASS", "severity": "none" },
+    { "id": "S5", "commit": "169812c", "subject": "E2E-6 mobile navigation drawer FR-102", "verdict": "PASS", "severity": "none" },
+    { "id": "S6", "commit": "2bf3a8f", "subject": "E2E-1/7/8 root error + chunk self-heal + CSP beacon + site-URL guard", "verdict": "PASS", "severity": "none" },
+    { "id": "S7", "commit": "ccadc78", "subject": "docs audit + traceability + ledger + README/AGENTS/CLAUDE", "verdict": "PASS", "severity": "none" }
+  ],
+  "observations": [
+    { "id": "R1", "severity": "low", "location": "cart-service.ts / checkout-service.ts categoryIds: []", "note": "Category-gated promotions treated as ineligible because product.categoryId never resolved; seed promos don't use it — backlog for Phase 5." },
+    { "id": "R2", "severity": "low", "location": "catalog.ts no-default fallback MAX(compare_at)", "note": "Legacy products without a default may show a sale badge from a variant other than the cheapest; common catalog always has a default." },
+    { "id": "R3", "severity": "info", "location": "site-header.tsx MobileNav onClick redundancy", "note": "onClick()=>setOpen(true) redundant with Radix onOpenChange — harmless." }
+  ],
+  "opsActions": [
+    "Redeploy both apps via ./start_server.sh (primary fix for E2E-1 stale-chunk 404)",
+    "Set NEXT_PUBLIC_SITE_URL on each deployment (fixes http://localhost:3000 canonicals, silences boot guard)",
+    "Carried: rotate secrets exposed via 262d3cc if not yet done; Stripe env alignment; junk UUID-shaped cart rows cleanup"
+  ]
+}

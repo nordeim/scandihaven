@@ -1,0 +1,54 @@
+$ git pull
+Updating 840e8f1..ccadc78
+Fast-forward
+ AGENTS.md                                                     |   5 +++++
+ CLAUDE.md                                                     |   4 ++++
+ README.md                                                     |   5 ++++-
+ apps/admin/src/app/global-error.tsx                           |  45 +++++++++++++++++++++++++++++++++++++++++++++
+ apps/admin/src/app/sign-in/sign-in-form.tsx                   |   7 +++++--
+ apps/admin/src/instrumentation.ts                             |   8 ++++++++
+ apps/web/e2e/cart-flows.spec.ts                               |  31 ++++++++++++++++++++++---------
+ apps/web/e2e/storefront.spec.ts                               |  35 +++++++++++++++++++++++++++++++++++
+ apps/web/src/app/account/page.tsx                             |   5 ++++-
+ apps/web/src/app/error.tsx                                    |   9 +++++++++
+ apps/web/src/app/global-error.tsx                             |  48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/app/sign-in/page.tsx                             |  75 +++++++++------------------------------------------------------------------
+ apps/web/src/app/sign-in/sign-in-form.tsx                     |  79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/components/cart-view.tsx                         |  20 +++++++++++++++++---
+ apps/web/src/components/mobile-nav.tsx                        |  50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/components/site-header.tsx                       |  12 +++++++++---
+ apps/web/src/instrumentation.ts                               |   9 +++++++++
+ docs/audits/2026-09-10-live-e2e-audit/findings.md             | 119 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/plans/2026-09-10-live-e2e-remediation.md                 |  90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/traceability.md                                          |  22 ++++++++++++----------
+ docs/verification-ledger.md                                   |  22 ++++++++++++++++++++++
+ packages/commerce/src/cart-service.ts                         |  21 ++++++++++++++++++---
+ packages/commerce/src/catalog-price.integration.test.ts       | 108 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ packages/commerce/src/catalog.ts                              |  13 ++++++++++++-
+ packages/commerce/src/checkout-promotions.integration.test.ts |  59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ packages/commerce/src/checkout-service.ts                     |  89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------------
+ packages/commerce/src/promotions.test.ts                      |  79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ packages/commerce/src/promotions.ts                           |  17 +++++++++++++++++
+ packages/config/package.json                                  |   9 ++++++---
+ packages/config/src/chunk-recovery.test.ts                    |  39 +++++++++++++++++++++++++++++++++++++++
+ packages/config/src/chunk-recovery.ts                         |  58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ packages/config/src/redirect-path.test.ts                     |  52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ packages/config/src/redirect-path.ts                          |  43 +++++++++++++++++++++++++++++++++++++++++++
+ packages/config/src/security-headers.test.ts                  |   9 +++++++++
+ packages/config/src/security-headers.ts                       |   7 +++++--
+ packages/config/src/site-url.test.ts                          |  39 +++++++++++++++++++++++++++++++++++++++
+ packages/config/src/site-url.ts                               |  47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 37 files changed, 1270 insertions(+), 119 deletions(-)
+ create mode 100644 apps/admin/src/app/global-error.tsx
+ create mode 100644 apps/web/src/app/global-error.tsx
+ create mode 100644 apps/web/src/app/sign-in/sign-in-form.tsx
+ create mode 100644 apps/web/src/components/mobile-nav.tsx
+ create mode 100644 docs/audits/2026-09-10-live-e2e-audit/findings.md
+ create mode 100644 docs/plans/2026-09-10-live-e2e-remediation.md
+ create mode 100644 packages/commerce/src/catalog-price.integration.test.ts
+ create mode 100644 packages/config/src/chunk-recovery.test.ts
+ create mode 100644 packages/config/src/chunk-recovery.ts
+ create mode 100644 packages/config/src/redirect-path.test.ts
+ create mode 100644 packages/config/src/redirect-path.ts
+ create mode 100644 packages/config/src/site-url.test.ts
+ create mode 100644 packages/config/src/site-url.ts

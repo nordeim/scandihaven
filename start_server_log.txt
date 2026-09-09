@@ -20,16 +20,7 @@ Scope: all 9 workspace projects
 Lockfile is up to date, resolution step is skipped
 Already up to date
 
-   ╭─────────────────────────────────────────╮
-   │                                         │
-   │   Update available! 10.15.0 → 12.3.4.   │
-   │   Changelog: https://pnpm.io/v/12.3.4   │
-   │    To update, run: pnpm add -g pnpm     │
-   │                                         │
-   ╰─────────────────────────────────────────╯
-
-
-Done in 2.1s using pnpm v10.15.0
+Done in 2.4s using pnpm v10.15.0
 [ok] deps installed
 [start] Database setup (migrate + seed) …
 [WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
@@ -56,26 +47,35 @@ Done in 2.1s using pnpm v10.15.0
 
 [db] seed complete (idempotent run=ok)
 [ok] database ready (migrate + seed)
-[start] Building (pnpm build — Turbopack, both apps) …
+
+$ pnpm build
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> scandihaven@ build /Home1/project/scandihaven
+> turbo run build
+
+• turbo 2.10.12
+
+   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
+   • Running build in 8 packages
+   • Remote caching disabled
+
+@scandihaven/admin:build: cache hit, replaying logs ea62e060e5a08556
+@scandihaven/admin:build: 
 @scandihaven/admin:build: > @scandihaven/admin@0.1.0 build /Home1/project/scandihaven/apps/admin
 @scandihaven/admin:build: > next build
 @scandihaven/admin:build: 
 @scandihaven/admin:build: ▲ Next.js 16.3.4 (Turbopack)
-@scandihaven/web:build: ▲ Next.js 16.3.4 (Turbopack)
-@scandihaven/admin:build: ✓ Running next.config.ts took 38ms
-@scandihaven/web:build: ✓ Running next.config.ts took 34ms
+@scandihaven/admin:build: ✓ Running next.config.ts took 78ms
 @scandihaven/admin:build: 
-@scandihaven/web:build: 
 @scandihaven/admin:build:   Creating an optimized production build ...
-@scandihaven/web:build:   Creating an optimized production build ...
-@scandihaven/admin:build: ✓ Compiled successfully in 20.3s
+@scandihaven/admin:build: ✓ Compiled successfully in 1655ms
 @scandihaven/admin:build:   Running TypeScript ...
-@scandihaven/web:build: ✓ Compiled successfully in 23.6s
-@scandihaven/web:build:   Running TypeScript ...
-@scandihaven/admin:build:   Finished TypeScript in 11.5s ...
+@scandihaven/admin:build:   Finished TypeScript in 11.8s ...
 @scandihaven/admin:build:   Collecting page data using 3 workers ...
 @scandihaven/admin:build:   Generating static pages using 3 workers (0/3) ...
-@scandihaven/admin:build: ✓ Generating static pages using 3 workers (3/3) in 449ms
+@scandihaven/admin:build: ✓ Generating static pages using 3 workers (3/3) in 784ms
 @scandihaven/admin:build:   Finalizing page optimization ...
 @scandihaven/admin:build: 
 @scandihaven/admin:build: Route (app)
@@ -96,14 +96,20 @@ Done in 2.1s using pnpm v10.15.0
 @scandihaven/admin:build: ○  (Static)   prerendered as static content
 @scandihaven/admin:build: ƒ  (Dynamic)  server-rendered on demand
 @scandihaven/admin:build: 
-@scandihaven/web:build:   Finished TypeScript in 12.5s ...
-@scandihaven/web:build:   Collecting page data using 3 workers ...
-@scandihaven/web:build:   Generating static pages using 3 workers (0/9) ...
-@scandihaven/web:build:   Generating static pages using 3 workers (2/9) 
-@scandihaven/web:build:   Generating static pages using 3 workers (4/9) 
-@scandihaven/web:build:   Generating static pages using 3 workers (6/9) 
-@scandihaven/web:build: ✓ Generating static pages using 3 workers (9/9) in 358ms
-@scandihaven/web:build:   Finalizing page optimization ...
+@scandihaven/web:build: cache miss, executing a8b7686049218e2c
+@scandihaven/web:build: 
+@scandihaven/web:build: > @scandihaven/web@0.1.0 build /Home1/project/scandihaven/apps/web
+@scandihaven/web:build: > next build
+@scandihaven/web:build: 
+@scandihaven/web:build: ▲ Next.js 16.3.4 (Turbopack)
+@scandihaven/web:build: ✓ Running next.config.ts took 43ms
+@scandihaven/web:build: 
+@scandihaven/web:build:   Creating an optimized production build ...
+@scandihaven/web:build: ✓ Compiled successfully in 849ms
+@scandihaven/web:build: ✓ Finished TypeScript in 8.7s 
+@scandihaven/web:build: ✓ Collecting page data using 3 workers in 1082ms 
+✓ Generating static pages using 3 workers (8/8) in 302ms
+@scandihaven/web:build: ✓ Finalizing page optimization in 7ms 
 @scandihaven/web:build: 
 @scandihaven/web:build: Route (app)
 @scandihaven/web:build: ┌ ƒ /
@@ -132,17 +138,18 @@ Done in 2.1s using pnpm v10.15.0
 @scandihaven/web:build: 
 @scandihaven/web:build: ƒ  (Dynamic)  server-rendered on demand
 @scandihaven/web:build: 
+@scandihaven/web:build: 
 
  Tasks:    2 successful, 2 total
-Cached:    0 cached, 2 total
-  Time:    40.462s 
+Cached:    1 cached, 2 total
+  Time:    13.636s
 
 [ok] build complete (apps/web + apps/admin, Turbopack)
 [start] Starting production servers …
- 2342265 2342253[start]   starting storefront (pnpm prod → :3000) …
-[start]   storefront pid 2432962 → /Home1/project/scandihaven/server.log
+[start]   starting storefront (pnpm prod → :3000) …
+[start]   storefront pid 2625519 → /Home1/project/scandihaven/server.log
 [start]   starting admin (pnpm prod:admin → :3001) …
-[start]   admin pid 2432979 → /Home1/project/scandihaven/server-admin.log
+[start]   admin pid 2625536 → /Home1/project/scandihaven/server-admin.log
 [start]   waiting for storefront to be ready …
 [ok]   storefront ready
 [start]   waiting for admin to be ready …
@@ -159,8 +166,8 @@ Cached:    0 cached, 2 total
 [ok] all health checks passed
 
 [ok] === Servers live ===
-  Storefront: http://localhost:3000  (pid 2432962, log /Home1/project/scandihaven/server.log)
-  Admin:      http://localhost:3001  (pid 2432979, log /Home1/project/scandihaven/server-admin.log)
+  Storefront: http://localhost:3000  (pid 2625519, log /Home1/project/scandihaven/server.log)
+  Admin:      http://localhost:3001  (pid 2625536, log /Home1/project/scandihaven/server-admin.log)
   Health:     curl -s http://localhost:3000/api/health | jq .
   Shop:       open http://localhost:3000/shop  # Halden armchair, Øresund lamp …
   Logs:       tail -f /Home1/project/scandihaven/server.log /Home1/project/scandihaven/server-admin.log
@@ -168,4 +175,3 @@ Cached:    0 cached, 2 total
 
 [warn] Some .env placeholders remain (set-me) — checkout will show 'not configured' until Stripe test keys are added (see README.md Secrets)
 [start] Done.
-

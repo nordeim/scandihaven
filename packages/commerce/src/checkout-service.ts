@@ -88,8 +88,28 @@ export type CartPromotionContext = {
   region: "EU" | "US" | "UK";
   now: Date;
   productIds: readonly string[];
+  categoryIds: readonly string[];
   isGuest: boolean;
 };
+
+/**
+ * Resolve distinct categoryIds for a set of variantIds (R1). Used to
+ * populate CartPromotionContext.categoryIds so category-gated promotions
+ * are correctly evaluated at cart read, intent creation, and placement.
+ */
+export async function resolveCategoryIdsForVariants(
+  executor: Pick<typeof db, "execute">,
+  variantIds: readonly string[],
+): Promise<string[]> {
+  if (variantIds.length === 0) return [];
+  const rows = await executor.execute<{ category_id: string }>(sql`
+    SELECT DISTINCT p.category_id
+    FROM product_variant pv
+    JOIN product p ON p.id = pv.product_id
+    WHERE pv.id IN ${variantIds} AND p.category_id IS NOT NULL
+  `);
+  return rows.rows.map((r) => r.category_id);
+}
 
 /**
  * Load the promotions attached to a cart (same rows the cart DTO displays),
@@ -138,7 +158,7 @@ export async function loadCartPromotionApplications(
       perCustomerUsed: 0,
     }));
   return toPromotionApplications(
-    filterEligiblePromotions(inputs, { ...context, categoryIds: [] }).map((p) => ({
+    filterEligiblePromotions(inputs, context).map((p) => ({
       id: p.id,
       kind: p.kind,
       value: p.value,
@@ -183,12 +203,17 @@ export async function createPaymentIntent(
   // Payable totals include the cart's ELIGIBLE promotions (§7.11): the intent
   // amount must equal what the cart page displays, or the §7.11
   // re-verification would reject every discounted order. Both sides filter
-  // with the same re-validation (E2E-3).
+  // with the same re-validation (E2E-3) — including category-gated promos (R1).
+  const categoryIds = await resolveCategoryIdsForVariants(
+    db,
+    lineRows.map((row) => row.line.variantId),
+  );
   const promotions = await loadCartPromotionApplications(db, cartId, {
     subtotalMinor: priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0),
     region: cartRow.region,
     now: new Date(),
     productIds: lineRows.map((row) => row.line.variantId),
+    categoryIds,
     isGuest: cartRow.userId === null,
   });
   const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
@@ -338,12 +363,17 @@ export async function placeOrderFromWebhook(input: {
     }));
     // Re-verification (§7.11) prices the cart with its ELIGIBLE promotions
     // inside the same transaction — identical inputs to intent creation
-    // (§7.10), including the E2E-3 re-validation filter.
+    // (§7.10), including the E2E-3 re-validation filter and categoryIds (R1).
+    const categoryIds = await resolveCategoryIdsForVariants(
+      tx,
+      lineRows.map((row) => row.line.variantId),
+    );
     const promotions = await loadCartPromotionApplications(tx, cartId, {
       subtotalMinor: priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0),
       region: cartRow.region,
       now: new Date(),
       productIds: lineRows.map((row) => row.line.variantId),
+      categoryIds,
       isGuest: cartRow.userId === null,
     });
     const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });

@@ -168,26 +168,30 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
              -- Card price = the DEFAULT variant's price so the card matches
              -- PDP, JSON-LD and quick-add (live E2E audit 2026-09-10, E2E-4:
              -- MIN advertised the cheapest variant while the customer is
-             -- priced for the default). Products with no default variant
-             -- (legacy data) keep the old MIN rollup, and compare_at follows
-             -- the same variant so a sibling's sale can't fabricate a badge.
-             COALESCE(MAX(vp.amount) FILTER (WHERE pv.is_default), MIN(vp.amount)) AS amount,
-             CASE
-               WHEN MAX(vp.amount) FILTER (WHERE pv.is_default) IS NOT NULL
-                 THEN MAX(vp.compare_at) FILTER (WHERE pv.is_default)
-               ELSE MAX(vp.compare_at)
-             END AS compare_at,
+             -- priced for the default). The LATERAL picks the single variant
+             -- that determines the card price — default first, cheapest
+             -- tie-break — so amount and compare_at are always paired. This
+             -- closes the no-default fallback mismatch (R2): the old
+             -- COALESCE/MAX fallback paired MIN(amount) with MAX(compare_at)
+             -- from a different variant and fabricated a Sale badge.
+             price.amount,
+             price.compare_at,
              a.available,
              (SELECT m.url FROM product_image pi JOIN media m ON m.id = pi.media_id
               WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1) AS image_url,
              (SELECT m.alt FROM product_image pi JOIN media m ON m.id = pi.media_id
               WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1) AS image_alt
       FROM product p
-      JOIN product_variant pv ON pv.product_id = p.id AND pv.is_active
-      JOIN variant_price vp ON vp.variant_id = pv.id AND vp.currency = ${currency}
       JOIN avail a ON a.product_id = p.id
+      JOIN LATERAL (
+        SELECT vp2.amount, vp2.compare_at
+        FROM product_variant pv2
+        JOIN variant_price vp2 ON vp2.variant_id = pv2.id AND vp2.currency = ${currency}
+        WHERE pv2.product_id = p.id AND pv2.is_active
+        ORDER BY pv2.is_default DESC, vp2.amount ASC
+        LIMIT 1
+      ) price ON true
       WHERE ${where}
-      GROUP BY p.id, a.available
       ORDER BY ${orderBy}
     )
     SELECT *, COUNT(*) OVER () AS total
