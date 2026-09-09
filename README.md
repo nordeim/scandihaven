@@ -10,7 +10,8 @@ The static brand site had no checkout, accounts, inventory, or administration. T
 
 | | Feature | Where |
 |---|---|---|
-| 🛍️ | Storefront: home, category PLPs with sort/pagination, PDP with variant swatches & lead-time badges | `apps/web` |
+| 🛍️ | Storefront: home, category PLPs with sort/pagination, PDP with variant swatches & lead-time badges, `/search?q=` results page | `apps/web` |
+| 🔎 | SEO surface: sitemap.xml + robots.txt + absolute canonical/OG URLs + Organization/WebSite/Product/BreadcrumbList JSON-LD | `apps/web` + `@scandihaven/config/site-url` |
 | 🛒 | Server-truth cart: signed-cookie identity, guest cart, promo codes, mini-cart drawer | `apps/web` + `packages/commerce` |
 | 💳 | Stripe Payment Element checkout; webhook-driven order placement with amount re-verification | `packages/commerce/checkout-service` |
 | 📦 | Multi-warehouse inventory with reservation semantics and append-only movement ledger | `packages/db` schema |
@@ -196,8 +197,10 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | Quantity changes fail with "Cart line not found"; removed items reappear; second add-to-cart is lost | Fixed 2026-09-09 (audit H1-CART): `requireCart()` fed the resolved cart UUID into token-keyed `ensureCart()`. Redeploy after pulling; one-time cleanup of junk `cart` rows (token shaped like a UUID) recommended |
 | Admin `/admin`-prefixed URL 404s after sign-in | Fixed 2026-09-09 (audit H2-ADMIN): `apps/admin/next.config.ts` beforeFiles rewrites strip the `/admin` deployment prefix and the gate allows `/admin/sign-in`. Redeploy to take effect |
 | One page (e.g. `/checkout`) crashes after hydration with no branded error | The deployment rebuilt (`pnpm build`) **without restarting the server** — the running process renders HTML referencing build-N chunks that no longer exist on disk. Fixed in code 2026-09-10 (E2E-1): `global-error.tsx` + one-shot chunk-reload self-heal in both apps. Ops fix: always restart via `./start_server.sh` (it kills prior PIDs after building), never leave a server running across a rebuild |
-| Canonical/OG URLs point at `http://localhost:3000` | `NEXT_PUBLIC_SITE_URL` is unset on the deployment — `metadataBase` falls back to localhost and harms SEO (FR-313). Set it to the public origin and redeploy. Since 2026-09-10 (E2E-8) a production boot logs an actionable `[boot] NEXT_PUBLIC_SITE_URL …` warning when this is misconfigured |
+| Canonical/OG URLs point at `http://localhost:3000` | `NEXT_PUBLIC_SITE_URL` is unset on the deployment — the declared source of truth; set it to the public origin and redeploy (a production boot logs an actionable `[boot] NEXT_PUBLIC_SITE_URL …` warning while it is misconfigured, E2E-8). Since 2026-09-10 round 4 the canonical/OG/sitemap URLs additionally fall back to the origin each request was served on (`@scandihaven/config/site-url`), so a missing env var no longer poisons the URL contract — the env var is still required to silence the warning |
 | Console shows a CSP violation for `static.cloudflareinsights.com` on every page | Fixed 2026-09-10 (E2E-7): the edge-injected Cloudflare Insights beacon is allow-listed in `packages/config/security-headers.ts`. Redeploy to pick up the header change |
+| `sitemap.xml` or `/search?q=` returns 404 on the live site | Shipped 2026-09-10 (round 4): `app/sitemap.ts`, `app/robots.ts`, and `app/search/page.tsx` exist in the codebase — a 404 on the deployment means the live servers predate the fix; redeploy via `./start_server.sh`. Live robots.txt showing a Cloudflare content-signals block instead of the app rules means CF Managed Robots overrides the app file — merge the `Sitemap:` line into the CF ruleset or disable the override |
+| `.env` shows up in `git ls-files` after pulling | It must never be tracked (audit C2, R4-1). `git rm --cached .env` untracks it (the file stays locally for dev); rotate any values that were committed while it was tracked — the CI secret scan catches quoted secret values since round 4, but history retains whatever was pushed |
 
 ## Documentation
 

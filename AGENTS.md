@@ -65,6 +65,8 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - **Promotion eligibility is per-read** (audit 2026-09-10 E2E-3): conditions (`minSpendMinor` etc.) checked only at `applyPromotionByCode` time let a below-threshold cart keep its discount through placement. `getCartDto` and `loadCartPromotionApplications` re-validate via `filterEligiblePromotions` on every read/tx — new totals paths must do the same. Don't delete the `cart_promotion` row when ineligible (re-crossing the threshold re-applies it).
 - **Card prices come from the default variant** (E2E-4): the cards CTE uses `COALESCE(MAX(amount) FILTER (WHERE is_default), MIN(amount))` — never a bare `MIN`, which advertises the cheapest variant while PDP/quick-add price the default.
 - **E2E price assertions must be scoped** (E2E-2, CI was red on every run because of this): the same amount legitimately renders in the line-total span AND the Subtotal/Total `<dd>`s — assert within the order-summary aside or the line group, never page-wide `getByText("€X")`.
+- **Canonical/OG/sitemap URLs are absolute and request-scoped** (round 4, R4-6): PDP `generateMetadata` + `app/sitemap.ts`/`app/robots.ts` resolve the origin via `@scandihaven/config/site-url` (`resolveSiteUrl`: env var → proxy-header-derived served origin → localhost). Never emit a metadataBase-relative canonical for the PDP — the static localhost fallback poisoned the live site. `app/search/page.tsx` (FR-106) reuses `listProducts({search})`; new SEO builder logic lives in `apps/web/src/lib/seo.ts` (pure, unit-tested).
+- **Secret-scan patterns must tolerate quoted values** (R4-1): the b50c46b `.env` re-exposure slipped past CI because `["\x27]?` was missing around the value classes — when extending the scan, test the pattern against both quoted and bare shapes.
 - **Post-auth `?redirect=` params are never trusted raw**: validate through `@scandihaven/config/redirect-path` (`validateRedirectPath`) in both apps — the admin previously pushed the raw value into `router.push` (open redirect).
 
 ## Environment
@@ -76,6 +78,7 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - `PRD.md` — the authoritative spec (v4.0): FR-100…FR-999 requirement IDs, §4.8 cross-cutting contracts (ports/flags/idempotency), §7 schema, §8 action contracts, §12.6 SLOs, §15 agent operating contract, §13 rollout phases. Stubs in code name their FR ID.
 - `docs/audits/2026-09-09-code-review-security-audit/` — tiered code review + security audit (2 Critical / 9 High, evidence-backed, incl. runtime-verified proxy and admin-gate fixes).
 - `docs/audits/2026-09-10-live-e2e-audit/` — live E2E round 3 (checkout stale-chunk crash, CI-red cart specs, promo re-validation, card price, mobile nav FR-102, CSP beacon, canonical boot guard) + remediation plan in `docs/plans/2026-09-10-live-e2e-remediation.md`.
+- `docs/plans/2026-09-10-live-e2e-remediation-round4.md` — live E2E round 4 (secrets re-exposure + scan gap, sitemap/robots/search surfaces, absolute canonicals, skills cache hygiene) with the evidence-labelled findings table.
 - `README.md` — human onboarding (setup, verification, design tokens).
 - `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).
 
