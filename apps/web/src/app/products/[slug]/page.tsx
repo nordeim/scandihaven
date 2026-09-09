@@ -6,6 +6,8 @@ import { safeJsonLd, sanitizeRichText } from "@scandihaven/commerce/rich-text";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@scandihaven/ui/accordion";
 import { StarsRating } from "@/components/stars-rating";
 import { ProductBuyPanel } from "@/components/product-buy-panel";
+import { breadcrumbJsonLd } from "@/lib/seo";
+import { currentSiteUrl } from "@/lib/site-origin";
 
 type Params = Promise<{ slug: string }>;
 
@@ -13,20 +15,35 @@ export const revalidate = 300; // ISR per PRD §4.4; tag-invalidated on catalog 
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProduct(slug).catch((error: unknown) => { console.error("[pdp] product load failed", error); return null; });
+  const [product, siteUrl] = await Promise.all([
+    getProduct(slug).catch((error: unknown) => { console.error("[pdp] product load failed", error); return null; }),
+    currentSiteUrl(),
+  ]);
   if (!product) return { title: "Product not found" };
   // `absolute` because seeded seoTitles already end in "| Scandi Haven" — a
   // plain title would inherit the layout template and render the suffix twice
   // (audit 2026-09-09 M-TITLE).
   const title = { absolute: product.seoTitle ?? product.title };
+  const canonicalUrl = `${siteUrl}/products/${product.slug}`;
   return {
     title,
     description: product.seoDescription ?? undefined,
-    alternates: { canonical: `/products/${product.slug}` },
+    // Absolute canonical/OG URLs bypass metadataBase (round 4, R4-6/E2E-8):
+    // the fallback in the root layout is a static localhost string, which
+    // made the live deployment advertise http://localhost:3000 canonicals.
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: product.seoTitle ?? product.title,
       description: product.seoDescription ?? undefined,
-      images: product.images[0] ? [{ url: product.images[0].url }] : undefined,
+      url: canonicalUrl,
+      type: "website",
+      images: product.images[0] ? [{ url: `${siteUrl}${product.images[0].url}` }] : undefined,
+    },
+    twitter: {
+      card: product.images[0] ? "summary_large_image" : "summary",
+      title: product.seoTitle ?? product.title,
+      description: product.seoDescription ?? undefined,
+      images: product.images[0] ? [`${siteUrl}${product.images[0].url}`] : undefined,
     },
   };
 }
@@ -37,7 +54,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  */
 export default async function ProductPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const [product, siteUrl] = await Promise.all([getProduct(slug), currentSiteUrl()]);
   if (!product) notFound();
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
@@ -54,6 +71,7 @@ export default async function ProductPage({ params }: { params: Params }) {
     description: product.seoDescription ?? product.descriptionHtml ?? undefined,
     material: product.materials.join(", "),
     sku: defaultVariant.sku,
+    url: `${siteUrl}/products/${product.slug}`,
     offers: {
       "@type": "Offer",
       priceCurrency: product.currency,
@@ -74,6 +92,17 @@ export default async function ProductPage({ params }: { params: Params }) {
       : {}),
   };
 
+  // BreadcrumbList (FR-312, PRD §11.1; round 4 R4-8) mirrors the visible
+  // trail with absolute URLs.
+  const crumbs = breadcrumbJsonLd(siteUrl, [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    ...(product.categoryName
+      ? [{ name: product.categoryName, path: "/shop" }]
+      : []),
+    { name: product.title, path: `/products/${product.slug}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
       <script
@@ -81,6 +110,11 @@ export default async function ProductPage({ params }: { params: Params }) {
         // Server-generated structured data (PRD FR-312); escaped so a title
         // containing `</script>` cannot break out (audit 2026-09-09 H-2).
         dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        // BreadcrumbList (PRD §11.1, FR-312; round 4 R4-8) — same escaping rule.
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(crumbs) }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted">

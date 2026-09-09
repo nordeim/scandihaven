@@ -135,7 +135,7 @@ test.describe("mobile navigation (FR-102)", () => {
 });
 
 test.describe("accessibility (PRD §12.2)", () => {
-  for (const path of ["/", "/shop", "/products/oresund-table-lamp"]) {
+  for (const path of ["/", "/shop", "/products/oresund-table-lamp", "/search?q=lamp"]) {
     test(`axe: no serious violations on ${path}`, async ({ page }) => {
       // WCAG contrast evaluates the steady state, not transient reveal
       // animation frames — mid-fade opacity fails contrast spuriously

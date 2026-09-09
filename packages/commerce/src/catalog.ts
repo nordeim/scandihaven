@@ -374,6 +374,43 @@ export async function listLatestJournal(limit = 3) {
     .limit(limit);
 }
 
+/**
+ * Sitemap catalog seam (live E2E audit 2026-09-10 round 4, R4-3; PRD §11.1):
+ * every indexable catalog URL for `app/sitemap.ts`. Only active rows are
+ * returned (draft/archived products and inactive categories/collections
+ * must never leak into the sitemap); `updated_at` feeds the entries'
+ * `lastModified`. Journal is intentionally absent — only the `/journal`
+ * listing route exists today (article routes are a deferred FR-704 surface).
+ */
+export async function listSitemapEntries(): Promise<{
+  products: { slug: string; updatedAt: Date }[];
+  categories: { slug: string }[];
+  collections: { slug: string }[];
+}> {
+  const [productRows, categoryRows, collectionRows] = await Promise.all([
+    db
+      .select({ slug: product.slug, updatedAt: product.updatedAt })
+      .from(product)
+      .where(eq(product.status, "active"))
+      .orderBy(asc(product.slug)),
+    db
+      .select({ slug: category.slug })
+      .from(category)
+      .where(eq(category.isActive, true))
+      .orderBy(asc(category.slug)),
+    db
+      .select({ slug: collection.slug })
+      .from(collection)
+      .where(eq(collection.isActive, true))
+      .orderBy(asc(collection.slug)),
+  ]);
+  return {
+    products: productRows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt })),
+    categories: categoryRows,
+    collections: collectionRows,
+  };
+}
+
 export async function searchTypeahead(q: string, limit = 8) {
   const rows = await db
     .select({ slug: product.slug, title: product.title })
