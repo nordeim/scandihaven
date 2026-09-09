@@ -80,7 +80,12 @@ jobs:
         # §13.3 job 6. Scans tracked files for common credential shapes
         # (including non-placeholder BETTER_AUTH_SECRET/CRON_SECRET
         # assignments; audit 2026-09-09 C2/H6d); `set-me` placeholders in
-        # .env.example are the documented safe value. NOTE: `rg` exits 0 when
+        # .env.example are the documented safe value. Quoted values are matched
+        # too: the 2026-09-10 re-exposure (b50c46b) shipped .env with
+        # `BETTER_AUTH_SECRET="…"` — the quote is outside the old `[A-Za-z0-9+/=]`
+        # class, so the real secret sailed past this gate (round-4 audit R4-1);
+        # `["\x27]?` tolerates single/double quotes on both sides of the value.
+        # NOTE: `rg` exits 0 when
         # a match is FOUND, so a match must FAIL the step — the previous
         # `&& echo clean || exit 1` chaining inverted the gate (passed on
         # leaks, failed on clean repos). `--no-ignore` is load-bearing:
@@ -100,8 +105,8 @@ jobs:
             -e 're_[0-9a-zA-Z]{16,}' \
             -e 'AKIA[0-9A-Z]{16}' \
             -e '-----BEGIN' \
-            -P -e 'BETTER_AUTH_SECRET=(?!set-me-with-openssl-rand-base64-32$)[A-Za-z0-9+/=]{32,}' \
-            -P -e 'CRON_SECRET=(?!set-me-with-openssl-rand-hex-16$)[0-9a-f]{32,}' \
+            -P -e 'BETTER_AUTH_SECRET=["\x27]?(?!set-me-with-openssl-rand-base64-32["\x27]?$)[A-Za-z0-9+/=]{32,}' \
+            -P -e 'CRON_SECRET=["\x27]?(?!set-me-with-openssl-rand-hex-16["\x27]?$)[0-9a-f]{32,}' \
             . ; then
             echo '::error::potential secret committed'; exit 1
           else
