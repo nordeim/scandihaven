@@ -18,6 +18,8 @@ dist/
 docs/bak.env
 **/bak.env
 *.env.bak
+docs/env.tgz
+**/env.tgz
 
 # Testing
 playwright-report/

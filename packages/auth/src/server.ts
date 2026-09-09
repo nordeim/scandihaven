@@ -33,8 +33,14 @@ export const auth = betterAuth({
   // the native BETTER_AUTH_TRUSTED_ORIGINS (comma-separated); both merge with
   // this hook.
   trustedOrigins: (request: Request | undefined) => {
+    const envExtra = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const served = requestOriginFromHeaders(request?.headers ?? null);
-    return served ? [served] : [];
+    const merged = served ? [...envExtra, served] : envExtra;
+    // De-dupe so the same origin via env + served does not repeat.
+    return [...new Set(merged)];
   },
   emailAndPassword: {
     enabled: true,

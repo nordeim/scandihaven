@@ -50,4 +50,32 @@ describe("auth trustedOrigins wiring (H-AUTH regression)", () => {
     expect(origins).not.toContain("https://evil.example");
     expect(origins).not.toContain("null");
   });
+
+  it("merges BETTER_AUTH_TRUSTED_ORIGINS allow-list with the served origin (S-1)", async () => {
+    const prev = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
+    process.env.BETTER_AUTH_TRUSTED_ORIGINS =
+      "https://extra.example, https://scandihaven.jesspete.shop";
+    try {
+      // Re-import so the hook reads the mutated env (module is cached — the
+      // hook itself reads process.env on each call, so no re-import is needed
+      // beyond the context already captured; we just re-resolve).
+      const { auth } = await import("./server");
+      const context = await auth.$context;
+      const resolve = context.options.trustedOrigins as unknown as (
+        request: Request,
+      ) => string[] | Promise<string[]>;
+      const request = new Request("https://scandihaven.jesspete.shop/api/auth/sign-in/email", {
+        method: "POST",
+        headers: new Headers({ host: "scandihaven.jesspete.shop" }),
+      });
+      const origins = await resolve(request);
+      expect(origins).toContain("https://extra.example");
+      expect(origins).toContain("https://scandihaven.jesspete.shop");
+      // De-dupe: same origin via env + served appears only once.
+      expect(origins.filter((o) => o === "https://scandihaven.jesspete.shop").length).toBe(1);
+    } finally {
+      if (prev === undefined) delete process.env.BETTER_AUTH_TRUSTED_ORIGINS;
+      else process.env.BETTER_AUTH_TRUSTED_ORIGINS = prev;
+    }
+  });
 });

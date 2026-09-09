@@ -191,3 +191,21 @@ Audit: `docs/audits/2026-09-09-e2e-live-site-audit/findings.md` · Plan: `docs/p
 1. Rotate every secret that was publicly exposed via 262d3cc: `BETTER_AUTH_SECRET`, `CRON_SECRET`, `DATABASE_URL` password, Stripe test keys (`sk_test_…`, `whsec_…` — test mode, rotation still advised).
 2. Redeploy both apps so the H-AUTH fix reaches production (or, independently, set `BETTER_AUTH_TRUSTED_ORIGINS=https://scandihaven.jesspete.shop,https://scandihaven-admin.jesspete.shop` on the deployment).
 3. Align Stripe env on the deployment: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set while `STRIPE_SECRET_KEY` is not (client loads stripe.js; server reports "not configured" — audit L-STR).
+
+## 2026-09-10 — S-1 Explicit env allow-list merge in `trustedOrigins` (defense-in-depth for H-AUTH)
+
+Environment: same sandbox (no Docker/PG). Slice executed per `docs/plans/2026-09-10-s1-explicit-env-merge-plan.md` (single atomic `fix(auth): (S-1)`), validated then committed after user sign-off.
+
+| Slice | Fix | Evidence | Label |
+|---|---|---|---|
+| **S-1** `trustedOrigins` explicit merge | `packages/auth/src/server.ts:trustedOrigins` now reads `process.env.BETTER_AUTH_TRUSTED_ORIGINS` on each call, `split(",").map(trim).filter(Boolean)` + `requestOriginFromHeaders()` + `new Set` de-dupe; `BETTER_AUTH_TRUSTED_ORIGINS` no longer relies on Better-Auth's undocumented native-merge when `trustedOrigins` is a function | `pnpm --filter @scandihaven/auth test -- server-origin` → **19 passed** (was 18; new case `merges BETTER_AUTH_TRUSTED_ORIGINS allow-list with the served origin` with env+served+de-dupe assertion); `trusted-origins.test.ts` 7 still pass; `rg "Origin" trusted-origins.ts` only in header doc | **Verified** |
+| **N-1** hygiene bundled | `.gitignore` gains `docs/env.tgz` + `**/env.tgz` (secret backup `docs/env.tgz` was untracked `A` — same family as `docs/bak.env`) | `git check-ignore docs/env.tgz` → ignored; secret-scan clean | **Verified** |
+
+**Gates after S-1:**
+
+| Command | Result | Label |
+|---|---|---|
+| `pnpm lint` | 8/8 pass | Verified |
+| `pnpm typecheck` | 8/8 pass | Verified |
+| `pnpm test` | 7/7 — auth 19/19 (was 18), commerce 93, db 17, web 9, config 25, admin 4; 12 integration skip→CI | Verified |
+| `pnpm build` | 2/2 — both `ƒ Proxy (Middleware)` | Verified |
