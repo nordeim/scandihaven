@@ -20,6 +20,11 @@ const serverEnvSchema = z.object({
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 function tryLoadRootEnv(): void {
+  // Instrumentation runs in both Node and Edge (see start_server_log.txt:32 —
+  // Edge Instrumentation trace). Edge has no filesystem; skip the dotenv walk
+  // entirely (B-1 / L7d). Guard here so the Node-only `process.cwd()` /
+  // `require("dotenv")` path is never taken in Edge.
+  if (process.env.NEXT_RUNTIME === "edge") return;
   if (process.env.DATABASE_URL && process.env.BETTER_AUTH_SECRET) return;
   try {
     // Next.js @next/env walks only the app dir; repo-root .env is missed

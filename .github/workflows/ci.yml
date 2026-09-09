@@ -88,7 +88,7 @@ jobs:
           if rg -n --hidden --no-messages \
             -g '!.git/' -g '!node_modules/' -g '!.next/' -g '!.env.example' -g '!pnpm-lock.yaml' \
             -g '!skills/**' -g '!infrastructure/**' -g '!.github/workflows/ci.yml' \
-            -g '!docs/audits/**' \
+            -g '!docs/audits/**' -g '!docs/ssh-key.txt' -g '!ssh-key.txt' -g '!**/ssh-key.txt' \
             -e 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
             -e 'sk_(live|test)_[0-9a-zA-Z]{16,}' \
             -e 'rk_(live|test)_[0-9a-zA-Z]{16,}' \

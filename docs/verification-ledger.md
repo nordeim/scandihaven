@@ -100,3 +100,72 @@ Environment note: sandbox has no Docker/Postgres/Stripe. Real-PG integration sui
 1. **Rotate `BETTER_AUTH_SECRET` and `CRON_SECRET`** in every deployed environment (they were public in git history — audit C2).
 2. Redeploy both apps from `main` (live instances predate the security-header/proxy and admin-loop fixes — LD-2/LD-3).
 3. Add a deploy-fingerprint smoke (headers present + `/sign-in` status) to the release runbook.
+
+## 2026-09-10 — Re-validation of `3e500a1..7ee4ab2` (10-commit remediation pass)
+
+Environment: same sandbox (no Docker/PG/Stripe — real-PG suites auto-skip; CI runs them). Evidence commands re-executed fresh (no turbo cache for build) 2026-09-10. Full tiered report: `docs/audits/2026-09-09-code-review-security-audit/VALIDATION-REPORT-2026-09-10.md`.
+
+### Gates (re-executed)
+
+| Command | Result | Label |
+|---|---|---|
+| `pnpm lint` | 8/8 pass, 0 errors, **1 warning** (`packages/commerce/coverage/block-navigation.js:1:1 unused eslint-disable` — generated coverage artifact, not source) | **Verified** — delta vs 09-09 ledger "0 warnings" is coverage-gen only; source 0 warnings. |
+| `pnpm typecheck` | 8/8 pass (cleared stale `apps/admin/.next/types/validator.ts` referencing pre-`(staff)` paths; `sanitize-html` types resolved post `pnpm install`) | **Verified** |
+| `pnpm test` | 7/7 pass — commerce 88 passed (14 files), db 17 (3 files), web 9 (2), auth 8 (2), admin 4 (1); coverage `90.68% stmts / 89.28% funcs` holds 90/85 gates; 12 integration suites skipped (`skipIf`) | **Verified** |
+| `pnpm build` | 2/2 pass — both logs `ƒ Proxy (Middleware)`; `functions-config-manifest.json` `/_middleware` matcher present (Next 16.3 `src/proxy.ts`, `runtime: nodejs` — legacy `middleware-manifest.json` is `{}` by design). Turbopack L7d dotenv shim noise remains (exits 0). | **Verified** |
+| `pnpm audit --audit-level high` | 1 moderate, 0 high (same as 09-09) | **Verified** |
+| Secret scan dry-run (CI PCRE2 patterns) | `git ls-files` → `.env.example` only (`.env`/`.env.local` untracked). Tracked-tree scan clean. Working-tree scan matches untracked `docs/ssh-key.txt` only (see residual below) — not a CI failure. | **Verified** (tracked) |
+
+### Tiered re-validation (all P0/P1/P2 fixes re-read against `findings.json` quoted evidence)
+
+**P0 — Deployment-blocking: PASS (4/4)** — C1 pool caches unconditionally (globalThis slots, `client-caching.test.ts` 3/3 under `NODE_ENV=production`); H8d proxy at `src/proxy.ts` with inline literal and `functions-config-manifest.json` originalSource `products/[^/]*\\.svg` + admin `/((?!api|...`)| H7d `(staff)` route-group gate (root layout shell-only, sign-in `force-dynamic`+Suspense); H4d webhook `webhook_event` inside TX + `resolvePlacementOutcome` + `review`+`payment_orphan` path + `split_part` + advisory lock + cart `converted` in both paths. Labels: C1 Verified, H8d Verified, H7d Verified (code) / Verified-in-09-09 (runtime), H4d Verified (pure) / Reasoned (PG TX).
+
+**P1 — Security boundary: PASS (4/4)** — C2 not tracked / H6d scan `if rg; then fail` + PCRE2 non-placeholder patterns + `docs/audits/**` exclusion; H-2 `rich-text.ts` allow-list + `safeJsonLd` + 6 `__html` sites wrapped + 11 tests; H-3 `!stripe||!elements` guard; H-1 `WEB_PROXY_MATCHER` narrowed + `shouldProxy` + drift-guard + manifest match. All Verified except H-3 Reasoned (no stripe.js harness).
+
+**P2 — Correctness/hygiene: PASS** — M2d `split_part`, M5d seed guard, M6d `local-db.ts` 6/6, H-4/M-1 cart rollback+alert, M-3 `useSyncExternalStore`, M-6 minLength removed, E2E `waitForTimeout` removed, smalls (health, separator, AGENTS seed alias). Two intentional `catch(() => null)` remain in `(staff)/layout.tsx` + `admin-guard.ts` (UX session gate, not page-level swallowing) — AGENTS rule satisfied. Labels: Verified / Reasoned per item (see validation report §3).
+
+**Regression / traceability: PASS** — no `sql.raw`/`any`/`packages/*` build step/cycle; money integer path intact; traceability/ledger accurate.
+
+**Queued correctly:** M-4, M-5, M-7, M1d, M3d, M4d, L-batch each left queued per `2026-09-09-remediation-plan.md` — one slice each.
+
+### Residual observations (new, low — not regressions of the 10 commits)
+
+*   **R-2026-09-10-01** — `pnpm lint` 1 warning from `packages/commerce/coverage/block-navigation.js` unused directive → exclude `coverage/` from lint.
+*   **R-2026-09-10-02** — Untracked `docs/ssh-key.txt` (OpenSSH private key) would trigger secret scan if tracked; `.gitignore` + CI `-g '!docs/ssh-key.txt'` should exclude it; file should be deleted if key is real (see `sanity-io-deploy/SKILL.md:70` filter-repo note). Medium if ever committed.
+*   **R-2026-09-10-03** — `docs/recent_code_changes.txt` + `docs/session_2.md` + `docs/ssh-key.txt` are untracked `??` — track or gitignore.
+
+### Verdict
+
+**All 10 commits `3e500a1..7ee4ab2` validated. P0 deployment-blocking defects are fixed and build-artifact-registered; P1 security boundaries are wrapped and tested; P2 hygiene is applied; no regressions; queued items correctly deferred.** Follow-ups remain the 09-09 ops actions (rotate secrets + redeploy + fingerprint smoke) plus the 3 low hardening notes above.
+
+## 2026-09-10 — Residuals + `start_server_log.txt` Edge fix (approved A+B)
+
+Environment: same sandbox (no Docker/PG). Slices executed per approved plans A01-A03 + B-1, red→green with gates.
+
+### Residuals (low, new) — resolved
+
+| Slice | Fix | Evidence | Label |
+|---|---|---|---|
+| **A01** `coverage` lint noise | `packages/config/eslint/library.mjs` `ignores` gains `**/coverage/**` (generated `packages/commerce/coverage/block-navigation.js` unused directive) | `pnpm --filter @scandihaven/commerce lint` 0 warnings (was 1); `pnpm lint --force` 8/8 0 warnings | **Verified** |
+| **A02** `ssh-key.txt` hygiene | `.gitignore` adds `ssh-key.txt` / `**/ssh-key.txt` / `docs/ssh-key.txt`; `ci.yml` secret scan gains `-g '!docs/ssh-key.txt' -g '!ssh-key.txt' -g '!**/ssh-key.txt'`; existing `docs/ssh-key.txt` private key redacted to stub + ignored (rotate previous deploy key if real, per `sanity-io-deploy/SKILL.md:70`) | `git ls-files | rg ssh-key` → empty; `rg` secret-scan over tracked files `clean`; `git status` no `?? ssh-key.txt` | **Verified** |
+| **A03** untracked audit docs | `git add docs/recent_code_changes.txt docs/session_2.md` (audit supplements, §14.2 traceability) — now tracked; `ssh-key.txt` now ignored per A02 | `git status` no `?? recent_code_changes.txt` / `?? session_2.md` | **Verified** |
+| _+ hygiene_ | `.gitignore` also adds `start_server.sh` / `start_server.sh.sample` / `server.log` / `server.pid` (local helpers, not repo) | `git status` clean | **Verified** |
+
+### `start_server_log.txt` — root cause + fix (B-1 / L7d)
+
+**Root cause (traced):** `packages/config/src/env.ts:tryLoadRootEnv()` walks `process.cwd()` + `require("dotenv")`/`require("path")` to find repo-root `.env` for `pnpm prod` from `apps/*`. `apps/{web,admin}/src/instrumentation.ts` `register()` statically imported `parseServerEnv` from that file and was bundled for both Node and Edge (`Edge Instrumentation` trace in log). Edge Runtime has no filesystem — Turbopack warns `process.cwd not supported in Edge` (4× per app = 8 warnings) and `Ecmascript file had an error` for the `require` shim. Impact: build-noise only (catch swallows runtime), but masks real Edge incompatibilities and is the documented L7d.
+
+**Fix (B-1):** `env.ts:tryLoadRootEnv()` early-returns when `process.env.NEXT_RUNTIME === "edge"` (Edge has no cwd); `apps/{web,admin}/src/instrumentation.ts` `register()` now `if (NEXT_RUNTIME===edge) return` *before* `await import("@scandihaven/config/env")` — dynamic import ensures Edge bundle never includes `process.cwd()`/`dotenv` at all. Comment references `start_server_log.txt:32` + L7d.
+
+**Evidence:** `rm -rf .next && pnpm build` before 8 `not supported in Edge` + 8 `Ecmascript` warnings → after **0 + 0**, `ƒ Proxy (Middleware)` still present for both apps, `pnpm lint/typecheck/test` remain green. `start_server_log.txt` regenerated from clean build (header notes 8→0).
+
+| Metric | Before | After | Label |
+|---|---|---|---|
+| Edge warnings (`process.cwd not supported`) | 8 | **0** | **Verified** |
+| `Ecmascript file had an error` (dotenv shim) | 8 | **0** | **Verified** |
+| Build | 2/2 | 2/2, `ƒ Proxy` present | **Verified** |
+| `pnpm lint` | 8/8 1 warning (coverage) | 8/8 0 warnings | **Verified** |
+| `pnpm typecheck` | 8/8 | 8/8 | **Verified** |
+| `pnpm test` | 7/7 (88+17+9+8+4, 12 skip) | 7/7 | **Verified** |
+| Secret scan (tracked) | `clean` (untracked ssh-key would have matched) | `clean` | **Verified** |
+

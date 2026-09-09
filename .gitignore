@@ -33,6 +33,17 @@ yarn-error.log*
 pgdata/
 *.pgdata/
 
+# SSH deploy keys — never commit private keys (audit 2026-09-10 R-02; see sanity-io-deploy/SKILL.md:70)
+ssh-key.txt
+**/ssh-key.txt
+docs/ssh-key.txt
+
+# Local server helpers (not part of repo; see start_server_log.txt)
+start_server.sh
+start_server.sh.sample
+server.log
+server.pid
+
 # OS / editor
 .DS_Store
 .idea/
