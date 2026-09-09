@@ -1,20 +1,15 @@
 import "dotenv/config";
 import { pool } from "../client";
+import { assertLocalDatabase } from "../local-db";
 
 /**
  * Drop and recreate the schema, then re-run migrations + seed.
- * Guarded to local hosts only (PRD §13.7).
+ * Guarded to local hosts only (PRD §13.7) via the shared guard.
  */
-const url = process.env.DATABASE_URL ?? "";
-let host = "";
 try {
-  host = new URL(url).hostname;
-} catch {
-  console.error("[db] DATABASE_URL is not set or invalid");
-  process.exit(1);
-}
-if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
-  console.error(`[db] refusing to reset non-local database host "${host}"`);
+  assertLocalDatabase();
+} catch (error) {
+  console.error("[db]", error instanceof Error ? error.message : error);
   process.exit(1);
 }
 

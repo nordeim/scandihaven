@@ -29,24 +29,9 @@ import {
   variantPrice,
   warehouse,
 } from "../schema";
+import { assertLocalDatabase } from "../local-db";
 
 const SEED_LOCK_KEY = 742_193_001;
-
-function assertLocalDatabase(): void {
-  const url = process.env.DATABASE_URL ?? "";
-  let host = "";
-  try {
-    host = new URL(url).hostname;
-  } catch {
-    throw new Error(`DATABASE_URL is not a valid connection string (got: "${url.replace(/:[^:@]*@/, ":***@")}").`);
-  }
-  const allowed = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!allowed.has(host)) {
-    throw new Error(
-      `Refusing to seed non-local database host "${host}". Seed data is for development only (PRD §13.7).`,
-    );
-  }
-}
 
 const DEMO_MEDIA: Array<{ id: string; url: string; alt: string }> = [
   { id: "10000000-0000-4000-8000-000000000001", url: "/products/halden-armchair.svg", alt: "Halden linen armchair in oak with sand upholstery, three-quarter view" },
@@ -537,11 +522,17 @@ export async function ensureSeeded(): Promise<{ seeded: boolean }> {
       .onConflictDoNothing();
 
     // ---- Announcement (PRD FR-108) ----
-    await tx.insert(announcement).values({
-      message: "The Autumn Collection is here — handcrafted pieces, made to order.",
-      href: "/collections/autumn-collection",
-      sortOrder: 0,
-    });
+    // The table has no natural key yet (schema fix queued with B6), so guard
+    // by existence to keep re-seeding a no-op (audit 2026-09-09 M5d: every
+    // previous re-seed appended a duplicate announcement row).
+    const seededAnnouncement = await tx.select({ id: announcement.id }).from(announcement).limit(1);
+    if (!seededAnnouncement[0]) {
+      await tx.insert(announcement).values({
+        message: "The Autumn Collection is here — handcrafted pieces, made to order.",
+        href: "/collections/autumn-collection",
+        sortOrder: 0,
+      });
+    }
 
     // ---- Search synonyms (PRD FR-105) ----
     await tx
