@@ -249,3 +249,13 @@ Environment: fresh clone @ `840e8f1`. NEW in this round: a **local PostgreSQL 17
 1. **Redeploy both apps via `./start_server.sh`** — this is the primary E2E-1 fix (never `pnpm build` over a running server; the script kills prior PIDs after build). Until then, live `/checkout` remains broken for any cached client.
 2. Set `NEXT_PUBLIC_SITE_URL=https://scandihaven.jesspete.shop` (storefront) and the admin origin on the admin deployment — silences the new boot warning and fixes live canonicals.
 3. Carried from 2026-09-09: rotate exposed secrets (C2r), Stripe env alignment (publishable set / secret missing), one-time cleanup of junk UUID-shaped `cart` rows.
+
+### Round-3 addendum — E2E webServer target (E2E-11b)
+
+Discovered while re-validating under CI-like conditions: CI's E2E step launched `pnpm dev` via the Playwright webServer, and in this sandbox the Turbopack dev runtime never completed hydration (no client interactivity on any page; HMR websocket handshake fails in-browser — `ERR_INVALID_HTTP_RESPONSE` — while the endpoint answers a raw WebSocket upgrade correctly, so the server side is healthy). Consequence: 11 hydration-dependent specs failed against dev while the production build passed 21/21, including with Playwright launching its own `next start` server (the new webServer target, executed end-to-end). The suite now runs against the production build in all environments — the artifact that actually ships (and the one E2E-1's stale-chunk failure mode lives in).
+
+Retracted during verification: a suspected corruption of `.github/workflows/ci.yml`'s `branches:` filter was a terminal-rendering artifact of the audit tooling — `od -c` confirmed the file is correct (`branches: [main]`).
+
+Also recorded: `apps/admin` guard.test.ts is intermittently flaky under parallel turbo runs (2 failures in ~10 full-suite runs this session, 16/16 in isolated runs; first observed on the pre-remediation baseline before any changes). Not fixed — no failure was captured to root-cause; monitoring.
+
+Note: GitHub's REST API rate-limited this sandbox's IP for the final hour, so the CI run for the pushed commits could not be observed to completion from here — parity is established by the local execution of the identical steps (migrate+seed → build → next start → Playwright).
