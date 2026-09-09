@@ -193,6 +193,8 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | Responses carry no security headers | `proxy.ts` must live at `apps/*/src/proxy.ts` (Next 16.3 discovers it at the app-dir parent); a repo-root placement compiles but never registers (audit 2026-09-09 H8d) |
 | Admin redirects forever on `/sign-in` | The auth gate lives in the `(staff)` route-group layout; a gate that also wraps `/sign-in` loops (audit 2026-09-09 H7d) |
 | `./start_server.sh` fails `line 21: syntax error` on `EMAIL_FROM` | Fixed in `start_server.sh` `ensure_env` (quotes `EMAIL_FROM` + `BETTER_AUTH_SECRET`); if you source `.env` manually, use `load_env()` or ensure `.env` is quoted |
+| Quantity changes fail with "Cart line not found"; removed items reappear; second add-to-cart is lost | Fixed 2026-09-09 (audit H1-CART): `requireCart()` fed the resolved cart UUID into token-keyed `ensureCart()`. Redeploy after pulling; one-time cleanup of junk `cart` rows (token shaped like a UUID) recommended |
+| Admin `/admin`-prefixed URL 404s after sign-in | Fixed 2026-09-09 (audit H2-ADMIN): `apps/admin/next.config.ts` beforeFiles rewrites strip the `/admin` deployment prefix and the gate allows `/admin/sign-in`. Redeploy to take effect |
 
 ## Documentation
 

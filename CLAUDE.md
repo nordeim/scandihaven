@@ -39,7 +39,8 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 
 ### Next.js 16 specifics
 
-- `proxy.ts` replaces `middleware.ts` (both apps have one; storefront sets security headers, admin gates `/`).
+- `proxy.ts` replaces `middleware.ts` (both apps have one; storefront sets security headers, admin gates `/` — and, since 2026-09-09 round 2, allows `/admin/sign-in` through because `apps/admin/next.config.ts` rewrites strip the `/admin` deployment prefix; without the rewrites the gate's own `?redirect=%2Fadmin` target 404ed after sign-in).
+- Cart identity seam (2026-09-09 round 2, H1-CART): `getCartId()` returns the cart row's **UUID**; `ensureCart()` keys on the signed **token**. `requireCart()` must return the UUID untouched — feeding it through `ensureCart()` mints a junk cart and strands every mutation after the first add. Pinned by `apps/web/src/actions/cart.test.ts` and `apps/web/e2e/cart-flows.spec.ts`.
 - `params`, `searchParams`, `cookies()`, `headers()` are **async** — always `await`.
 - Page files export only `default` + `metadata`/`generateMetadata`/`revalidate`/`dynamic`. Extra exports break the build.
 - Server Components by default; `"use client"` only for interactive leaves. Mutations via Server Actions in `src/actions/`, not route handlers.

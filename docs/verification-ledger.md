@@ -209,3 +209,21 @@ Environment: same sandbox (no Docker/PG). Slice executed per `docs/plans/2026-09
 | `pnpm typecheck` | 8/8 pass | Verified |
 | `pnpm test` | 7/7 — auth 19/19 (was 18), commerce 93, db 17, web 9, config 25, admin 4; 12 integration skip→CI | Verified |
 | `pnpm build` | 2/2 — both `ƒ Proxy (Middleware)` | Verified |
+
+## 2026-09-09 — Live E2E round 2 (cart identity seam H1-CART, admin prefix H2-ADMIN, promo copy M1-PROMO, E2E coverage M2-E2E)
+
+Environment: fresh clone @ `398434f`, same sandbox class (no Docker/PG → real-PG suites + Playwright auto-skip locally; CI executes them). Browser E2E executed against the live deployments via agent-browser. Audit: `docs/audits/2026-09-09-e2e-live-site-audit/findings-round2.md` · Plan: `docs/plans/2026-09-09-e2e-live-remediation-round2.md`.
+
+| Slice | Fix | Evidence | Label |
+|---|---|---|---|
+| **Live audit round 2** | — | 34-check route sweep (33/34; the 1 was the sweep's own unseeded slug, corrected); interactive flows: qty stepper → "Cart line not found" (×2, incl. clean single-click repro), remove → "empty" then line resurrects on reload, repeat-add qty stays 1, multi-line add silently lost after `router.refresh()`, promo rejection leaks `(min_spend)`, newsletter submit → "Thank you — please check your inbox to confirm.", sign-in probes on both apps → 401 `INVALID_EMAIL_OR_PASSWORD` (H-AUTH fix holds), checkout honest "not configured" state, admin gate 307 with `?redirect=%2Fadmin`, security headers on all checked routes | **Verified** |
+| **H1-CART** | `apps/web/src/actions/cart.ts` `requireCart()`: `if (existing) return existing;` — the resolved cart UUID flows through untouched; `ensureCart(token)` only on the fresh-cart branch | TDD red: `pnpm --filter @scandihaven/web test` → 5 wiring tests FAIL pre-fix (service received wrong cart id; `ensureCart` called with UUID) → green 16/16 post-fix. Root cause shipped in `a811db2` (initial storefront commit); checkout unaffected (passes `getCartId()` straight through) | **Verified** (unit + live repro); live redeploy pending |
+| **M1-PROMO** | `packages/commerce/src/promotions.ts` adds `humanizePromotionRejection` (exhaustive `Record<PromotionRejection,string>`); `cart-service.applyPromotionByCode` throws customer copy instead of `Promotion not applicable (min_spend)` | TDD red (16 FAIL, humanizer missing) → green; commerce suite 97 passed / 12 skipped, 0 regressions (old message asserted nowhere) | **Verified** |
+| **H2-ADMIN** | `apps/admin/next.config.ts` beforeFiles rewrites (`/admin` → `/`, `/admin/:path*` → `/:path*`); `apps/admin/src/proxy.ts` gate allows `/admin/sign-in` via new tested predicate `apps/admin/src/lib/sign-in-paths.ts` | TDD red (predicate module missing; config without rewrites) → green 11/11. Routing evidence: raw probes `/admin` → 307 `/sign-in?redirect=%2Fadmin`, `/api/health` & `/sign-in` unprefixed → 200, app has no `/admin` route (route inventory verified) | **Verified** (unit + routing); post-sign-in render **Reasoned**; redeploy pending |
+| **M2-E2E** | `apps/web/e2e/cart-flows.spec.ts` — 6 scenarios mutating an existing cart with server-truth reload assertions (qty ±, remove persistence, repeat-add merge, multi-line subtotal €698, promo rejection copy → apply → persistence) | Typecheck + lint clean; **not executed locally** (no Docker/PG — same auto-skip as all Playwright runs in this sandbox class); executes in CI after migrate+seed. The failure modes it guards were proven live pre-fix | **Reasoned** locally → **Verified** in CI |
+| Gates after round 2 | — | `pnpm lint` 8/8 · `pnpm typecheck` 8/8 · `pnpm test` 7/7 tasks (commerce 97, auth 19, db 17, config 25, web 16, admin 11) · `pnpm build` 2/2 | **Verified** |
+
+**Ops actions required (cannot be executed from this sandbox):**
+1. Redeploy both apps — H1-CART (storefront) and H2-ADMIN (admin rewrites) take effect on redeploy.
+2. One-time cleanup of junk `cart` rows created by pre-fix mutation attempts (`token` shaped like a UUID, i.e. `^[0-9a-f-]{36}$`; real tokens are `<24 hex>.<32 hex>`).
+3. Round-1 open items unchanged: rotate exposed secrets (C2r), Stripe env alignment (L-STR).

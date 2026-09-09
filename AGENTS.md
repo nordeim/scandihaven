@@ -59,7 +59,7 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 
 - Strict TS everywhere: `noUncheckedIndexedAccess`, `verbatimModuleSyntax`; `any` is an ESLint error — use `unknown`.
 - Tests import `describe/it/expect` from `vitest` explicitly (no globals) and `fc` from `fast-check` (fast-check's own `test.prop` is not used — use `fc.assert(fc.property(...))` inside vitest `it`).
-- Cart identity: signed HMAC cookie (`sh_cart`, secret = `BETTER_AUTH_SECRET`); the cookie holds a **token**, the DB keys on the cart **UUID** — `getCartId()` in `apps/web/src/lib/cart-session.ts` resolves token→UUID. Actions and pages must not interchange them.
+- Cart identity: signed HMAC cookie (`sh_cart`, secret = `BETTER_AUTH_SECRET`); the cookie holds a **token**, the DB keys on the cart **UUID** — `getCartId()` in `apps/web/src/lib/cart-session.ts` resolves token→UUID. Actions and pages must not interchange them. Concretely (audit 2026-09-09 round 2, H1-CART): `requireCart()` must return `getCartId()`'s UUID **untouched** — never pass it into `ensureCart()`, which keys on the token and would silently mint a junk cart row (symptom: "Cart line not found" on every qty change, removes that resurrect on reload, second add-to-cart lost). Pinned by `apps/web/src/actions/cart.test.ts` + `apps/web/e2e/cart-flows.spec.ts`.
 - Admin authorization: single RBAC matrix in `packages/auth/src/rbac.ts`; Server Actions call `requirePermission()` from `apps/admin/src/lib/admin-guard.ts` and write to `audit_log`. No inline role checks.
 - Errors caught at page level must be logged, never silently swallowed (`catch(() => null)` needs a `console.error` alongside).
 
