@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@scandihaven/db/client";
-import { collection } from "@scandihaven/db/schema";
+import { collection, collectionProduct } from "@scandihaven/db/schema";
 import { listProducts } from "@scandihaven/commerce/catalog";
 import { sanitizeRichText } from "@scandihaven/commerce/rich-text";
 import { ProductCard } from "@scandihaven/ui/product-card";
@@ -36,16 +36,20 @@ export default async function CollectionPage({ params }: { params: Params }) {
   const col = await getCollection(slug);
   if (!col) notFound();
 
-  const { collectionProduct } = await import("@scandihaven/db/schema");
   const productIds = await db
     .select({ productId: collectionProduct.productId })
     .from(collectionProduct)
     .where(eq(collectionProduct.collectionId, col.id));
   const ids = productIds.map((r) => r.productId);
 
-  const all = await listProducts({ region: "EU", pageSize: 48 });
-  const items = ids.length > 0 ? all.items.filter((p) => ids.includes(p.id)) : [];
-  void inArray;
+  // Members are filtered in SQL via the schema-validated ids filter
+  // (audit 2026-09-09 M-COL — the previous 48-cap + JS filter silently
+  // dropped collection members beyond the sort window).
+  const result =
+    ids.length > 0
+      ? await listProducts({ region: "EU", ids })
+      : { items: [] as Awaited<ReturnType<typeof listProducts>>["items"] };
+  const items = result.items;
 
   return (
     <div>

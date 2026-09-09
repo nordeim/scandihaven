@@ -24,6 +24,9 @@ export const CURRENCY_BY_REGION = {
 export const productQuerySchema = z.object({
   categorySlug: z.string().optional(),
   material: z.array(z.string()).optional(),
+  // Explicit product-ID filter (collection pages; audit 2026-09-09 M-COL).
+  // Bounded so an unbounded IN list can't be coerced through the schema.
+  ids: z.array(z.string().uuid()).max(500).optional(),
   availability: z.enum(["in_stock", "all"]).default("all"),
   sort: z
     .enum(["featured", "newest", "price_asc", "price_desc", "bestselling"])
@@ -114,6 +117,12 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
     if (ids.length === 0) return { items: [], total: 0, page: query.page, pageCount: 0 };
     conditions.push(sql`p.category_id IN ${ids}`);
   }
+  if (query.ids) {
+    // Same binding idiom as the category subtree filter above (audit M-COL).
+    // Empty list short-circuits so the SQL never sees an empty IN.
+    if (query.ids.length === 0) return { items: [], total: 0, page: query.page, pageCount: 0 };
+    conditions.push(sql`p.id IN ${query.ids}`);
+  }
   if (query.material && query.material.length > 0) {
     conditions.push(sql`p.materials && ${query.material}::text[]`);
   }
@@ -139,7 +148,12 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
           ? sql`amount DESC`
           : sql`p.sort_order ASC, p.title ASC`;
 
-  const offset = (query.page - 1) * query.pageSize;
+  // ID-filtered queries (collection grids) fetch the full member set — they
+  // are not paginated, and the schema's 48 page-size cap must not re-introduce
+  // the M-COL silent truncation. ids is bounded to 500 by the schema.
+  const effectivePageSize = query.ids ? query.ids.length : query.pageSize;
+  const effectivePage = query.ids ? 1 : query.page;
+  const offset = (effectivePage - 1) * effectivePageSize;
   const result = await db.execute<CardRow & { total: string }>(sql`
     WITH avail AS (
       SELECT pv.product_id, SUM(il.qty_on_hand - il.qty_reserved - il.safety_stock) AS available
@@ -167,7 +181,7 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
     )
     SELECT *, COUNT(*) OVER () AS total
     FROM cards
-    LIMIT ${query.pageSize} OFFSET ${offset}
+    LIMIT ${effectivePageSize} OFFSET ${offset}
   `);
 
   const rows = result.rows;
@@ -175,8 +189,8 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
   return {
     items: rows.map(toCard),
     total,
-    page: query.page,
-    pageCount: Math.max(1, Math.ceil(total / query.pageSize)),
+    page: effectivePage,
+    pageCount: Math.max(1, Math.ceil(total / effectivePageSize)),
   };
 }
 
