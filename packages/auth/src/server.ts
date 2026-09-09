@@ -4,6 +4,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
 
+import { requestOriginFromHeaders } from "./trusted-origins";
+
 /**
  * Better-Auth server instance (PRD §9.1, ADR-3).
  * - Email/password (min length 10) + magic link + Google/Apple OAuth (when env present).
@@ -22,6 +24,18 @@ export const auth = betterAuth({
   }),
   secret: process.env.BETTER_AUTH_SECRET,
   url: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // Trust the origin each request was served on, derived from
+  // proxy-controlled headers (audit 2026-09-09 H-AUTH: sign-in from the
+  // deployed origin failed "Invalid origin" while the trusted set was pinned
+  // to BETTER_AUTH_URL=localhost). `Origin`/`Referer` are never consulted —
+  // see ./trusted-origins for the CSRF reasoning. Deployments that prefer an
+  // explicit allow-list can set BETTER_AUTH_URL to the public origin and/or
+  // the native BETTER_AUTH_TRUSTED_ORIGINS (comma-separated); both merge with
+  // this hook.
+  trustedOrigins: (request: Request | undefined) => {
+    const served = requestOriginFromHeaders(request?.headers ?? null);
+    return served ? [served] : [];
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
