@@ -22,6 +22,17 @@ async function addFromPdp(page: import("@playwright/test").Page, path: string): 
   await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
 }
 
+/**
+ * The cart's order-summary aside. Price assertions MUST scope here: when no
+ * discount is applied, the SAME amount legitimately renders in the line total
+ * span AND the Subtotal/Total <dd>s — a page-wide getByText(price) trips
+ * Playwright strict mode (live E2E audit 2026-09-10, E2E-2: 4 specs were
+ * committed in dc15724 with page-wide price text and never ran green).
+ */
+function orderSummary(page: import("@playwright/test").Page) {
+  return page.locator("aside").filter({ hasText: "Order summary" });
+}
+
 test.describe("cart mutation flows (H1-CART regression)", () => {
   test("quantity update on the cart page survives a reload", async ({ page }) => {
     await addFromPdp(page, LAMP_PDP);
@@ -30,13 +41,15 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
 
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
     await expect(page.getByRole("group", { name: LAMP_QTY_GROUP })).toContainText("2");
-    await expect(page.getByText("€498.00")).toBeVisible();
-    // No action error may surface (pre-fix: "Cart line not found").
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(orderSummary(page)).toContainText("€498.00");
+    // No action error may surface (pre-fix: "Cart line not found"). Scoped to
+    // <main>: an empty Radix live-region announcer can linger after the
+    // add-to-cart drawer unmounts and would trip a page-wide alert count.
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole("group", { name: LAMP_QTY_GROUP })).toContainText("2");
-    await expect(page.getByText("€498.00")).toBeVisible();
+    await expect(orderSummary(page)).toContainText("€498.00");
   });
 
   test("decrease returns to the minimum and disables itself", async ({ page }) => {
@@ -68,7 +81,7 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await page.goto("/cart");
 
     await expect(page.getByRole("group", { name: LAMP_QTY_GROUP })).toContainText("2");
-    await expect(page.getByText("€498.00")).toBeVisible();
+    await expect(orderSummary(page)).toContainText("€498.00");
   });
 
   test("cart holds two different products with the summed subtotal", async ({ page }) => {
@@ -78,7 +91,7 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
 
     await expect(page.getByRole("link", { name: LAMP_TITLE })).toBeVisible();
     await expect(page.getByRole("link", { name: /birch side table/i })).toBeVisible();
-    await expect(page.getByText("€698.00")).toBeVisible();
+    await expect(orderSummary(page)).toContainText("€698.00");
   });
 
   test("promo rejection copy is customer-readable and the code applies once eligible (M1-PROMO)", async ({
@@ -95,14 +108,14 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     // Raise the subtotal to €747 → the code applies and shows −€100.00.
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
-    await expect(page.getByText("€747.00")).toBeVisible();
+    await expect(orderSummary(page)).toContainText("€747.00");
     await page.getByLabel("Promotion code").fill("WELCOME100");
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("status")).toContainText(/applied/i);
-    await expect(page.getByText(/€100\.00/)).toBeVisible();
+    await expect(orderSummary(page)).toContainText(/€100\.00/);
 
     // Server truth: the promotion survives a reload.
     await page.reload();
-    await expect(page.getByText(/€100\.00/)).toBeVisible();
+    await expect(orderSummary(page)).toContainText(/€100\.00/);
   });
 });
