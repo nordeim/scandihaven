@@ -83,12 +83,16 @@ jobs:
         # .env.example are the documented safe value. NOTE: `rg` exits 0 when
         # a match is FOUND, so a match must FAIL the step — the previous
         # `&& echo clean || exit 1` chaining inverted the gate (passed on
-        # leaks, failed on clean repos).
+        # leaks, failed on clean repos). `--no-ignore` is load-bearing:
+        # rg honors .gitignore, so tracked-but-ignored files (.env, .env.local
+        # — the exact C2 shape re-exposed by 262d3cc) were invisible to this
+        # gate without it (audit 2026-09-09 C-CI).
         run: |
-          if rg -n --hidden --no-messages \
+          if rg -n --hidden --no-ignore --no-messages \
             -g '!.git/' -g '!node_modules/' -g '!.next/' -g '!.env.example' -g '!pnpm-lock.yaml' \
             -g '!skills/**' -g '!infrastructure/**' -g '!.github/workflows/ci.yml' \
             -g '!docs/audits/**' -g '!docs/ssh-key.txt' -g '!ssh-key.txt' -g '!**/ssh-key.txt' \
+            -g '!.turbo/' -g '!coverage/' -g '!playwright-report/' -g '!test-results/' \
             -e 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
             -e 'sk_(live|test)_[0-9a-zA-Z]{16,}' \
             -e 'rk_(live|test)_[0-9a-zA-Z]{16,}' \
