@@ -19,6 +19,11 @@
 # Idempotent: safe to re-run; kills prior :3000/:3001 first.
 # Logs:   ./server.log (storefront), ./server-admin.log (admin)
 # PIDs:   ./server.pid, ./server-admin.pid
+#
+#  git clone https://github.com/nordeim/scandihaven.git && cd scandihaven 
+#  DB_RESET=1 ./start_server.sh   # also drop+recreate DB 
+#  tail -f server.log server-admin.log 
+#  curl -s http://localhost:3000/api/health | jq . 
 
 set -euo pipefail
 
@@ -52,6 +57,26 @@ gen_secret_hex() {
     openssl rand -hex 16
   else
     hexdump -vn16 -e ' /1 "%02x"' /dev/urandom | tr -d ' \n'
+  fi
+}
+
+# Robust .env loader — dotenv format allows `KEY=value with spaces and <brackets>`
+# which `bash source` cannot parse (line 21 EMAIL_FROM bug). Prefer Node's
+# dotenv parser when available; fallback to bash `set -a; .` for quoted files.
+load_env() {
+  local env_file="${1:-$REPO_ROOT/.env}"
+  [[ -f "$env_file" ]] || return 0
+  if have node && node -e "try{require('dotenv')}catch(e){process.exit(1)}" 2>/dev/null; then
+    # Use dotenv to emit `export KEY="value"` lines with JSON-quoted values
+    eval "$(node -e "
+      const dotenv=require('dotenv');
+      const fs=require('fs');
+      const parsed=dotenv.parse(fs.readFileSync(process.argv[1],'utf8'));
+      for(const [k,v] of Object.entries(parsed)) console.log('export '+k+'='+JSON.stringify(v));
+    " "$env_file")"
+  else
+    # Fallback — requires .env values to be bash-quoted (ensure_env does this)
+    set -a; . "$env_file"; set +a
   fi
 }
 
@@ -128,17 +153,40 @@ ensure_env() {
         # no default and no generator — keep as-is (optional vars)
         return
       fi
+      # Always write quoted so `bash source` and dotenv both handle spaces,
+      # angle brackets, and base64 `+/=` safely (H1: EMAIL_FROM line 21).
+      # Escape \ and " for inside double quotes.
+      local quoted_val
+      quoted_val="$(printf '%s' "$val" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+      quoted_val="\"${quoted_val}\""
       if grep -qE "^${key}=" "$env_file"; then
-        # escape & for sed replacement
-        local esc_val
-        esc_val="$(printf '%s' "$val" | sed -e 's/[\/&]/\\&/g')"
-        sed -i "s|^${key}=.*|${key}=${esc_val}|" "$env_file"
+        sed -i "s|^${key}=.*|${key}=${quoted_val}|" "$env_file"
       else
-        echo "${key}=${val}" >> "$env_file"
+        echo "${key}=${quoted_val}" >> "$env_file"
       fi
       log "  set $key"
     fi
   }
+
+  # Normalize existing dotenv values that are bash-unparseable before any
+  # `load_env` / `source` call. `EMAIL_FROM` from .env.example is unquoted
+  # `Scandi Haven <orders@...>` which breaks `set -a; . .env` (line 21).
+  # Rewrite any bare value containing spaces or <>&|; to quoted form.
+  if grep -qE '^EMAIL_FROM=' "$env_file"; then
+    local email_raw email_quoted
+    email_raw="$(grep -E '^EMAIL_FROM=' "$env_file" | tail -n1 | cut -d= -f2- | tr -d '\r')"
+    # Strip already-quoted wrapper for re-quoting check
+    local email_inner
+    email_inner="$(echo "$email_raw" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+    if [[ "$email_raw" != '"'*'"' && "$email_raw" != "'"*"'" ]]; then
+      # bare value — check if it needs quoting (spaces, <, >, &, |, ;)
+      if echo "$email_inner" | grep -qE '[[:space:]<>&|;]'; then
+        email_quoted="$(printf '%s' "$email_inner" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+        sed -i "s|^EMAIL_FROM=.*|EMAIL_FROM=\"${email_quoted}\"|" "$env_file"
+        log "  normalized EMAIL_FROM to quoted form"
+      fi
+    fi
+  fi
 
   # DATABASE_URL must point at the compose Postgres for fresh-clone flow
   ensure_var "DATABASE_URL" "postgresql://scandihaven_user:scandihaven_secret@localhost:5432/scandihaven_dev" 0
@@ -189,21 +237,21 @@ ensure_postgres() {
     return
   fi
 
-  (cd "$REPO_ROOT" && docker compose up -d 2>&1 | tail -n 20)
+  (cd "$REPO_ROOT" && sudo docker compose up -d 2>&1 | tail -n 20)
   ok "  docker compose up -d issued"
 
   # Wait for healthcheck (compose defines pg_isready + start_period 10s)
   log "  waiting for postgres to be healthy (pg_isready) …"
   local i
   for i in $(seq 1 30); do
-    if (cd "$REPO_ROOT" && docker compose ps --format json 2>/dev/null | grep -q '"health":"healthy"' 2>/dev/null) || \
-       (cd "$REPO_ROOT" && docker inspect --format='{{.State.Health.Status}}' scandihaven_postgres 2>/dev/null | grep -q healthy) || \
+    if (cd "$REPO_ROOT" && sudo docker compose ps --format json 2>/dev/null | grep -q '"health":"healthy"' 2>/dev/null) || \
+       (cd "$REPO_ROOT" && sudo docker inspect --format='{{.State.Health.Status}}' scandihaven_postgres 2>/dev/null | grep -q healthy) || \
        pg_isready -h localhost -p 5432 -U scandihaven_user -d scandihaven_dev >/dev/null 2>&1; then
       ok "  postgres healthy after ${i}s"
       return
     fi
     # Also try direct pg_isready via docker exec as last resort
-    if docker exec scandihaven_postgres pg_isready -U scandihaven_user -d scandihaven_dev >/dev/null 2>&1; then
+    if sudo docker exec scandihaven_postgres pg_isready -U scandihaven_user -d scandihaven_dev >/dev/null 2>&1; then
       ok "  postgres healthy (via docker exec) after ${i}s"
       return
     fi
@@ -211,7 +259,7 @@ ensure_postgres() {
   done
 
   warn "  postgres not healthy after 60s — continuing anyway (migrate will fail fast with actionable message)"
-  (cd "$REPO_ROOT" && docker compose logs postgres 2>&1 | tail -n 30 | sed 's/^/  /' || true)
+  (cd "$REPO_ROOT" && sudo docker compose logs postgres 2>&1 | tail -n 30 | sed 's/^/  /' || true)
 }
 
 # ── 3. dependencies ──────────────────────────────────────────────────────
@@ -228,8 +276,10 @@ install_deps() {
 setup_db() {
   log "Database setup (migrate + seed) …"
   # Load .env for this shell so DATABASE_URL is exported (migrate.ts
-  # local-host guard needs it; AGENTS.md: seed/migrate refuse non-local hosts)
-  set -a; . "$REPO_ROOT/.env"; set +a
+  # local-host guard needs it; AGENTS.md: seed/migrate refuse non-local hosts).
+  # Use dotenv-aware loader — plain `set -a; . .env` fails on `EMAIL_FROM`
+  # unquoted spaces/angle brackets (line 21). load_env prefers Node dotenv.
+  load_env "$REPO_ROOT/.env"
 
   if [[ "${DB_RESET:-}" == "1" ]]; then
     log "  DB_RESET=1 — running pnpm db:reset (drop+recreate, local hosts only)"
@@ -252,8 +302,8 @@ build_app() {
   # Source .env into the build env so NEXT_PUBLIC_ vars bake correctly and
   # next build's auth route (which imports db client) sees DATABASE_URL +
   # BETTER_AUTH_SECRET. turbo.json globalEnv ensures they reach next.config.ts
-  # but the build process itself also needs them exported.
-  set -a; . "$REPO_ROOT/.env"; set +a
+  # but the build process itself also needs them exported (dotenv-aware).
+  load_env "$REPO_ROOT/.env"
   pnpm build 2>&1 | tail -n 80
   # Assert both builds produced .next (not standalone — Scandi Haven uses next start)
   if [[ ! -d "$REPO_ROOT/apps/web/.next" ]]; then
@@ -305,14 +355,28 @@ start_servers() {
   # Storefront — pnpm prod → apps/web on :3000
   log "  starting storefront (pnpm prod → :3000) …"
   # shellcheck disable=SC1091
-  bash -c "set -a; . \"$REPO_ROOT/.env\"; set +a; nohup pnpm prod > \"$LOG_FILE\" 2>&1 & echo \$! > \"$PID_FILE\""
+  bash -c "
+    if command -v node >/dev/null 2>&1 && node -e \"try{require('dotenv')}catch(e){process.exit(1)}\" 2>/dev/null; then
+      eval \"\$(node -e \"const d=require('dotenv');const fs=require('fs');const p=d.parse(fs.readFileSync(process.argv[1],'utf8'));for(const [k,v] of Object.entries(p)) console.log('export '+k+'='+JSON.stringify(v))\" \"$REPO_ROOT/.env\")\";
+    else
+      set -a; . \"$REPO_ROOT/.env\"; set +a;
+    fi
+    nohup pnpm prod > \"$LOG_FILE\" 2>&1 & echo \$! > \"$PID_FILE\"
+  "
   local pid
   pid="$(cat "$PID_FILE" 2>/dev/null || echo "?")"
   log "  storefront pid $pid → $LOG_FILE"
 
   # Admin — pnpm prod:admin → apps/admin on :3001
   log "  starting admin (pnpm prod:admin → :3001) …"
-  bash -c "set -a; . \"$REPO_ROOT/.env\"; set +a; nohup pnpm prod:admin > \"$LOG_FILE_ADMIN\" 2>&1 & echo \$! > \"$PID_FILE_ADMIN\""
+  bash -c "
+    if command -v node >/dev/null 2>&1 && node -e \"try{require('dotenv')}catch(e){process.exit(1)}\" 2>/dev/null; then
+      eval \"\$(node -e \"const d=require('dotenv');const fs=require('fs');const p=d.parse(fs.readFileSync(process.argv[1],'utf8'));for(const [k,v] of Object.entries(p)) console.log('export '+k+'='+JSON.stringify(v))\" \"$REPO_ROOT/.env\")\";
+    else
+      set -a; . \"$REPO_ROOT/.env\"; set +a;
+    fi
+    nohup pnpm prod:admin > \"$LOG_FILE_ADMIN\" 2>&1 & echo \$! > \"$PID_FILE_ADMIN\"
+  "
   local pid_admin
   pid_admin="$(cat "$PID_FILE_ADMIN" 2>/dev/null || echo "?")"
   log "  admin pid $pid_admin → $LOG_FILE_ADMIN"
