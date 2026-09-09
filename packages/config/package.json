@@ -4,10 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./eslint/library": "./eslint/library.mjs",
+    "./chunk-recovery": "./src/chunk-recovery.ts",
     "./env": "./src/env.ts",
+    "./eslint/library": "./eslint/library.mjs",
     "./flags": "./src/flags.ts",
-    "./security-headers": "./src/security-headers.ts"
+    "./redirect-path": "./src/redirect-path.ts",
+    "./security-headers": "./src/security-headers.ts",
+    "./site-url": "./src/site-url.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

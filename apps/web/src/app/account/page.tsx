@@ -21,7 +21,10 @@ export default async function AccountPage() {
     .catch((error: unknown) => { console.error("[account] session check failed", error); return null; });
 
   if (!session?.user) {
-    redirect("/sign-in");
+    // FR-602: carry the destination through sign-in so the customer returns
+    // here after authenticating (live E2E audit 2026-09-10, E2E-5 — the
+    // param used to be dropped and sign-in always landed on /account).
+    redirect(`/sign-in?redirect=${encodeURIComponent("/account")}`);
   }
 
   const orders = await db
