@@ -26,6 +26,9 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
       if (result.ok) {
         setCart(result.data);
         setActionError(null);
+        // Stale promo feedback must not survive a server-truth refresh — the
+        // E2E-3 re-validation can drop an ineligible promo on this same read.
+        setPromoMessage(null);
       } else {
         // Failure surfacing + re-sync (audit 2026-09-09 H-4): the optimistic
         // write is rolled back to the last server truth and the customer
@@ -57,7 +60,14 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
       const result = await applyPromotionAction({ code: promoCode });
       if (result.ok) {
         setCart(result.data);
-        setPromoMessage(`Code ${result.data.appliedPromotionCode} applied.`);
+        // The applied status derives from SERVER truth (appliedPromotionCode),
+        // not from this one-time response — the E2E-3 re-validation drops an
+        // ineligible promo on later reads, and the message must follow.
+        setPromoMessage(
+          result.data.appliedPromotionCode
+            ? `Code ${result.data.appliedPromotionCode} applied.`
+            : null,
+        );
       } else {
         setPromoMessage(result.error.message);
       }
@@ -132,7 +142,7 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
         </ul>
       </div>
 
-      <aside className="h-fit rounded-card border border-line bg-bg-2 p-6 lg:sticky lg:top-24">
+      <aside aria-label="Order summary" className="h-fit rounded-card border border-line bg-bg-2 p-6 lg:sticky lg:top-24">
         <h2 className="font-display text-xl">Order summary</h2>
         <dl className="mt-4 space-y-2 text-md">
           <div className="flex justify-between">
@@ -170,7 +180,11 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
             Apply
           </Button>
         </form>
-        {promoMessage ? (
+        {cart.appliedPromotionCode ? (
+          <p role="status" className="mt-2 text-sm text-ink-2">
+            Code {cart.appliedPromotionCode} applied.
+          </p>
+        ) : promoMessage ? (
           <p role="status" className="mt-2 text-sm text-ink-2">
             {promoMessage}
           </p>

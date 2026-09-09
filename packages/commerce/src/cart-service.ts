@@ -16,7 +16,7 @@ import {
 } from "@scandihaven/db/schema";
 import type { CartDto, CartLineDto } from "./dto";
 import { computeCartTotals, type PriceLine } from "./pricing";
-import { evaluatePromotion, humanizePromotionRejection, type PromotionInput } from "./promotions";
+import { evaluatePromotion, filterEligiblePromotions, humanizePromotionRejection, type PromotionInput } from "./promotions";
 import { createRequestDedupe } from "./request-dedupe";
 
 /**
@@ -354,12 +354,26 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
   }
 
   const promotionInfo = await loadPromotions(cartId);
+  // Re-validate attached promotions against the CURRENT cart (E2E-3):
+  // min-spend/schedule/region conditions are checked at every read, so a code
+  // applied above the threshold stops discounting once mutations drop below
+  // it. The cart_promotion row stays — re-crossing re-applies the code.
+  const subtotalMinor = priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0);
+  const eligiblePromotions = filterEligiblePromotions(promotionInfo.inputs, {
+    subtotalMinor,
+    region: cartRow.region,
+    now: new Date(),
+    productIds: lines.map((l) => l.variantId),
+    categoryIds: [],
+    isGuest: cartRow.userId === null,
+  });
   const totals = computeCartTotals({
     lines: priceLines,
-    promotions: promotionInfo.inputs.map((p) => ({ promotionId: p.id, kind: p.kind, value: p.value ?? 0 })),
+    promotions: eligiblePromotions.map((p) => ({ promotionId: p.id, kind: p.kind, value: p.value ?? 0 })),
     shippingMinor: 0,
     taxMinor: 0,
   });
+  const eligibleIds = new Set(eligiblePromotions.map((p) => p.id));
 
   return {
     id: cartRow.id,
@@ -371,6 +385,7 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
     shippingMinor: null,
     taxMinor: totals.tax,
     totalMinor: totals.total,
-    appliedPromotionCode: promotionInfo.rows[0]?.code ?? null,
+    appliedPromotionCode:
+      promotionInfo.rows.find((r) => eligibleIds.has(r.id))?.code ?? null,
   };
 }

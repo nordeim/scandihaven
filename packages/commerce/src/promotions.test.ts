@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { evaluatePromotion, promotionInputSchema, resolveTier, type PromotionContext } from "./promotions";
+import {
+  evaluatePromotion,
+  filterEligiblePromotions,
+  promotionInputSchema,
+  resolveTier,
+  type PromotionContext,
+} from "./promotions";
 
 const basePromotion = {
   id: "promo-1",
@@ -100,6 +106,77 @@ describe("promotion engine (PRD FR-810)", () => {
         });
         return parsed.success;
       }),
+    );
+  });
+});
+
+/**
+ * Live E2E audit 2026-09-10, E2E-3: eligibility is a property of the CURRENT
+ * read, not of the attach moment. A promo applied while the cart cleared the
+ * minimum spend must stop pricing in once cart mutations drop below it —
+ * the placement path prices from this same filter (FR-404).
+ */
+describe("filterEligiblePromotions (attached-promo re-validation, E2E-3)", () => {
+  it("keeps an attached promo whose conditions still hold", () => {
+    const kept = filterEligiblePromotions([basePromotion], baseContext);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.id).toBe("promo-1");
+  });
+
+  it("drops an attached promo after the subtotal falls below the minimum", () => {
+    const below = filterEligiblePromotions([basePromotion], {
+      ...baseContext,
+      subtotalMinor: 24_900,
+    });
+    expect(below).toHaveLength(0);
+  });
+
+  it("re-admits the promo once the subtotal crosses the threshold again", () => {
+    const again = filterEligiblePromotions([basePromotion], {
+      ...baseContext,
+      subtotalMinor: 50_000,
+    });
+    expect(again).toHaveLength(1);
+  });
+
+  it("drops promos outside their schedule at read time", () => {
+    const expired = filterEligiblePromotions(
+      [{ ...basePromotion, endsAt: new Date("2026-09-30T00:00:00Z") }],
+      baseContext,
+    );
+    expect(expired).toHaveLength(0);
+  });
+
+  it("filters independently per promotion in a multi-attach cart", () => {
+    const alwaysOn = {
+      ...basePromotion,
+      id: "promo-2",
+      code: "ALWAYS5",
+      conditions: {},
+      value: 500,
+    };
+    const kept = filterEligiblePromotions([basePromotion, alwaysOn], {
+      ...baseContext,
+      subtotalMinor: 24_900,
+    });
+    expect(kept.map((p) => p.id)).toEqual(["promo-2"]);
+  });
+
+  it("never drops a valid promo regardless of input order (property)", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 1_000_000 }),
+        fc.constantFrom(true, false),
+        (subtotal, includePromo) => {
+          const promos = includePromo ? [basePromotion] : [];
+          const kept = filterEligiblePromotions(promos, {
+            ...baseContext,
+            subtotalMinor: subtotal,
+          });
+          const expectKept = subtotal >= 50_000;
+          return kept.length === (includePromo && expectKept ? 1 : 0);
+        },
+      ),
     );
   });
 });

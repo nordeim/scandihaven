@@ -121,6 +121,23 @@ export function evaluatePromotion(
   return { eligible: true, promotion };
 }
 
+/**
+ * Re-validate a cart's ATTACHED promotions against the cart's current state
+ * (live E2E audit 2026-09-10, E2E-3): `applyPromotionByCode` checks conditions
+ * only at attach time, so a code that qualified once kept discounting a cart
+ * that later dropped below the minimum spend — live-verified showing −€100 on
+ * a €249 subtotal. Eligibility is a property of the CURRENT read, not of the
+ * attach moment (PRD FR-404 re-validation). Attachment rows are kept by the
+ * callers, so crossing the threshold again re-applies the code with no
+ * customer action. The placement transaction prices from this same filter.
+ */
+export function filterEligiblePromotions(
+  promotions: readonly PromotionInput[],
+  context: PromotionContext,
+): PromotionInput[] {
+  return promotions.filter((promotion) => evaluatePromotion(promotion, context).eligible);
+}
+
 /** Tiered promotions ("spend €500 get €50 off") resolve the best matching tier. */
 export function resolveTier(
   promotion: PromotionInput,

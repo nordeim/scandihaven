@@ -18,14 +18,28 @@ const dbReady = /\/\/([^/]*@)?(localhost|127\.0\.0\.1)[:/]/.test(dbUrl);
 // Fixed natural keys + deterministic UUIDs so cleanup is fixture-scoped and
 // re-runs never accumulate rows (PRD §7.9 seed discipline applied to tests).
 const PROMO_ID = "11111111-1111-4111-8111-111111111111";
+const MIN_SPEND_PROMO_ID = "11111111-1111-4111-8111-111111111112";
 const CART_ID = "22222222-2222-4222-8222-222222222222";
 const PROMO_CODE = "test-welcome";
+const MIN_SPEND_PROMO_CODE = "test-min-spend";
 const CART_TOKEN = "test-checkout-token";
+
+/** Re-validation context builder (E2E-3) — subtotal drives min_spend checks. */
+function contextFor(subtotalMinor: number) {
+  return {
+    subtotalMinor,
+    region: "EU" as const,
+    now: new Date("2026-10-01T12:00:00Z"),
+    productIds: [],
+    isGuest: true,
+  };
+}
 
 describe.skipIf(!dbReady)("loadCartPromotionApplications (§7.11 seam)", () => {
   beforeAll(async () => {
     await db.delete(cartPromotion).where(eq(cartPromotion.cartId, CART_ID));
     await db.delete(promotion).where(eq(promotion.id, PROMO_ID));
+    await db.delete(promotion).where(eq(promotion.id, MIN_SPEND_PROMO_ID));
     await db.delete(cart).where(eq(cart.id, CART_ID));
 
     await db.insert(promotion).values({
@@ -35,6 +49,14 @@ describe.skipIf(!dbReady)("loadCartPromotionApplications (§7.11 seam)", () => {
       value: 10_000,
       isActive: true,
       conditionsJson: {},
+    });
+    await db.insert(promotion).values({
+      id: MIN_SPEND_PROMO_ID,
+      code: MIN_SPEND_PROMO_CODE,
+      kind: "fixed",
+      value: 5_000,
+      isActive: true,
+      conditionsJson: { minSpendMinor: 100_000 },
     });
     await db.insert(cart).values({
       id: CART_ID,
@@ -48,12 +70,13 @@ describe.skipIf(!dbReady)("loadCartPromotionApplications (§7.11 seam)", () => {
   afterAll(async () => {
     await db.delete(cartPromotion).where(eq(cartPromotion.cartId, CART_ID));
     await db.delete(promotion).where(eq(promotion.id, PROMO_ID));
+    await db.delete(promotion).where(eq(promotion.id, MIN_SPEND_PROMO_ID));
     await db.delete(cart).where(eq(cart.id, CART_ID));
     await pool.end();
   });
 
   it("loads the cart's attached promotion for payable-total computation", async () => {
-    const promotions = await loadCartPromotionApplications(db, CART_ID);
+    const promotions = await loadCartPromotionApplications(db, CART_ID, contextFor(129_900));
     expect(promotions).toEqual([{ promotionId: PROMO_ID, kind: "fixed", value: 10_000 }]);
 
     // The invariant that matters for §7.11: a discounted cart produces a
@@ -65,7 +88,39 @@ describe.skipIf(!dbReady)("loadCartPromotionApplications (§7.11 seam)", () => {
   });
 
   it("returns no promotions for a cart with none (undiscounted payable)", async () => {
-    const empty = await loadCartPromotionApplications(db, "00000000-0000-4000-8000-000000000000");
+    const empty = await loadCartPromotionApplications(
+      db,
+      "00000000-0000-4000-8000-000000000000",
+      contextFor(129_900),
+    );
     expect(empty).toEqual([]);
+  });
+
+  it("drops an attached promo whose min-spend the current subtotal misses (E2E-3)", async () => {
+    await db
+      .insert(cartPromotion)
+      .values({ cartId: CART_ID, promotionId: MIN_SPEND_PROMO_ID })
+      .onConflictDoNothing();
+
+    // Subtotal 50_000 clears nothing conditional — the unconditional promo
+    // stays, the min-spend (100_000) promo must NOT price in.
+    const below = await loadCartPromotionApplications(db, CART_ID, contextFor(50_000));
+    expect(below).toEqual([{ promotionId: PROMO_ID, kind: "fixed", value: 10_000 }]);
+
+    // Crossing the threshold admits it again (row was kept, not deleted).
+    const above = await loadCartPromotionApplications(db, CART_ID, contextFor(129_900));
+    expect(above.map((p) => p.promotionId).sort()).toEqual([MIN_SPEND_PROMO_ID, PROMO_ID].sort());
+
+    // An INACTIVE attached promo never prices in, regardless of subtotal.
+    await db
+      .update(promotion)
+      .set({ isActive: false })
+      .where(eq(promotion.id, MIN_SPEND_PROMO_ID));
+    const inactive = await loadCartPromotionApplications(db, CART_ID, contextFor(129_900));
+    expect(inactive).toEqual([{ promotionId: PROMO_ID, kind: "fixed", value: 10_000 }]);
+    await db
+      .update(promotion)
+      .set({ isActive: true })
+      .where(eq(promotion.id, MIN_SPEND_PROMO_ID));
   });
 });

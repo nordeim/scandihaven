@@ -23,6 +23,7 @@ import {
 } from "@scandihaven/db/schema";
 import { transition } from "./order-state";
 import { computeCartTotals, type PriceLine, type PromotionApplication } from "./pricing";
+import { filterEligiblePromotions, type PromotionInput } from "./promotions";
 
 let stripeClient: Stripe | null = null;
 
@@ -79,20 +80,70 @@ export function toPromotionApplications(
 }
 
 /**
- * Load the promotions attached to a cart (same rows the cart DTO displays).
- * Accepts the pool client or a transaction client so the webhook path can
- * read promotions inside its placement transaction.
+ * Current-cart state needed to re-validate attached promotions at read time
+ * (E2E-3). Built by each caller from rows it already has.
+ */
+export type CartPromotionContext = {
+  subtotalMinor: number;
+  region: "EU" | "US" | "UK";
+  now: Date;
+  productIds: readonly string[];
+  isGuest: boolean;
+};
+
+/**
+ * Load the promotions attached to a cart (same rows the cart DTO displays),
+ * RE-VALIDATED against the cart's current state (live E2E audit 2026-09-10,
+ * E2E-3): conditions checked only at apply time let a below-minimum cart keep
+ * its discount through placement. Both the intent amount and the §7.11
+ * re-verification price from this filtered set. Accepts the pool client or a
+ * transaction client so the webhook path reads inside its placement
+ * transaction.
  */
 export async function loadCartPromotionApplications(
   executor: Pick<typeof db, "select">,
   cartId: string,
+  context: CartPromotionContext,
 ): Promise<PromotionApplication[]> {
   const rows = await executor
-    .select({ id: promotion.id, kind: promotion.kind, value: promotion.value })
+    .select({
+      id: promotion.id,
+      code: promotion.code,
+      kind: promotion.kind,
+      value: promotion.value,
+      conditionsJson: promotion.conditionsJson,
+      startsAt: promotion.startsAt,
+      endsAt: promotion.endsAt,
+      usageLimit: promotion.usageLimit,
+      perCustomerLimit: promotion.perCustomerLimit,
+      isActive: promotion.isActive,
+    })
     .from(cartPromotion)
     .innerJoin(promotion, eq(promotion.id, cartPromotion.promotionId))
     .where(eq(cartPromotion.cartId, cartId));
-  return toPromotionApplications(rows);
+  const inputs: PromotionInput[] = rows
+    .filter((row) => row.isActive)
+    .map((row) => ({
+      id: row.id,
+      code: row.code,
+      kind: row.kind,
+      value: row.value,
+      tiers: null,
+      conditions: (row.conditionsJson ?? {}) as PromotionInput["conditions"],
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      usageLimit: row.usageLimit,
+      perCustomerLimit: row.perCustomerLimit,
+      usageCount: 0,
+      perCustomerUsed: 0,
+    }));
+  return toPromotionApplications(
+    filterEligiblePromotions(inputs, { ...context, categoryIds: [] }).map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      value: p.value,
+    })),
+  );
 }
 
 /** Create (or reuse) a PaymentIntent for the cart; amount re-derived server-side (FR-508). */
@@ -129,10 +180,17 @@ export async function createPaymentIntent(
     unitPriceMinor: row.amount ?? row.line.unitPriceSnapshot,
     discountable: !row.line.isGiftWrap,
   }));
-  // Payable totals include the cart's promotions (§7.11): the intent amount
-  // must equal what the cart page displays, or the §7.11 re-verification
-  // would reject every discounted order.
-  const promotions = await loadCartPromotionApplications(db, cartId);
+  // Payable totals include the cart's ELIGIBLE promotions (§7.11): the intent
+  // amount must equal what the cart page displays, or the §7.11
+  // re-verification would reject every discounted order. Both sides filter
+  // with the same re-validation (E2E-3).
+  const promotions = await loadCartPromotionApplications(db, cartId, {
+    subtotalMinor: priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0),
+    region: cartRow.region,
+    now: new Date(),
+    productIds: lineRows.map((row) => row.line.variantId),
+    isGuest: cartRow.userId === null,
+  });
   const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
 
   // Idempotency key derived from cart identity + totals so retries reuse the intent.
@@ -278,9 +336,16 @@ export async function placeOrderFromWebhook(input: {
       unitPriceMinor: row.amount ?? row.line.unitPriceSnapshot,
       discountable: !row.line.isGiftWrap,
     }));
-    // Re-verification (§7.11) prices the cart with its promotions inside the
-    // same transaction — identical inputs to intent creation (§7.10).
-    const promotions = await loadCartPromotionApplications(tx, cartId);
+    // Re-verification (§7.11) prices the cart with its ELIGIBLE promotions
+    // inside the same transaction — identical inputs to intent creation
+    // (§7.10), including the E2E-3 re-validation filter.
+    const promotions = await loadCartPromotionApplications(tx, cartId, {
+      subtotalMinor: priceLines.reduce((acc, l) => acc + l.unitPriceMinor * l.qty, 0),
+      region: cartRow.region,
+      now: new Date(),
+      productIds: lineRows.map((row) => row.line.variantId),
+      isGuest: cartRow.userId === null,
+    });
     const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
 
     // Lock inventory and collect shortages instead of throwing (§8.7):
