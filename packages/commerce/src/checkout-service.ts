@@ -175,28 +175,52 @@ export type PlaceOrderInput = {
 };
 
 /**
- * Place the order inside one transaction (PRD §4.3):
- * verify totals vs Stripe amount → lock inventory rows → create order + lines
- * + payment → decrement stock → convert cart → emit outbox jobs.
- * Idempotent by Stripe event id (webhook_event unique index, PRD §8.4).
+ * §8.7 placement decision (pure seam; audit 2026-09-09 H4d). A captured
+ * payment whose cart re-verification fails must NEVER be thrown away with a
+ * thrown error — the webhook_event row would already be committed and
+ * Stripe's retry would no-op, silently losing the paid order. Instead the
+ * order is placed in `review` for CS with a `payment_orphan` alert.
+ */
+export type PlacementOutcome =
+  | { path: "confirm" }
+  | { path: "review"; reason: "AMOUNT_MISMATCH" | "OUT_OF_STOCK"; detail: string };
+
+export function resolvePlacementOutcome(input: {
+  totalsTotal: number;
+  intentAmount: number;
+  stockShortages: string[];
+}): PlacementOutcome {
+  if (input.totalsTotal !== input.intentAmount) {
+    return {
+      path: "review",
+      reason: "AMOUNT_MISMATCH",
+      detail: `cart ${input.totalsTotal} vs Stripe ${input.intentAmount}`,
+    };
+  }
+  if (input.stockShortages.length > 0) {
+    return { path: "review", reason: "OUT_OF_STOCK", detail: input.stockShortages.join(", ") };
+  }
+  return { path: "confirm" };
+}
+
+/**
+ * Place the order inside one transaction (PRD §4.3, §8.7):
+ * webhook_event insert → verify totals vs Stripe amount → lock inventory rows
+ * → create order + lines + payment → (confirm: decrement stock, convert cart,
+ * emit outbox jobs | review: hold for CS + payment_orphan alert).
+ *
+ * Idempotent by Stripe event id — the `webhook_event` row is inserted INSIDE
+ * this transaction (audit 2026-09-09 H4d: it used to auto-commit first, so
+ * any transient failure between that insert and the placement commit turned
+ * Stripe's retry into a permanent silent no-op while the customer's payment
+ * was captured).
  */
 export async function placeOrderFromWebhook(input: {
   stripeEventId: string;
   type: string;
   payloadJson: unknown;
   paymentIntentId: string;
-}): Promise<{ orderId: string; orderNumber: string } | null> {
-  const insertedEvent = await db
-    .insert(webhookEvent)
-    .values({
-      stripeEventId: input.stripeEventId,
-      type: input.type,
-      payload: input.payloadJson,
-    })
-    .onConflictDoNothing()
-    .returning({ id: webhookEvent.id });
-  if (!insertedEvent[0]) return null; // duplicate event → 200 OK, no-op
-
+}): Promise<{ orderId: string; orderNumber: string; review?: boolean } | null> {
   const cartId = await resolveCartIdFromIntent(input.paymentIntentId);
   if (!cartId) return null;
 
@@ -209,6 +233,19 @@ export async function placeOrderFromWebhook(input: {
       : (intent.metadata["email"] ?? "unknown@scandihaven.example");
 
   return db.transaction(async (tx) => {
+    // Duplicate events no-op inside the same transaction that will place the
+    // order — no committed row can outlive a failed placement.
+    const insertedEvent = await tx
+      .insert(webhookEvent)
+      .values({
+        stripeEventId: input.stripeEventId,
+        type: input.type,
+        payload: input.payloadJson,
+      })
+      .onConflictDoNothing()
+      .returning({ id: webhookEvent.id });
+    if (!insertedEvent[0]) return null; // duplicate event → 200 OK, no-op
+
     const cartRows = await tx.select().from(cart).where(eq(cart.id, cartId)).limit(1).for("update");
     const cartRow = cartRows[0];
     if (!cartRow) return null;
@@ -246,15 +283,13 @@ export async function placeOrderFromWebhook(input: {
     const promotions = await loadCartPromotionApplications(tx, cartId);
     const totals = computeCartTotals({ lines: priceLines, promotions, shippingMinor: 0 });
 
-    if (totals.total !== intent.amount) {
-      throw new CheckoutError(
-        `Amount mismatch: cart ${totals.total} vs Stripe ${intent.amount}`,
-        "AMOUNT_MISMATCH",
-      );
-    }
-
-    // Lock and verify inventory for stocked variants (PRD §7.6); made-to-order rows
-    // have no inventory_level row and skip reservation.
+    // Lock inventory and collect shortages instead of throwing (§8.7):
+    // made-to-order rows have no inventory_level row and skip reservation.
+    const stockShortages: string[] = [];
+    const lockedLevels = new Map<
+      string,
+      { variantId: string; warehouseId: string; qtyOnHand: number }
+    >();
     for (const row of lineRows) {
       const locked = await tx
         .select()
@@ -262,19 +297,36 @@ export async function placeOrderFromWebhook(input: {
         .where(eq(inventoryLevel.variantId, row.line.variantId))
         .for("update");
       const level = locked[0];
-      if (level && row.line.qty > level.qtyOnHand - level.qtyReserved - level.safetyStock) {
-        throw new CheckoutError(`Insufficient stock for SKU ${row.variant.sku}`, "OUT_OF_STOCK");
+      if (!level) continue;
+      lockedLevels.set(row.line.id, {
+        variantId: level.variantId,
+        warehouseId: level.warehouseId,
+        qtyOnHand: level.qtyOnHand,
+      });
+      if (row.line.qty > level.qtyOnHand - level.qtyReserved - level.safetyStock) {
+        stockShortages.push(`SKU ${row.variant.sku}`);
       }
     }
 
+    const outcome = resolvePlacementOutcome({
+      totalsTotal: totals.total,
+      intentAmount: intent.amount,
+      stockShortages,
+    });
+
     const year = new Date().getUTCFullYear();
     // Serialize per-year number generation (§7.9 concurrency): a unique-
-    // violation on order_number would abort AFTER webhook_event was recorded,
-    // and Stripe's retry would then no-op — silently losing a paid order.
-    // The advisory lock makes MAX+1 deterministic under concurrency.
+    // violation on order_number would abort the placement AFTER the payment
+    // was captured. The advisory lock makes MAX+1 deterministic under
+    // concurrency, so the number itself cannot collide.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`order_number:${year}`}))`);
     const seqRows = await tx.execute<{ seq: string }>(
-      sql`SELECT COALESCE(MAX(substring(number from 10)::int), 0) + 1 AS seq FROM "order" WHERE number LIKE ${`SH-${year}-%`}`,
+      // `SH-YYYY-` is 8 chars; split_part(…, 3) isolates the padded sequence
+      // regardless of its width (audit 2026-09-09 M2d: substring from
+      // position 10 dropped the leading digit at seq >= 100,000, which —
+      // under the advisory lock — would have collided on order.number UNIQUE
+      // and failed every later placement for that year).
+      sql`SELECT COALESCE(MAX((split_part(number, '-', 3))::int), 0) + 1 AS seq FROM "order" WHERE number LIKE ${`SH-${year}-%`}`,
     );
     const seq = Number(seqRows.rows[0]?.seq ?? 1);
     const placedAt = new Date();
@@ -318,6 +370,9 @@ export async function placeOrderFromWebhook(input: {
       });
     }
 
+    // The payment row always records what Stripe actually captured — for a
+    // review order the visible gap between payment.amount and order.total is
+    // exactly what CS reconciles (§8.7).
     await tx.insert(payment).values({
       orderId,
       stripePaymentIntentId: input.paymentIntentId,
@@ -338,91 +393,137 @@ export async function placeOrderFromWebhook(input: {
       },
     });
 
-    const confirmed = transition("pending_payment", "payment_succeeded");
-    await tx
-      .update(order)
-      .set({ status: confirmed, updatedAt: placedAt })
-      .where(eq(order.id, orderId));
-    await tx.insert(orderEvent).values({
-      orderId,
-      type: "payment_succeeded",
-      actor: "system",
-      payload: { stripeEventId: input.stripeEventId },
-    });
+    if (outcome.path === "confirm") {
+      const confirmed = transition("pending_payment", "payment_succeeded");
+      await tx
+        .update(order)
+        .set({ status: confirmed, updatedAt: placedAt })
+        .where(eq(order.id, orderId));
+      await tx.insert(orderEvent).values({
+        orderId,
+        type: "payment_succeeded",
+        actor: "system",
+        payload: { stripeEventId: input.stripeEventId },
+      });
 
-    // Inventory movements + stock decrement.
-    for (const row of lineRows) {
-      const locked = await tx
-        .select()
-        .from(inventoryLevel)
-        .where(eq(inventoryLevel.variantId, row.line.variantId))
-        .for("update");
-      const level = locked[0];
-      if (level) {
-        await tx
-          .update(inventoryLevel)
-          .set({ qtyOnHand: level.qtyOnHand - row.line.qty, updatedAt: placedAt })
+      // Inventory movements + stock decrement (confirm path only — a review
+      // order must not consume stock CS may still have to refund).
+      for (const row of lineRows) {
+        const level = lockedLevels.get(row.line.id);
+        if (!level) continue;
+        const current = await tx
+          .select()
+          .from(inventoryLevel)
           .where(
             and(
               eq(inventoryLevel.variantId, level.variantId),
               eq(inventoryLevel.warehouseId, level.warehouseId),
             ),
+          )
+          .for("update");
+        const fresh = current[0];
+        if (!fresh) continue;
+        await tx
+          .update(inventoryLevel)
+          .set({ qtyOnHand: fresh.qtyOnHand - row.line.qty, updatedAt: placedAt })
+          .where(
+            and(
+              eq(inventoryLevel.variantId, fresh.variantId),
+              eq(inventoryLevel.warehouseId, fresh.warehouseId),
+            ),
           );
         await tx.insert(inventoryMovement).values({
-          variantId: level.variantId,
-          warehouseId: level.warehouseId,
+          variantId: fresh.variantId,
+          warehouseId: fresh.warehouseId,
           delta: -row.line.qty,
           reason: "sale",
           referenceType: "order",
           referenceId: orderId,
         });
       }
-    }
 
-    // Server-authoritative analytics (PRD §11.2).
-    await tx.insert(analyticsEvent).values({
-      name: "order_completed",
-      payload: {
-        orderId,
-        orderNumber,
-        revenueMinor: totals.total,
-        currency: cartRow.currency,
-        itemCount: lineRows.reduce((acc, r) => acc + r.line.qty, 0),
-      },
-    });
-
-    // Outbox: confirmation email (FR-910). Payload is a self-sufficient
-    // snapshot so the drainer never re-reads mutable rows (§8.6).
-    const leadTimeDaysMax = Math.max(
-      0,
-      ...lineRows.map(
-        (r) => r.variant?.leadTimeDaysMaxOverride ?? r.productLeadTimeMax ?? 0,
-      ),
-    );
-    await tx
-      .insert(job)
-      .values({
-        kind: "email.order_confirmation",
+      // Server-authoritative analytics (PRD §11.2) — confirm path only, so
+      // unreconciled review orders never pollute revenue dashboards.
+      await tx.insert(analyticsEvent).values({
+        name: "order_completed",
         payload: {
           orderId,
           orderNumber,
-          to: email,
-          customerName: intent.metadata["shipping_name"] ?? "",
-          totalMinor: totals.total,
+          revenueMinor: totals.total,
           currency: cartRow.currency,
-          leadTimeDaysMax,
+          itemCount: lineRows.reduce((acc, r) => acc + r.line.qty, 0),
         },
-        idempotencyKey: `order_confirmation:${orderId}`,
-      })
-      .onConflictDoNothing();
+      });
 
-    // Convert cart (FR-403 lifecycle).
+      // Outbox: confirmation email (FR-910). Payload is a self-sufficient
+      // snapshot so the drainer never re-reads mutable rows (§8.6).
+      const leadTimeDaysMax = Math.max(
+        0,
+        ...lineRows.map(
+          (r) => r.variant?.leadTimeDaysMaxOverride ?? r.productLeadTimeMax ?? 0,
+        ),
+      );
+      await tx
+        .insert(job)
+        .values({
+          kind: "email.order_confirmation",
+          payload: {
+            orderId,
+            orderNumber,
+            to: email,
+            customerName: intent.metadata["shipping_name"] ?? "",
+            totalMinor: totals.total,
+            currency: cartRow.currency,
+            leadTimeDaysMax,
+          },
+          idempotencyKey: `order_confirmation:${orderId}`,
+        })
+        .onConflictDoNothing();
+    } else {
+      // §8.7 review path: hold for CS, alert ops, do NOT decrement stock,
+      // do NOT email the customer a confirmation they have not earned yet.
+      const held = transition("pending_payment", "flag_for_review");
+      await tx
+        .update(order)
+        .set({ status: held, updatedAt: placedAt })
+        .where(eq(order.id, orderId));
+      await tx.insert(orderEvent).values({
+        orderId,
+        type: "flag_for_review",
+        actor: "system",
+        payload: {
+          stripeEventId: input.stripeEventId,
+          reason: outcome.reason,
+          detail: outcome.detail,
+        },
+      });
+      await tx
+        .insert(job)
+        .values({
+          kind: "ops.payment_orphan",
+          payload: {
+            orderId,
+            orderNumber,
+            paymentIntentId: input.paymentIntentId,
+            reason: outcome.reason,
+            detail: outcome.detail,
+            chargedMinor: intent.amount,
+            serverTotalMinor: totals.total,
+            currency: cartRow.currency,
+          },
+          idempotencyKey: `payment_orphan:${orderId}`,
+        })
+        .onConflictDoNothing();
+    }
+
+    // Convert cart in both paths — re-checkout with this cart would double-
+    // charge a customer for goods CS is still reconciling (§8.7).
     await tx
       .update(cart)
       .set({ status: "converted", updatedAt: placedAt })
       .where(eq(cart.id, cartRow.id));
 
-    return { orderId, orderNumber };
+    return { orderId, orderNumber, review: outcome.path === "review" };
   });
 }
 

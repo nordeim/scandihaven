@@ -42,11 +42,21 @@ export async function POST(request: NextRequest) {
           // Duplicate event or unresolvable cart — both are success for Stripe.
           return NextResponse.json({ received: true, duplicate: true });
         }
+        if (placed.review) {
+          // §8.7: paid order held in `review` (amount mismatch / stock) — CS
+          // reconciles; the payment_orphan job alerted ops. Still 2xx so
+          // Stripe stops retrying: the order now exists.
+          console.warn(`[stripe] order ${placed.orderNumber} placed in REVIEW from webhook`);
+          return NextResponse.json({ received: true, orderNumber: placed.orderNumber, review: true });
+        }
         console.info(`[stripe] order ${placed.orderNumber} placed from webhook`);
         return NextResponse.json({ received: true, orderNumber: placed.orderNumber });
       } catch (error) {
         console.error("[stripe] order placement failed", error);
-        // 500 → Stripe retries; webhook_event row already guards idempotency.
+        // 500 → Stripe retries. The webhook_event row is inserted inside the
+        // placement transaction (§8.7 / audit 2026-09-09 H4d), so a failed
+        // placement rolls the idempotency row back — the retry redelivers
+        // instead of silently no-oping.
         return NextResponse.json({ error: "Order placement failed" }, { status: 500 });
       }
     }
