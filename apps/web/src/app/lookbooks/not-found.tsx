@@ -1,23 +1,19 @@
 import Link from "next/link";
 
 /**
- * 404 (PRD FR-109). Server component so the branded content and recovery
- * paths ship in the SSR payload — the previous client-component version
- * (`usePathname`) streamed an empty Suspense shell and only rendered after
- * hydration (audit 2026-09-09 M-404).
- *
- * Deferred product surfaces return an honest 404 naming their FR ID
- * (§15.3: "nothing is silently missing") — e.g. /lookbooks is a Phase 5
- * surface (FR-705): the lookbooks/[[...slug]] segment throws notFound() and
- * its segment-level not-found names the FR ID server-side.
+ * Segment-level 404 for /lookbooks/* (PRD FR-705). Rendered when the
+ * lookbooks catch-all throws notFound(); names the FR ID per §15.3 so the
+ * deferred surface is honest — and does so in the SSR payload (server
+ * component; audit 2026-09-09 M-404).
  */
-export default function NotFound() {
+export default function LookbooksNotFound() {
   return (
     <div className="mx-auto max-w-2xl px-5 py-32 text-center md:px-8">
       <p className="text-sm uppercase tracking-[0.2em] text-accent-2">404</p>
       <h1 className="mt-3 font-display text-4xl">This page has wandered off</h1>
       <p className="mt-4 text-md text-ink-2">
-        The page you are looking for does not exist or has moved.
+        Lookbooks are planned for Phase 5 (FR-705) and are not built yet — this page
+        intentionally returns 404 until that surface ships.
       </p>
       <div className="mt-8 flex justify-center gap-4">
         <Link
