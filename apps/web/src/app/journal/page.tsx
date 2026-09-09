@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function JournalPage() {
-  const posts = await listLatestJournal(12).catch(() => []);
+  const posts = await listLatestJournal(12).catch((error: unknown) => { console.error("[journal] posts load failed", error); return [] as never; });
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 md:px-8">
       <h1 className="font-display text-4xl">Journal</h1>

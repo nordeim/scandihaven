@@ -52,7 +52,9 @@ export default function SignInPage() {
             name="password"
             type="password"
             required
-            minLength={10}
+            // No minLength here: this is a SIGN-IN form — a length policy is
+            // enforced at registration/reset only (audit 2026-09-09 M-6;
+            // client-side minLength blocked legacy short-password users).
             autoComplete="current-password"
           />
         </div>

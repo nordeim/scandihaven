@@ -12,7 +12,6 @@
     "./label": "./src/components/label.tsx",
     "./drawer": "./src/components/drawer.tsx",
     "./accordion": "./src/components/accordion.tsx",
-    "./separator": "./src/components/separator.tsx",
     "./skeleton": "./src/components/skeleton.tsx",
     "./quantity-stepper": "./src/components/composites/quantity-stepper.tsx",
     "./price-block": "./src/components/composites/price-block.tsx",

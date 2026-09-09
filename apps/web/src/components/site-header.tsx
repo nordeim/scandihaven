@@ -18,10 +18,10 @@ export async function SiteHeader() {
     .where(eq(announcement.isActive, true))
     .orderBy(announcement.sortOrder)
     .limit(1)
-    .catch(() => []);
+    .catch((error: unknown) => { console.error("[site-header] nav load failed", error); return [] as never; });
 
   const cartId = await getCartId();
-  const cartData = cartId ? await getCartDto(cartId).catch(() => null) : null;
+  const cartData = cartId ? await getCartDto(cartId).catch((error: unknown) => { console.error("[site-header] cart load failed", error); return null; }) : null;
   const itemCount = cartData?.lines.reduce((acc, l) => acc + l.qty, 0) ?? 0;
 
   return (

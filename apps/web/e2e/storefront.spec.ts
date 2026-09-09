@@ -54,7 +54,10 @@ test.describe("storefront smoke", () => {
   test("checkout surfaces configuration state honestly when Stripe is unset", async ({ page }) => {
     await page.goto("/products/oresund-table-lamp");
     await page.getByRole("button", { name: "Add to cart" }).click();
-    await page.waitForTimeout(500);
+    // Wait for the server action to complete (drawer opens) before navigating
+    // — mirrors the cart test; a fixed waitForTimeout raced the action and
+    // flaked against remote deployments.
+    await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
     await page.goto("/checkout");
     await expect(
       page

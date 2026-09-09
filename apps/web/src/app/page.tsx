@@ -136,7 +136,7 @@ export default async function HomePage() {
 }
 
 async function CategoryTiles() {
-  const categories = await listFeaturedCategories().catch(() => []);
+  const categories = await listFeaturedCategories().catch((error: unknown) => { console.error("[home] categories load failed", error); return [] as never; });
   if (categories.length === 0) return null;
   return (
     <div className="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4">
@@ -154,7 +154,7 @@ async function CategoryTiles() {
 }
 
 async function NewArrivals() {
-  const result = await listProducts({ sort: "newest", pageSize: 8, region: "EU" }).catch(() => null);
+  const result = await listProducts({ sort: "newest", pageSize: 8, region: "EU" }).catch((error: unknown) => { console.error("[home] new arrivals load failed", error); return null; });
   if (!result || result.items.length === 0) {
     return <p className="mt-8 text-md text-muted">New pieces are on the bench — check back soon.</p>;
   }
@@ -176,7 +176,7 @@ async function NewArrivals() {
 }
 
 async function JournalPreview() {
-  const posts = await listLatestJournal(3).catch(() => []);
+  const posts = await listLatestJournal(3).catch((error: unknown) => { console.error("[home] journal load failed", error); return [] as never; });
   if (posts.length === 0) return null;
   return (
     <div className="mt-8 grid gap-6 md:grid-cols-3">

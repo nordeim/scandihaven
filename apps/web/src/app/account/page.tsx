@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage() {
   const session = await auth.api
     .getSession({ headers: await headers() })
-    .catch(() => null);
+    .catch((error: unknown) => { console.error("[account] session check failed", error); return null; });
 
   if (!session?.user) {
     redirect("/sign-in");

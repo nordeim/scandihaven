@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LeadTimeBadge } from "@scandihaven/ui/lead-time-badge";
 import { Button } from "@scandihaven/ui/button";
@@ -32,25 +32,33 @@ export function ProductBuyPanel({
   currency: string;
 }) {
   const router = useRouter();
-  // Deep-link support (FR-302): honor ?variant=SKU on load, shareable via URL.
-  const [selectedSku, setSelectedSku] = useState<string>(() => {
-    const fromUrl =
-      typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("variant") : null;
-    return (
-      variants.find((v) => v.sku === fromUrl)?.sku ??
-      variants.find((v) => v.isDefault)?.sku ??
-      variants[0]?.sku ??
-      ""
-    );
-  });
+  // Deep-link support (FR-302): honor ?variant=SKU on load. The URL is read
+  // through useSyncExternalStore — server snapshot is null (default variant
+  // renders first), the client snapshot takes over after hydration, so the
+  // deep link never causes a hydration mismatch (audit 2026-09-09 M-3: the
+  // previous window-reading useState initializer disagreed with SSR).
+  const urlVariant = useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("popstate", onStoreChange);
+      return () => window.removeEventListener("popstate", onStoreChange);
+    },
+    () => new URLSearchParams(window.location.search).get("variant"),
+    () => null,
+  );
+  const [selectedSku, setSelectedSku] = useState<string>(
+    () => variants.find((v) => v.isDefault)?.sku ?? variants[0]?.sku ?? "",
+  );
   const [qty, setQty] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const openDrawer = useCartStore((s) => s.open);
 
   const selected = useMemo(
-    () => variants.find((v) => v.sku === selectedSku) ?? variants[0],
-    [variants, selectedSku],
+    () =>
+      variants.find((v) => v.sku === urlVariant && v.availability !== "out_of_stock") ??
+      variants.find((v) => v.sku === selectedSku) ??
+      variants[0],
+    [variants, urlVariant, selectedSku],
   );
 
   if (!selected) return null;

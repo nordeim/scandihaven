@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ products: [], categories: [], journal: [] });
   }
-  const products = await searchTypeahead(parsed.data.q, parsed.data.limit).catch(() => []);
+  const products = await searchTypeahead(parsed.data.q, parsed.data.limit).catch((error: unknown) => { console.error("[typeahead] search failed", error); return [] as never; });
   const body = responseSchema.parse({ products, categories: [], journal: [] });
   return NextResponse.json(body);
 }

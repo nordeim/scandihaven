@@ -128,7 +128,14 @@ function PaymentForm({ totalMinor, currency }: { totalMinor: number; currency: s
 
   const onPay = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!elements) return;
+    // Both Stripe handles must exist before confirming (audit 2026-09-09 H-3):
+    // with `stripe?.confirmPayment(...) ?? { error: undefined }` a null
+    // useStripe() short-circuited to a fabricated success shape and routed
+    // the customer to /checkout/success with no confirmed PaymentIntent.
+    if (!stripe || !elements) {
+      setError("Payment is still loading — please try again in a moment.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const { error: submitError } = await elements.submit();
@@ -136,10 +143,10 @@ function PaymentForm({ totalMinor, currency }: { totalMinor: number; currency: s
         setError(submitError.message ?? "Payment could not be submitted.");
         return;
       }
-      const { error: confirmError } = await stripe?.confirmPayment({
+      const { error: confirmError } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",
-      }) ?? { error: undefined };
+      });
       if (confirmError) {
         setError(confirmError.message ?? "Payment failed. Your card was not charged twice — try again.");
         return;

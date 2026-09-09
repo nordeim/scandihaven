@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cartId = await getCartId();
-  const cart = cartId ? await getCartDto(cartId).catch(() => null) : null;
+  const cart = cartId ? await getCartDto(cartId).catch((error: unknown) => { console.error("[layout] cart load failed", error); return null; }) : null;
 
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>

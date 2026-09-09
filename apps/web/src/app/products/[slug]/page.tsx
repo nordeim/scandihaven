@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProduct } from "@scandihaven/commerce/catalog";
+import { safeJsonLd, sanitizeRichText } from "@scandihaven/commerce/rich-text";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@scandihaven/ui/accordion";
 import { StarsRating } from "@/components/stars-rating";
 import { ProductBuyPanel } from "@/components/product-buy-panel";
@@ -12,7 +13,7 @@ export const revalidate = 300; // ISR per PRD §4.4; tag-invalidated on catalog 
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProduct(slug).catch(() => null);
+  const product = await getProduct(slug).catch((error: unknown) => { console.error("[pdp] product load failed", error); return null; });
   if (!product) return { title: "Product not found" };
   return {
     title: product.seoTitle ?? product.title,
@@ -73,8 +74,9 @@ export default async function ProductPage({ params }: { params: Params }) {
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
       <script
         type="application/ld+json"
-        // JSON-LD is server-generated structured data (PRD FR-312), not user input.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // Server-generated structured data (PRD FR-312); escaped so a title
+        // containing `</script>` cannot break out (audit 2026-09-09 H-2).
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted">
@@ -143,8 +145,9 @@ export default async function ProductPage({ params }: { params: Params }) {
             <AccordionContent>
               <div
                 className="prose-sm leading-relaxed"
-                // Admin-authored rich text rendered after sanitization (PRD §9.4).
-                dangerouslySetInnerHTML={{ __html: product.descriptionHtml ?? "" }}
+                // Admin-authored rich text sanitized at render time (PRD §9.4;
+                // audit 2026-09-09 H-2 — the sanitizer now exists).
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(product.descriptionHtml) }}
               />
             </AccordionContent>
           </AccordionItem>
@@ -155,7 +158,7 @@ export default async function ProductPage({ params }: { params: Params }) {
                 <p className="mb-2 text-sm text-muted">{product.materials.join(" · ")}</p>
                 <div
                   className="leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: product.careHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(product.careHtml) }}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -166,7 +169,7 @@ export default async function ProductPage({ params }: { params: Params }) {
               <AccordionContent>
                 <div
                   className="leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: product.sustainabilityHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(product.sustainabilityHtml) }}
                 />
               </AccordionContent>
             </AccordionItem>

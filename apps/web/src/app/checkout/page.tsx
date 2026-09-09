@@ -15,7 +15,16 @@ export const dynamic = "force-dynamic";
 /** Checkout (PRD FR-501..512): summary + address + Stripe Payment Element. */
 export default async function CheckoutPage() {
   const cartId = await getCartId();
-  const cart = cartId ? await getCartDto(cartId).catch(() => null) : null;
+  // A transient cart-lookup failure must NOT render as "Nothing to check
+  // out" (audit 2026-09-09 M-2) — that copy is only truthful for a genuinely
+  // empty/absent cart. Lookup errors are logged and re-thrown so the error
+  // boundary shows a retry affordance instead of misleading the customer.
+  const cart = cartId
+    ? await getCartDto(cartId).catch((error: unknown) => {
+        console.error("[checkout] cart lookup failed", error);
+        throw error;
+      })
+    : null;
 
   if (!cart || cart.lines.length === 0) {
     return (

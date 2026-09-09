@@ -15,6 +15,7 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
   const [cart, setCart] = useState(initialCart);
   const [promoCode, setPromoCode] = useState("");
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const refresh = (update: Promise<{ ok: boolean } & Record<string, unknown>>) => {
@@ -24,6 +25,13 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
         | { ok: false; error: { message: string } };
       if (result.ok) {
         setCart(result.data);
+        setActionError(null);
+      } else {
+        // Failure surfacing + re-sync (audit 2026-09-09 H-4): the optimistic
+        // write is rolled back to the last server truth and the customer
+        // sees why — the stock/line state changed under them.
+        setActionError(result.error.message);
+        setCart(initialCart);
       }
     });
   };
@@ -72,6 +80,11 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
     <div className="mx-auto grid max-w-7xl gap-12 px-5 py-12 md:px-8 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <h1 className="font-display text-4xl">Cart</h1>
+        {actionError ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {actionError}
+          </p>
+        ) : null}
         <ul className="mt-8 divide-y divide-line" aria-busy={isPending}>
           {cart.lines.map((line) => (
             <li key={line.id} className="flex gap-5 py-6">

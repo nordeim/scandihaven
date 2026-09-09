@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@scandihaven/db/client";
 import { staticPage } from "@scandihaven/db/schema";
+import { sanitizeRichText } from "@scandihaven/commerce/rich-text";
 import { eq, and } from "drizzle-orm";
 
 type Params = Promise<{ slug: string }>;
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ") };
 }
 
-/** Static content pages (PRD FR-704): admin-managed, sanitized rich text. */
+/** Static content pages (PRD FR-704): admin-managed, render-time sanitized rich text (§9.4). */
 export default async function StaticContentPage({ params }: { params: Params }) {
   const { slug } = await params;
   const rows = await db
@@ -30,7 +31,7 @@ export default async function StaticContentPage({ params }: { params: Params }) 
       <h1 className="font-display text-4xl">{page.title}</h1>
       <div
         className="mt-8 space-y-4 leading-relaxed text-ink-2"
-        dangerouslySetInnerHTML={{ __html: page.bodyHtml }}
+        dangerouslySetInnerHTML={{ __html: sanitizeRichText(page.bodyHtml) }}
       />
     </article>
   );

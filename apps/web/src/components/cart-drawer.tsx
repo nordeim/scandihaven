@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
 import { Drawer, DrawerContent } from "@scandihaven/ui/drawer";
 import { Button } from "@scandihaven/ui/button";
 import { QuantityStepper } from "@scandihaven/ui/quantity-stepper";
@@ -10,26 +9,36 @@ import type { CartDto } from "@scandihaven/commerce/dto";
 import { removeLineAction, updateQtyAction } from "@/actions/cart";
 import { useCartStore } from "@/stores/cart-store";
 import { formatMinor } from "@/lib/format";
+import { useState, useTransition } from "react";
 
 /**
  * Mini-cart drawer (PRD FR-401). Receives the server-truth CartDto as props
- * from the RSC tree; optimistic qty updates roll back on action failure.
+ * from the RSC tree; action failures surface an in-drawer alert (audit
+ * 2026-09-09 M-1) and refresh the server-truth payload via the router.
  */
 export function CartDrawer({ cart }: { cart: CartDto | null }) {
   const drawerOpen = useCartStore((s) => s.drawerOpen);
   const close = useCartStore((s) => s.close);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const onQty = (lineId: string, qty: number) => {
+  const run = (action: Promise<{ ok: boolean; error?: { message: string } }>) => {
     startTransition(async () => {
-      await updateQtyAction({ lineId, qty });
+      const result = await action;
+      if (result.ok) {
+        setActionError(null);
+      } else {
+        setActionError(result.error?.message ?? "That change could not be applied.");
+      }
     });
   };
 
+  const onQty = (lineId: string, qty: number) => {
+    run(updateQtyAction({ lineId, qty }));
+  };
+
   const onRemove = (lineId: string) => {
-    startTransition(async () => {
-      await removeLineAction({ lineId });
-    });
+    run(removeLineAction({ lineId }));
   };
 
   return (
@@ -37,6 +46,11 @@ export function CartDrawer({ cart }: { cart: CartDto | null }) {
       {drawerOpen ? (
         <DrawerContent title="Cart" className="p-6">
           <p className="font-display text-xl">Your cart</p>
+          {actionError ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {actionError}
+            </p>
+          ) : null}
           {cart === null || cart.lines.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
               <p className="text-md text-muted">Your cart is empty.</p>

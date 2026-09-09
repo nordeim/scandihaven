@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@scandihaven/db/client";
 import { collection } from "@scandihaven/db/schema";
 import { listProducts } from "@scandihaven/commerce/catalog";
+import { sanitizeRichText } from "@scandihaven/commerce/rich-text";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { formatMinor } from "@/lib/format";
 
@@ -23,7 +24,7 @@ async function getCollection(slug: string) {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const col = await getCollection(slug).catch(() => null);
+  const col = await getCollection(slug).catch((error: unknown) => { console.error("[collection] load failed", error); return null; });
   return col
     ? { title: col.title, description: col.subtitle ?? undefined }
     : { title: "Collection not found" };
@@ -66,7 +67,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
         {col.storyHtml ? (
           <div
             className="prose-sm max-w-2xl leading-relaxed text-ink-2"
-            dangerouslySetInnerHTML={{ __html: col.storyHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizeRichText(col.storyHtml) }}
           />
         ) : null}
         {items.length === 0 ? (

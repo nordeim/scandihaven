@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function CollectionsPage() {
-  const collections = await listCollections().catch(() => []);
+  const collections = await listCollections().catch((error: unknown) => { console.error("[collections] list failed", error); return [] as never; });
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
       <h1 className="font-display text-4xl">Collections</h1>
