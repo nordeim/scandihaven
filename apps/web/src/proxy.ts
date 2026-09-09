@@ -6,6 +6,12 @@ import { securityHeaders } from "@scandihaven/config/security-headers";
  * Phase 0 scope: security headers on every response. Locale negotiation and
  * the admin-managed 301 redirect table land in Phase 1 (PRD §13.6) — they are
  * DB-backed and this stub keeps the runtime Node with zero hot-path queries.
+ *
+ * The matcher MUST stay an inline literal: Next.js statically parses the
+ * exported `config` and rejects imported constants. Its semantics are pinned
+ * by `src/lib/proxy-matcher.ts` + `proxy-matcher.test.ts` (audit 2026-09-09
+ * H-1: a bare `products` token here used to strip security headers from
+ * every PDP; only the static `products/*.svg` assets are exempt).
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const responseHeaders = new Headers(request.headers);
@@ -21,5 +27,5 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|products).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|products/[^/]*\\.svg).*)"],
 };
