@@ -15,8 +15,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const product = await getProduct(slug).catch((error: unknown) => { console.error("[pdp] product load failed", error); return null; });
   if (!product) return { title: "Product not found" };
+  // `absolute` because seeded seoTitles already end in "| Scandi Haven" — a
+  // plain title would inherit the layout template and render the suffix twice
+  // (audit 2026-09-09 M-TITLE).
+  const title = { absolute: product.seoTitle ?? product.title };
   return {
-    title: product.seoTitle ?? product.title,
+    title,
     description: product.seoDescription ?? undefined,
     alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
