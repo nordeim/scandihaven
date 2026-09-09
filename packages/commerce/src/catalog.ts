@@ -165,7 +165,18 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
     cards AS (
       SELECT p.id, p.slug, p.title, p.materials,
              p.lead_time_days_min, p.lead_time_days_max, p.is_new,
-             MIN(vp.amount) AS amount, MAX(vp.compare_at) AS compare_at,
+             -- Card price = the DEFAULT variant's price so the card matches
+             -- PDP, JSON-LD and quick-add (live E2E audit 2026-09-10, E2E-4:
+             -- MIN advertised the cheapest variant while the customer is
+             -- priced for the default). Products with no default variant
+             -- (legacy data) keep the old MIN rollup, and compare_at follows
+             -- the same variant so a sibling's sale can't fabricate a badge.
+             COALESCE(MAX(vp.amount) FILTER (WHERE pv.is_default), MIN(vp.amount)) AS amount,
+             CASE
+               WHEN MAX(vp.amount) FILTER (WHERE pv.is_default) IS NOT NULL
+                 THEN MAX(vp.compare_at) FILTER (WHERE pv.is_default)
+               ELSE MAX(vp.compare_at)
+             END AS compare_at,
              a.available,
              (SELECT m.url FROM product_image pi JOIN media m ON m.id = pi.media_id
               WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1) AS image_url,
