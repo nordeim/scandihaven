@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents working in this repository. Every line here answers: "would you get this wrong without being told?" Verified against the toolchain on 2026-09-08.
+Instructions for AI coding agents working in this repository. Every line here answers: "would you get this wrong without being told?" Verified against the toolchain on 2026-09-09.
 
 ## Commands
 
@@ -19,7 +19,7 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm db:setup` | `db:migrate && db:seed` — fresh container init (migrate + idempotent seed, local hosts only) |
 | `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | drizzle-kit migrate / idempotent seed / drop+recreate (local hosts only) |
 | `pnpm db:generate` | Regenerate drizzle migrations after schema edits |
-| `pnpm seed:admin` | Provision test admin; **requires** `SEED_ADMIN_PASSWORD` env (no default credentials exist) |
+| `pnpm --filter @scandihaven/web seed:admin` | Provision test admin; **requires** `SEED_ADMIN_PASSWORD` env (no default credentials exist). Lives in `apps/web` — there is no root alias |
 
 Order matters for a clean check: `pnpm lint typecheck test build` works without a database (real-PG integration suites auto-skip unless `DATABASE_URL` points at localhost). With a local PG up, run `pnpm db:setup` (`db:migrate && db:seed`) BEFORE `pnpm db:setup`-dependent steps — CI runs migrate+seed before Unit tests so the integration suites execute, then E2E needs a migrated+seeded DB.
 
@@ -38,6 +38,8 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
   2. **Auto content-scan does not reach `packages/ui`** — `@source "../../../../packages/ui/src";` in each app's `globals.css` is load-bearing. Without it, classes used only inside the UI package (`bg-secondary`, `bg-primary`, `hover:bg-bg-3`) silently never generate CSS.
 - **Turborepo env passing**: env vars read inside `next.config.ts` (e.g. `DISABLE_IMAGE_OPTIMIZER`) must be listed in `turbo.json` `globalEnv` or turbo strips them from build tasks.
 - **Boot validation**: each app's `src/instrumentation.ts` runs `parseServerEnv()` + `parseFlags()` when the server starts — missing required env or an unknown `FEATURE_*` var fails fast with an actionable message (PRD §9.4).
+- **Proxy convention location**: `proxy.ts` lives at `apps/*/src/proxy.ts` — Next 16.3 discovers it at the parent of the app dir, so a repo-root (`apps/web/proxy.ts`) placement compiles but is silently never registered (headers/gate never ran; audit 2026-09-09 H8d). The `config.matcher` MUST stay an inline literal (Next statically parses it); its semantics are pinned by `apps/web/src/lib/proxy-matcher.test.ts`.
+- **CI secret scan**: `rg` exits 0 on a MATCH — the gate must be `if rg …; then fail; else clean; fi`; the old `&& echo clean || fail` chaining inverted it (audit 2026-09-09 H6d).
 - **Build-time env**: `next build` imports the auth route (`/api/auth/[...all]`), which constructs the Better-Auth instance and therefore the db client — builds require `DATABASE_URL` + `BETTER_AUTH_SECRET` to be set (same values as CI/§13.4).
 - **Image optimizer**: `DISABLE_IMAGE_OPTIMIZER=1` (local/E2E) serves images unoptimized — the sharp pipeline can deadlock in constrained sandboxes. Production keeps optimization on.
 - **React 19 + react-stripe-js v6**: `confirmPayment` is a method on `useStripe()`, not a module export.
@@ -66,4 +68,5 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 ## Reference
 
 - `PRD.md` — the authoritative spec (v4.0): FR-100…FR-999 requirement IDs, §4.8 cross-cutting contracts (ports/flags/idempotency), §7 schema, §8 action contracts, §12.6 SLOs, §15 agent operating contract, §13 rollout phases. Stubs in code name their FR ID.
+- `docs/audits/2026-09-09-code-review-security-audit/` — tiered code review + security audit (2 Critical / 9 High, evidence-backed, incl. runtime-verified proxy and admin-gate fixes).
 - `README.md` — human onboarding (setup, verification, design tokens).

@@ -2,7 +2,7 @@
 IMPORTANT: File is read fresh for every conversation. Be brief and practical.
 project_type: nextjs-monorepo
 version: 1.0.0
-last_updated: 2026-09-08
+last_updated: 2026-09-09
 ---
 
 # Scandi Haven — E-Commerce Monorepo
@@ -96,6 +96,7 @@ Single test: `pnpm --filter @scandihaven/commerce test -- src/pricing.test.ts`. 
 - Import `describe/it/expect` from `vitest` explicitly (no globals); property tests use `fc.assert(fc.property(...))` inside vitest `it`.
 - E2E must never fake payment: without Stripe test keys the suite asserts the explicit "not configured" notice.
 - A red test is a regression or a wrong test — never skip to pass.
+- Admin routes render through the `(staff)` route-group layout (gate + chrome); `/sign-in` stays outside it — a layout-level redirect to `/sign-in` that also wraps `/sign-in` loops forever (audit 2026-09-09 H7d).
 
 ## Code Quality Standards
 
@@ -108,12 +109,12 @@ Single test: `pnpm --filter @scandihaven/commerce test -- src/pricing.test.ts`. 
 
 - Branch `main`; short-lived feature branches (`feat/…`, `fix/…`) merged via PR when the team workflow applies.
 - Conventional Commits, atomic scope: `feat(cart): merge guest cart on login`. Never bundle unrelated changes.
-- Never commit `.env*` (except `.env.example`), keys, or test credentials. `pnpm-lock.yaml` changes only via `pnpm add/update`.
+- Never commit `.env*` (except `.env.example`), keys, or test credentials. `.env`/`.env.local` were found git-tracked with real secrets on 2026-09-09 (audit C2) — untracked then; **rotate the exposed values in any deployed environment**. `pnpm-lock.yaml` changes only via `pnpm add/update`.
 
 ## Error Handling & Debugging
 
 - Unexpected errors in actions are caught once at the boundary, logged with a correlation ID, and returned as `{ ok: false, error: { code: "INTERNAL" } }` — internals never reach the client.
-- Stripe webhooks: verify signature → insert `webhook_event` (unique Stripe event ID = idempotency) → handle → outbox `jobs` rows for side effects; `/api/jobs/run` (CRON_SECRET) drains with retry.
+- Stripe webhooks: verify signature → insert `webhook_event` INSIDE the placement transaction (unique Stripe event ID = idempotency; audit 2026-09-09 H4d — a pre-committed event row turned Stripe retries into silent no-ops on placement failure) → handle → outbox `jobs` rows; a mismatch/stock failure places the order in `review` with a `payment_orphan` alert (§8.7) instead of throwing. `/api/jobs/run` (CRON_SECRET) drains with retry.
 - Debugging order: reproduce with the exact command → read the server log → isolate with a minimal repro → fix root cause (e.g., the token-vs-UUID cart bug and the Tailwind `@source` gap were both found this way; see git history for the fix shape).
 
 ## Project-Specific Standards

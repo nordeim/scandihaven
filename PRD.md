@@ -744,7 +744,7 @@ HSTS (`max-age=63072000; includeSubDomains; preload`), TLS 1.3 only at the edge,
 
 ### 10.1 Tokens (Tailwind v4 CSS-first)
 
-Tokens are defined once in `packages/ui/src/theme.css` as a Tailwind v4 `@theme` block plus shadcn CSS variables; apps consume via `@import` and never redeclare. Values below derive from the captured landing page (draft §13) and are the contract:
+Tokens are defined once in `packages/ui/src/tokens.css` as a Tailwind v4 `@theme` block plus shadcn CSS variables; apps consume via `@import` and never redeclare. Values below derive from the captured landing page (draft §13) and are the contract:
 
 ```css
 @theme {
@@ -1056,6 +1056,8 @@ Implemented in this repo (Phase 0 scaffold per §13.2): root tooling (pnpm works
 Gates after remediation: `pnpm turbo lint typecheck test` 22/22 tasks (config package now participates with its own lint/typecheck/test), both apps' production builds green, Playwright Chromium 11/11 incl. 3 axe scans on the honest-checkout build. Platform lesson recorded as NFR-STACK-11: `react-dom/server` must resolve at runtime (`turbopackIgnore`) — caught by the build gate the moment the drainer route imported the email adapter.
 
 Phase 1 hardening backlog (explicitly NOT done here, no overclaiming): mechanical `import/no-restricted-paths` lint rule (NFR-STACK-3 is review/graph-enforced today), `ShippingRateProvider`/`TaxProvider` concrete adapters behind the new ports, and the consent banner UI consuming `ConsentProvider`.
+
+**2026-09-09 code review + security audit pass (Verified, this workspace).** A tiered review (`docs/audits/2026-09-09-code-review-security-audit/`) fixed: secrets-hygiene (git-tracked `.env` untracked; CI scan gate un-inverted + hardened), production DB-pool caching (fresh Pool per query was exhausting connections), the §9.3 header proxy (relocated to `src/proxy.ts` so it actually registers; PDP matcher exemption narrowed to `*.svg`), render-time §9.4 sanitization (`@scandihaven/commerce/rich-text` wired to every `dangerouslySetInnerHTML` site + JSON-LD escaping), §8.7 webhook atomicity (event insert inside the placement TX; AMOUNT_MISMATCH/OUT_OF_STOCK now place the order in `review` with a `payment_orphan` alert instead of consuming the payment), the admin redirect loop (route-group layout), the FR-302 hydration mismatch, and the order-number `split_part` sequence fix. Remaining medium/low findings are sliced in `docs/plans/2026-09-09-remediation-plan.md` §2/queued list.
 
 ### 14.5 Appendix C — Glossary
 

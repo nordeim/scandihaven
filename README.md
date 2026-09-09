@@ -109,7 +109,7 @@ pnpm typecheck && pnpm lint && pnpm test   # all green
 open http://localhost:3000/shop     # seeded catalog (Halden armchair, Øresund lamp, …)
 ```
 
-Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm seed:admin` (no default credentials ship in the repo).
+Secrets: `BETTER_AUTH_SECRET` ← `openssl rand -base64 32`; `CRON_SECRET` ← `openssl rand -hex 16`. **Never commit `.env`/`.env.local`** — a 2026-09-09 audit found them git-tracked with real secrets (they are untracked now; rotate any value that was exposed or deployed). Stripe test keys come from the Stripe dashboard — without them the checkout shows an explicit "not configured" notice (and the E2E suite asserts that state). Admin user: `SEED_ADMIN_PASSWORD=… pnpm --filter @scandihaven/web seed:admin` (no default credentials ship in the repo).
 
 ## Environment Variables
 
@@ -160,7 +160,7 @@ Typography: **Fraunces** (display, via `next/font`) · **Inter** (UI) — self-h
 
 | Phase | Status | Deliverables |
 |---|---|---|
-| 0 — Foundations (PRD §13.2) | ✅ Complete | Monorepo, schema+migrations+seed, auth+RBAC, design system, storefront core, admin core, Stripe wiring, CI, test suites |
+| 0 — Foundations (PRD §13.2) | ✅ Complete | Monorepo, schema+migrations+seed, auth+RBAC, design system, storefront core, admin core, Stripe wiring, CI, test suites, security-header proxy verified at runtime |
 | 1 — MVP storefront | 🟡 Scaffolded | Full cart/checkout/account flows implemented; facets UI, reviews submission, i18n routing, returns portal pending |
 | 2 — Pre-launch polish | ⬜ | Perf/a11y/SEO passes, consent vendor, image CDN |
 | 3–4 — Soft launch / launch | ⬜ | Per PRD §13.6 |
@@ -179,6 +179,8 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | Seed refuses to run | Seed/migrate only accept local hosts (`localhost`, `127.0.0.1`) by design |
 | `docker compose` volume `pgdata` not found / `scandihaven-db` unhealthy | Renamed to `postgres_data` / `scandihaven_postgres` with `PGDATA` and `start_period`; run `docker compose down -v` once (one-time, re-seeds via `pnpm db:seed`) then `docker compose up -d` (init installs `pgcrypto`+`pg_trgm`) |
 | Image optimizer hangs in CI/sandbox | Set `DISABLE_IMAGE_OPTIMIZER=1` (local only — production keeps the optimizing pipeline) |
+| Responses carry no security headers | `proxy.ts` must live at `apps/*/src/proxy.ts` (Next 16.3 discovers it at the app-dir parent); a repo-root placement compiles but never registers (audit 2026-09-09 H8d) |
+| Admin redirects forever on `/sign-in` | The auth gate lives in the `(staff)` route-group layout; a gate that also wraps `/sign-in` loops (audit 2026-09-09 H7d) |
 
 ## Documentation
 
@@ -187,7 +189,7 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 - [`CLAUDE.md`](./CLAUDE.md) — conventions and workflow contract for assistant-driven development.
 - [`docs/traceability.md`](./docs/traceability.md) — FR → implementation → verification matrix (PRD §14.2).
 - [`docs/verification-ledger.md`](./docs/verification-ledger.md) — running evidence ledger (PRD §12.4).
-- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
+- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08) and the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
 - [`PRD_draft.md`](./PRD_draft.md) — original draft (stack recommendation superseded; domain scope preserved).
 
 ## License

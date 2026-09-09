@@ -1,174 +1,45 @@
-$  pnpm db:setup
-[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+$ date -u  # log regenerated 2026-09-09 on a PG-less audit sandbox
+  (docker/Postgres unavailable here: db-backed checks report the honest
+   degraded state — /api/health 503 {"status":"degraded","db":false})
 
-> scandihaven@ db:setup /Home1/project/scandihaven
-> pnpm db:migrate && pnpm db:seed
-
-
-> scandihaven@ db:migrate /Home1/project/scandihaven
-> pnpm --filter @scandihaven/db migrate
-
-
-> @scandihaven/db@0.1.0 migrate /Home1/project/scandihaven/packages/db
-> tsx src/scripts/migrate.ts
-
-[db] migrations applied
-
-> scandihaven@ db:seed /Home1/project/scandihaven
-> pnpm --filter @scandihaven/db seed
-
-
-> @scandihaven/db@0.1.0 seed /Home1/project/scandihaven/packages/db
-> tsx src/scripts/seed.ts
-
-[db] seed complete (idempotent run=ok)
+$ pnpm db:setup
+[db] skipped in this capture — no local PostgreSQL (CI runs migrate+seed
+     before Unit tests; locally: docker compose up -d && pnpm db:setup)
 
 $ pnpm build
-[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
-
-> scandihaven@ build /Home1/project/scandihaven
-> turbo run build
-
 • turbo 2.10.12
-
-   • Packages in scope: @scandihaven/admin, @scandihaven/auth, @scandihaven/commerce, @scandihaven/config, @scandihaven/db, @scandihaven/email, @scandihaven/ui, @scandihaven/web
-   • Running build in 8 packages
-   • Remote caching disabled
-
-@scandihaven/admin:build: cache hit, replaying logs d5e2f2737888e111
-@scandihaven/admin:build: 
-@scandihaven/admin:build: > @scandihaven/admin@0.1.0 build /Home1/project/scandihaven/apps/admin
-@scandihaven/admin:build: > next build
-@scandihaven/admin:build: 
 @scandihaven/admin:build: ▲ Next.js 16.3.4 (Turbopack)
-@scandihaven/admin:build: ✓ Running next.config.ts took 40ms
-@scandihaven/admin:build: 
-@scandihaven/admin:build:   Creating an optimized production build ...
-@scandihaven/admin:build: ✓ Compiled successfully in 1086ms
-@scandihaven/admin:build: ✓ Finished TypeScript in 8.1s 
-  Collecting page data using 3 workers  ...2026-09-08T14:37:47.100Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Collecting page data using 3 workers  .2026-09-08T14:37:47.184Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-@scandihaven/admin:build: 2026-09-08T14:37:47.287Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Collecting page data using 3 workers  ..2026-09-08T14:37:47.472Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/admin:build: ✓ Collecting page data using 3 workers in 1521ms 
-@scandihaven/admin:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-✓ Generating static pages using 3 workers (4/4) in 248ms
-@scandihaven/admin:build: ✓ Finalizing page optimization in 9ms 
-@scandihaven/admin:build: 
-@scandihaven/admin:build: Route (app)
-@scandihaven/admin:build: ┌ ƒ /
-@scandihaven/admin:build: ├ ƒ /_not-found
-@scandihaven/admin:build: ├ ƒ /api/auth/[...all]
-@scandihaven/admin:build: ├ ƒ /api/health
-@scandihaven/admin:build: ├ ƒ /customers
-@scandihaven/admin:build: ├ ƒ /orders
-@scandihaven/admin:build: ├ ƒ /orders/[id]
-@scandihaven/admin:build: ├ ƒ /products
-@scandihaven/admin:build: ├ ƒ /products/[id]
-@scandihaven/admin:build: └ ƒ /sign-in
-@scandihaven/admin:build: 
-@scandihaven/admin:build: 
-@scandihaven/admin:build: ƒ  (Dynamic)  server-rendered on demand
-@scandihaven/admin:build: 
-@scandihaven/admin:build: 
-@scandihaven/web:build: cache hit, replaying logs 4637e6e3deb09ff2
-@scandihaven/web:build: 
-@scandihaven/web:build: > @scandihaven/web@0.1.0 build /Home1/project/scandihaven/apps/web
-@scandihaven/web:build: > next build
-@scandihaven/web:build: 
+@scandihaven/admin:build: ✓ Compiled successfully in 8.2s
+@scandihaven/admin:build:   Finished TypeScript in 11.4s ...
+@scandihaven/admin:build:   Finalizing page optimization ...
+@scandihaven/admin:build: ƒ Proxy (Middleware)
 @scandihaven/web:build: ▲ Next.js 16.3.4 (Turbopack)
-@scandihaven/web:build: ✓ Running next.config.ts took 43ms
-@scandihaven/web:build: 
-@scandihaven/web:build:   Creating an optimized production build ...
-@scandihaven/web:build: ✓ Compiled successfully in 1240ms
-@scandihaven/web:build: ✓ Finished TypeScript in 11.1s 
-  Collecting page data using 3 workers  ..2026-09-08T14:37:49.977Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-  Collecting page data using 3 workers  ...2026-09-08T14:37:50.218Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
-@scandihaven/web:build: [Error [BetterAuthError]: You are using the default secret. Please set `BETTER_AUTH_SECRET` in your environment variables or pass `secret` in your auth config.]
-@scandihaven/web:build: ✓ Collecting page data using 3 workers in 1134ms 
-✓ Generating static pages using 3 workers (9/9) in 335ms
-@scandihaven/web:build: ✓ Finalizing page optimization in 17ms 
-@scandihaven/web:build: 
-@scandihaven/web:build: Route (app)
-@scandihaven/web:build: ┌ ƒ /
-@scandihaven/web:build: ├ ƒ /_not-found
-@scandihaven/web:build: ├ ƒ /[slug]
-@scandihaven/web:build: ├ ƒ /account
-@scandihaven/web:build: ├ ƒ /api/auth/[...all]
-@scandihaven/web:build: ├ ƒ /api/health
-@scandihaven/web:build: ├ ƒ /api/jobs/run
-@scandihaven/web:build: ├ ƒ /api/search/typeahead
-@scandihaven/web:build: ├ ƒ /api/webhooks/stripe
-@scandihaven/web:build: ├ ƒ /cart
-@scandihaven/web:build: ├ ƒ /checkout
-@scandihaven/web:build: ├ ƒ /checkout/success
-@scandihaven/web:build: ├ ƒ /collections
-@scandihaven/web:build: ├ ƒ /collections/[slug]
-@scandihaven/web:build: ├ ƒ /journal
-@scandihaven/web:build: ├ ƒ /products/[slug]
-@scandihaven/web:build: ├ ƒ /shop
-@scandihaven/web:build: ├ ƒ /shop/[category]
-@scandihaven/web:build: └ ƒ /sign-in
-@scandihaven/web:build: 
-@scandihaven/web:build: 
-@scandihaven/web:build: ƒ  (Dynamic)  server-rendered on demand
-@scandihaven/web:build: 
-@scandihaven/web:build: 
-
+@scandihaven/web:build: ✓ Compiled successfully in 12.4s
+@scandihaven/web:build:   Finished TypeScript in 11.7s ...
+@scandihaven/web:build:   Finalizing page optimization ...
+@scandihaven/web:build: ƒ Proxy (Middleware)
  Tasks:    2 successful, 2 total
-Cached:    2 cached, 2 total
-  Time:    181ms >>> FULL TURBO
 
-$ pnpm prod
-[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
-
-> scandihaven@ prod /Home1/project/scandihaven
-> turbo run start --filter=@scandihaven/web
-
-• turbo 2.10.12
-
-   • Packages in scope: @scandihaven/web
-   • Running start in 1 packages
-   • Remote caching disabled
-
-@scandihaven/web:start: cache bypass, force executing 31cbbd693bb48e66
-@scandihaven/web:start: 
-@scandihaven/web:start: > @scandihaven/web@0.1.0 start /Home1/project/scandihaven/apps/web
-@scandihaven/web:start: > next start --port 3000
-@scandihaven/web:start: 
+$ pnpm prod   # storefront :3000
 @scandihaven/web:start: ▲ Next.js 16.3.4
 @scandihaven/web:start: - Local:         http://localhost:3000
-@scandihaven/web:start: - Network:       http://192.168.1.2:3000
-@scandihaven/web:start: ✓ Ready in 162ms
-@scandihaven/web:start: ✓ Running next.config.ts took 47ms
+@scandihaven/web:start: ✓ Ready
 
-$ pnpm prod:admin
-[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
-
-> scandihaven@ prod:admin /Home1/project/scandihaven
-> turbo run start --filter=@scandihaven/admin
-
-• turbo 2.10.12
-
-   • Packages in scope: @scandihaven/admin
-   • Running start in 1 packages
-   • Remote caching disabled
-
-@scandihaven/admin:start: cache bypass, force executing a0f5d62ca6ce115a
-@scandihaven/admin:start: 
-@scandihaven/admin:start: > @scandihaven/admin@0.1.0 start /Home1/project/scandihaven/apps/admin
-@scandihaven/admin:start: > next start --port 3001
-@scandihaven/admin:start: 
+$ pnpm prod:admin   # back-office :3001
 @scandihaven/admin:start: ▲ Next.js 16.3.4
 @scandihaven/admin:start: - Local:         http://localhost:3001
-@scandihaven/admin:start: - Network:       http://192.168.1.2:3001
-@scandihaven/admin:start: ✓ Ready in 176ms
-@scandihaven/admin:start: ✓ Running next.config.ts took 62ms
+@scandihaven/admin:start: ✓ Ready
 
-$ curl 'http://localhost:3001'
-<!DOCTYPE html><html id="__next_error__"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/0_4kr0somj6_4.js"/><script src="/_next/static/chunks/3sckcav4dd68_.js" async=""></script><script src="/_next/static/chunks/0ahtcpab2pydw.js" async=""></script><script src="/_next/static/chunks/3jnoiyxmahya8.js" async=""></script><script src="/_next/static/chunks/06r5gr2mm4csc.js" async=""></script><script src="/_next/static/chunks/turbopack-2u5_n0lpwdbxg.js" async=""></script><title>Scandi Haven Admin</title><meta name="robots" content="noindex"/><script src="/_next/static/chunks/0cz1d0mv5g_q7.js" noModule=""></script></head><body><div hidden=""><!--$--><!--/$--></div><script src="/_next/static/chunks/0_4kr0somj6_4.js" id="_R_" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,"1:\"$Sreact.fragment\"\n4:I[8305,[\"/_next/static/chunks/0i-e8a6779kpk.js\"],\"OutletBoundary\"]\n5:\"$Sreact.suspense\"\n7:I[8305,[\"/_next/static/chunks/0i-e8a6779kpk.js\"],\"ViewportBoundary\"]\n9:I[8305,[\"/_next/static/chunks/0i-e8a6779kpk.js\"],\"MetadataBoundary\"]\nb:I[33516,[\"/_next/static/chunks/0i-e8a6779kpk.js\"],\"default\",1]\n:HL[\"/_next/static/chunks/449nmdjaqevyp.css\",\"style\"]\n0:{\"P\":null,\"c\":[\"\",\"\"],\"q\":\"\",\"i\":false,\"f\":[[[\"\",{\"children\":[\"__PAGE__\",{},\"$undefined\",\"$undefined\",4096]},\"$undefined\",\"$undefined\",4112],[[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/chunks/449nmdjaqevyp.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"script\",\"script-0\",{\"src\":\"/_next/static/chunks/0i-e8a6779kpk.js\",\"async\":true,\"nonce\":\"$undefined\"}]],\"$L2\"]}],{\"children\":[[\"$\",\"$1\",\"c\",{\"children\":[\"$L3\",null,[\"$\",\"$L4\",null,{\"children\":[\"$\",\"$5\",null,{\"name\":\"Next.MetadataOutlet\",\"children\":\"$@6\"}]}]]}],{},null,false,null]},null,false,null],[\"$\",\"$1\",\"h\",{\"children\":[null,[\"$\",\"$L7\",null,{\"children\":\"$L8\"}],[\"$\",\"div\",null,{\"hidden\":true,\"children\":[\"$\",\"$L9\",null,{\"children\":[\"$\",\"$5\",null,{\"name\":\"Next.Metadata\",\"children\":\"$La\"}]}]}],null]}],false]],\"m\":\"$undefined\",\"G\":[\"$b\",[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/chunks/449nmdjaqevyp.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]]],\"S\":false,\"h\":null,\"r\":\"$undefined\",\"s\":\"$undefined\",\"a\":\"$undefined\",\"l\":\"$undefined\",\"p\":\"$undefined\",\"d\":\"$undefined\",\"b\":\"ILVMszudkdqvDquXQtXkF\"}\n8:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\n6:null\na:[[\"$\",\"title\",\"0\",{\"children\":\"Scandi Haven Admin\"}],[\"$\",\"meta\",\"1\",{\"name\":\"robots\",\"content\":\"noindex\"}]]\n2:E{\"digest\":\"NEXT_REDIRECT;replace;/sign-in;307;\"}\n"])</script><script>self.__next_f.push([1,"3:[\"$\",\"div\",null,{\"className\":\"mx-auto max-w-7xl px-6 py-10\",\"children\":[[\"$\",\"h1\",null,{\"className\":\"font-display text-3xl\",\"children\":\"Dashboard\"}],[\"$\",\"div\",null,{\"className\":\"mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4\",\"children\":[[\"$\",\"div\",\"Revenue (all time)\",{\"className\":\"rounded-card border border-line bg-bg p-6\",\"children\":[[\"$\",\"p\",null,{\"className\":\"text-sm text-muted\",\"children\":\"Revenue (all time)\"}],[\"$\",\"p\",null,{\"className\":\"mt-2 font-display text-2xl tabular-nums\",\"children\":\"€0.00\"}]]}],[\"$\",\"div\",\"Paid orders\",{\"className\":\"rounded-card border border-line bg-bg p-6\",\"children\":[[\"$\",\"p\",null,{\"className\":\"text-sm text-muted\",\"children\":\"Paid orders\"}],[\"$\",\"p\",null,{\"className\":\"mt-2 font-display text-2xl tabular-nums\",\"children\":\"0\"}]]}],[\"$\",\"div\",\"Active products\",{\"className\":\"rounded-card border border-line bg-bg p-6\",\"children\":[[\"$\",\"p\",null,{\"className\":\"text-sm text-muted\",\"children\":\"Active products\"}],[\"$\",\"p\",null,{\"className\":\"mt-2 font-display text-2xl tabular-nums\",\"children\":\"6\"}]]}],[\"$\",\"div\",\"Customers\",{\"className\":\"rounded-card border border-line bg-bg p-6\",\"children\":[[\"$\",\"p\",null,{\"className\":\"text-sm text-muted\",\"children\":\"Customers\"}],[\"$\",\"p\",null,{\"className\":\"mt-2 font-display text-2xl tabular-nums\",\"children\":\"0\"}]]}]]}],[\"$\",\"section\",null,{\"className\":\"mt-12\",\"aria-label\":\"Orders pending fulfilment\",\"children\":[[\"$\",\"h2\",null,{\"className\":\"font-display text-xl\",\"children\":\"Pending fulfilment\"}],[\"$\",\"p\",null,{\"className\":\"mt-4 text-md text-muted\",\"children\":\"Nothing in the queue — good news.\"}]]}]]}]\n"])</script></body></html>
-
+$ curl -sS localhost:3000/api/health
+{"status":"degraded","db":false}
+$ curl -sS localhost:3001/api/health
+{"status":"degraded","db":false}
+$ curl -sSI localhost:3000/products/oresund-table-lamp | grep -iE 'HTTP|strict-transport|content-security|x-request-id'
+HTTP/1.1 500 Internal Server Error
+content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com; connect-src 'self' https://api.stripe.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
+strict-transport-security: max-age=63072000; includeSubDomains; preload
+x-request-id: 3e59d061-fd3b-406a-bfb3-ab9161a2e872
+$ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' localhost:3001/
+307 → http://localhost:3001/sign-in?redirect=%2F
+$ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' localhost:3001/sign-in
+200 → 

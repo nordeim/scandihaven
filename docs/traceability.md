@@ -76,6 +76,19 @@ Audit evidence: `docs/audits/2026-09-08-prd-alignment/` · Evidence log: `docs/v
 | Analytics `order_completed` server-authoritative | Aligned (TX-embedded); typed `track()` client module | Deferred (B8) |
 | i18n (next-intl, hreflang) | Deferred (B8); `FEATURE_I18N` default documented as unimplemented |
 
+## 2026-09-09 audit pass updates (docs/audits/2026-09-09-code-review-security-audit/)
+
+| Contract | Change | Status |
+|---|---|---|
+| §9.3 security headers | Proxy convention file relocated to `src/proxy.ts` (repo-root placement was never registered — headers were inert in every prior build); PDP matcher exemption narrowed to `products/*.svg`; headers verified at runtime on 200s and 500s | **Aligned (runtime-verified)** |
+| §9.4 render sanitization | `@scandihaven/commerce/rich-text` allow-list sanitizer + JSON-LD escaper wired to all six innerHTML sites (comments previously claimed sanitization that did not exist) | **Aligned** |
+| §8.7 webhook-after-abort | `webhook_event` insert moved inside the placement TX; mismatch/stock failure places the order in `review` + `payment_orphan` job (slice R6; B2 remainder = reconciliation tooling) | **Aligned (core)** |
+| FR-403/§7.4 cart identity | Production DB-pool caching fixed (fresh Pool per query previously exhausted connections — root cause of live intermittent 500s) | **Aligned** |
+| §9.2 admin gate | `(staff)` route-group layout; `/sign-in` ungated but header-covered; root-layout redirect loop eliminated | **Aligned** |
+| §13.3 CI gates | Secret-scan gate un-inverted (rg exit semantics) + non-placeholder secret patterns; `.env`/`.env.local` untracked with rotation flagged | **Aligned** |
+| FR-302 PDP variant deep link | `useSyncExternalStore` URL read (hydration-safe) | **Aligned** |
+| FR-509 order numbers | `split_part` sequence extraction (was off-by-one at seq ≥ 100,000) | **Aligned (CI-verified)** |
+
 ## Known deviations recorded (honest ledger)
 
 1. Coverage gate `include` is the 5 pure domain modules (documented in `packages/commerce/vitest.config.ts`); DB-backed services are covered by the CI integration layer (jobs, promotions seam, rate limit) rather than whole-package thresholds.
@@ -83,3 +96,4 @@ Audit evidence: `docs/audits/2026-09-08-prd-alignment/` · Evidence log: `docs/v
 3. `request-dedupe` is per-instance in-memory (documented in-code; multi-instance upgrade path named).
 4. Two-factor auth and magic link are Phase 1 deferrals (in-code comments) — now tracked here instead of a non-existent ledger file.
 5. Reservation protocol (§7.6 two-phase) is the top backlog slice (B1): placement currently decrements on-hand under lock (no oversell) but does not hold a reserved window or release on cancel.
+6. 2026-09-09 audit additions to the honest ledger: free_shipping/tiered promotions are silent no-ops end-to-end (M1d); shipping is not charged (`shippingMinor: 0` both totals paths — goods-only launch decision needed, H4-doc); jobs lack a running-lease reaper (M4d); promotion usage limits are not enforced at placement (H3d/B3).

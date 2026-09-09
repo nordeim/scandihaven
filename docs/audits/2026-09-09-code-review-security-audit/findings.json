@@ -1,0 +1,436 @@
+{
+  "audit": "2026-09-09-code-review-security-audit",
+  "method": "three parallel review tracks + main-agent verification of Critical/High findings; Iron Law evidence rules",
+  "severityCounts": {
+    "critical": 2,
+    "high": 9,
+    "medium": 12,
+    "low": 14,
+    "informational": 9
+  },
+  "findings": [
+    {
+      "id": "C1",
+      "severity": "critical",
+      "location": "packages/db/src/client.ts:74-90",
+      "title": "Production creates a new connection Pool per db property access",
+      "evidence": "function getPool(): Pool { if (globalForDb.__scandihavenPool) return globalForDb.__scandihavenPool; const pool = createPool(); if (process.env.NODE_ENV !== \"production\") { globalForDb.__scandihavenPool = pool; } return pool; } (same for getDb); db/pool are Proxies whose get trap calls getDb()/getPool() on every property access",
+      "impact": "Under next start (NODE_ENV=production) every db.select() creates a fresh Drizzle instance + Pool (max 10) that is never reused or closed -> TCP+auth per query, idle pools linger 30s, PG max_connections exhaustion under modest concurrency. Prime suspect for live intermittent 500s (LD-1). Dev/CI (NODE_ENV!=production) cache, so gates never see it.",
+      "fix": "Cache unconditionally on globalThis (HMR concern is dev-only); unit test pool/db identity under NODE_ENV=production",
+      "confidence": "Verified"
+    },
+    {
+      "id": "C2",
+      "severity": "critical",
+      "location": ".env, .env.local (git-tracked; .gitignore lists them but they were tracked before the rule)",
+      "title": "Real secrets committed to git",
+      "evidence": "git ls-files shows .env + .env.local tracked; BETTER_AUTH_SECRET=5Rju5grQ…[REDACTED — rotate] ; CRON_SECRET=a2330c34…[REDACTED — rotate]",
+      "impact": "Violates PRD §13.4 / CLAUDE.md / security-and-hardening. BETTER_AUTH_SECRET signs auth sessions AND cart HMAC cookies; CRON_SECRET gates /api/jobs/run. Values are public in git history and presumably run in production. CI secret scan passes because no pattern matches base64/hex secret assignments.",
+      "fix": "git rm --cached .env .env.local; harden CI scan patterns (non-placeholder BETTER_AUTH_SECRET/CRON_SECRET shapes); ROTATE both secrets in the deployment (ops)",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-1",
+      "severity": "high",
+      "location": "apps/web/proxy.ts:24",
+      "title": "Proxy matcher strips security headers from every PDP route",
+      "evidence": "matcher: [\"/((?!_next/static|_next/image|favicon.ico|products).*)\"] — token `products` was meant to exempt public/products/*.svg but matches the /products/[slug] route",
+      "impact": "PDPs (the pages rendering admin-authored rich HTML and JSON-LD) receive no CSP/HSTS/nosniff/XFO/Referrer-Policy/Permissions-Policy",
+      "fix": "Narrow exclusion to products/[^/]*\\.svg; extract pure shouldProxy()/matcher helper + unit test",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-2",
+      "severity": "high",
+      "location": "apps/web/src/app/products/[slug]/page.tsx:144-173 + :74-78 (JSON-LD); apps/web/src/app/[slug]/page.tsx:31-34; apps/web/src/app/collections/[slug]/page.tsx:66-70",
+      "title": "Admin-authored HTML rendered raw; no sanitizer exists; JSON-LD not escaped",
+      "evidence": "6 dangerouslySetInnerHTML sites; comment claims 'rendered after sanitization (PRD §9.4)' but repo-wide grep for sanitiz|dompurify|sanitize-html|xss finds zero implementation; JSON.stringify(jsonLd) not <-escaped",
+      "impact": "Stored-XSS path from any DB write (compromised admin app, seed, or future injection); JSON-LD script-tag breakout via title/seoDescription containing </script>; comments actively mislead reviewers",
+      "fix": "Add sanitizeRichText() (vetted allow-list lib: sanitize-html) + safeJsonLd() (< -> \\u003c) in packages/commerce with unit tests; wire all 6 sites",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-3",
+      "severity": "high",
+      "location": "apps/web/src/components/checkout-flow.tsx:139-149",
+      "title": "Null-Stripe race treated as payment success",
+      "evidence": "const { error: confirmError } = await stripe?.confirmPayment({ elements, redirect: \"if_required\" }) ?? { error: undefined }; if (confirmError) {...} router.push(\"/checkout/success\");",
+      "impact": "If useStripe() returns null (stripe.js blocked/not ready), optional chain short-circuits to undefined, ?? fabricates success shape, user lands on confirmation with no PaymentIntent confirmed and no webhook order",
+      "fix": "if (!stripe || !elements) { setError(...); return; } before confirm",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H4d",
+      "severity": "high",
+      "location": "packages/commerce/src/checkout-service.ts:189-198,249-267; apps/web/src/app/api/webhooks/stripe/route.ts:47-51",
+      "title": "Paid orders can be silently lost: webhook_event commits pre-placement; mismatch consumes payment without review state",
+      "evidence": "insert(webhookEvent).onConflictDoNothing() auto-commits OUTSIDE the placement tx; on AMOUNT_MISMATCH/OUT_OF_STOCK the handler throws -> 500; Stripe retry then hits the committed event row -> 200 duplicate no-op. PRD §8.7 (normative): mismatch must create order in `review` + payment_orphan alert",
+      "impact": "statement_timeout/deadlock/crash between event insert and placement commit permanently consumes the Stripe event id: money captured, no order, no CS flag, no alert — the exact 'single worst failure mode' §8.7 covers",
+      "fix": "Move webhook_event insert inside the placement transaction; on mismatch/stock failure still place order in `review` + write payment row + emit payment_orphan job, all in-tx",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-4",
+      "severity": "high",
+      "location": "apps/web/src/components/cart-view.tsx:20-43",
+      "title": "Optimistic qty update never rolled back; failure invisible",
+      "evidence": "refresh(): if (result.ok) { setCart(result.data); } — !ok branch does nothing; comment claims rollback exists",
+      "impact": "On action failure the optimistic (wrong-money) state persists with no error surfaced until full reload",
+      "fix": "On !ok re-sync last server payload + setError with role=alert (or drop optimistic write)",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "H5d",
+      "severity": "high",
+      "location": "live deployment (ops)",
+      "title": "Deployed instances carry no security headers and stale admin proxy (307 loop on /sign-in)",
+      "evidence": "curl -I on both hosts: no HSTS/CSP/nosniff/XFO/Referrer-Policy; /sign-in returned 200 at 23:39 then persistent 307->/sign-in from 23:52; HEAD sets headers + excludes /sign-in from the gate",
+      "impact": "Deployed build predates HEAD; admin intermittently unusable; all §9.3 header controls absent in production",
+      "fix": "Redeploy from main; add deploy-fingerprint smoke (headers + /sign-in status) to release runbook",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-1",
+      "severity": "medium",
+      "location": "apps/web/src/components/cart-drawer.tsx:23-33",
+      "title": "Drawer discards ActionResult failures; store lastError dead code",
+      "fix": "Inspect result; setError + role=alert strip in drawer",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-2",
+      "severity": "medium",
+      "location": "14 sites: site-header.tsx:21,24; layout.tsx:34; app/page.tsx:139,157,179; journal/page.tsx:12; collections/page.tsx:13; collections/[slug]/page.tsx:26; products/[slug]/page.tsx:15; checkout/page.tsx:18; account/page.tsx:21; api/search/typeahead/route.ts:50",
+      "title": "catch(() => null) without paired console.error (violates AGENTS.md); two have user-facing harm",
+      "fix": "Pair every catch with console.error(context); checkout/account distinguish empty-vs-error",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-3",
+      "severity": "medium",
+      "location": "apps/web/src/components/product-buy-panel.tsx:36-45",
+      "title": "?variant= deep-link hydration mismatch (window-dependent useState initializer)",
+      "fix": "Default-variant init + useEffect sync from location.search",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-4",
+      "severity": "medium",
+      "location": "apps/web/src/app/layout.tsx:33-34 + site-header.tsx:23-25",
+      "title": "cookies() in root layout forces dynamic rendering everywhere; documented ISR revalidate:300 inert; duplicate cart fetch per request",
+      "fix": "Move cart reads out of root layout into client island fed by getCartAction; or document dynamic-render tradeoff (doc fix)",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-5",
+      "severity": "medium",
+      "location": "apps/web/src/components/site-header.tsx:45",
+      "title": "No mobile navigation at all (<768px); live mobile probe confirms no hamburger",
+      "fix": "Hamburger + Drawer side=left nav below md (planned surface per drawer docblock; FR-102)",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-6",
+      "severity": "medium",
+      "location": "apps/web/src/app/sign-in/page.tsx:50-57",
+      "title": "minLength=10 on sign-in input blocks legacy/short passwords client-side",
+      "fix": "Drop minLength on sign-in (keep required); enforce policy at registration/reset only",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-7",
+      "severity": "medium",
+      "location": "apps/web/src/app/journal/page.tsx (+ no journal/[slug] route)",
+      "title": "Journal teasers are not links and no detail route exists — looks shipped, is a stub",
+      "fix": "Interim: honest deferred notice naming FR-703 (like /lookbooks 404); Phase 1: journal detail route",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M1d",
+      "severity": "medium",
+      "location": "packages/commerce/src/pricing.ts:80-91,199-200; cart-service.ts:242,284; checkout-service.ts:71-79",
+      "title": "free_shipping never selected; tiered discounts 0 (tiersJson dropped); category conditions never satisfied (FR-810 kinds silently no-op)",
+      "fix": "Select free_shipping when best; load tiersJson; fetch category ids; fail loudly on unsupported kinds",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M2d",
+      "severity": "medium",
+      "location": "packages/commerce/src/checkout-service.ts:276-281",
+      "title": "Order-number substring offset wrong (from 10; 'SH-2026-' is 8 chars) — collides at seq >= 100,000, then all placements for the year fail",
+      "fix": "split_part(number,'-',3)::int; integration test at CI",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M3d",
+      "severity": "medium",
+      "location": "packages/commerce/src/checkout-service.ts:258-268,354-372",
+      "title": "Multi-warehouse FOR UPDATE without warehouse predicate; single arbitrary row checked/decremented (= B1 territory)",
+      "fix": "Aggregate availability across warehouses deterministically; prefer non-showroom warehouse; set fulfillableFrom",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M4d",
+      "severity": "medium",
+      "location": "packages/commerce/src/jobs.ts:78-98",
+      "title": "Jobs stranded in running forever after crash mid-drain (no lease/reaper)",
+      "fix": "running_until lease + stale-claim re-queue (FOR UPDATE SKIP LOCKED)",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M5d",
+      "severity": "medium",
+      "location": "packages/db/src/seed/ensure-seeded.ts:540-544; packages/db/src/schema/content.ts (announcement)",
+      "title": "Announcement insert not idempotent (no conflict target, no unique key) — duplicates on every re-seed",
+      "fix": "SELECT-guard like shipping block now; unique key on message with B6 migration later",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M6d",
+      "severity": "medium",
+      "location": "packages/db/src/scripts/migrate.ts",
+      "title": "db:migrate lacks the local-host guard that AGENTS.md documents",
+      "fix": "Extract assertLocalDatabase/isLocalDatabaseUrl (unit-tested) and call in migrate.ts",
+      "confidence": "Verified"
+    },
+    {
+      "id": "L-batch",
+      "severity": "low",
+      "location": "various",
+      "title": "L-1 /shop canonical missing; L-2 no robots.ts/sitemap.ts (B8); L-3 duplicate cart fetch no cache(); L-4 metadataBase localhost fallback; L-5 touch targets <44px; L-6 fieldErrors never rendered; L-7 static-page title from slug; L-8 newsletter copy promises unimplemented double opt-in; L9d typeahead wildcards unescaped; L1d state machine vs §7.7 mismatch (review->shipped allowed; refund_full from pending_payment); L2d FX float rounding; L3d percent promo float division; L4d applyPromotionByCode not transactional; L5d addLine unique-violation race; L6d rate-limit retention per-bucket only; L7d dotenv CJS-in-ESM shim silent catch + build noise; L8d .env before .env.local precedence",
+      "fix": "see remediation plan slices",
+      "confidence": "Mixed (Verified/Reasoned per item)"
+    },
+    {
+      "id": "H6d",
+      "severity": "high",
+      "location": ".github/workflows/ci.yml (Secret scan step)",
+      "title": "CI secret-scan gate is inverted: passes on leaks, fails on clean repos",
+      "evidence": "rg ... . && echo 'secret scan clean' || { echo error; exit 1; } — rg exits 0 when a match is FOUND, so the step succeeded with secrets present and failed (exit 1) when the repo was clean. Verified locally: no-match exit 1, with-match exit 0.",
+      "impact": "The §13.3 'secret scan' gate never protected anything: every clean run was red (disguised as flakiness) and a genuine leak would have sailed through green.",
+      "fix": "if rg <patterns> . ; then error+exit 1; else echo clean; fi  — shipped with the 2026-09-09 remediation; also gains non-placeholder BETTER_AUTH_SECRET/CRON_SECRET patterns (C2).",
+      "confidence": "Verified"
+    },
+    {
+      "id": "I-batch",
+      "severity": "informational",
+      "location": "various",
+      "title": "ui ./separator dead export; health log typo 'ealth]'; webkit project never run; no root seed:admin alias; getCartDto drops unpriced lines + nondeterministic image pick; PI idempotency-key metadata reuse edge; unknown@scandihaven.example order email fallback; Klarna mark while flag off (live); PRD §10.1 theme.css vs tokens.css doc bug",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-1",
+      "severity": "high",
+      "location": "apps/web/proxy.ts:24",
+      "title": "Proxy matcher strips security headers from every PDP route",
+      "evidence": "matcher: [\"/((?!_next/static|_next/image|favicon.ico|products).*)\"] — token `products` was meant to exempt public/products/*.svg but matches the /products/[slug] route",
+      "impact": "PDPs (the pages rendering admin-authored rich HTML and JSON-LD) receive no CSP/HSTS/nosniff/XFO/Referrer-Policy/Permissions-Policy",
+      "fix": "Narrow exclusion to products/[^/]*\\.svg; extract pure shouldProxy()/matcher helper + unit test",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-2",
+      "severity": "high",
+      "location": "apps/web/src/app/products/[slug]/page.tsx:144-173 + :74-78 (JSON-LD); apps/web/src/app/[slug]/page.tsx:31-34; apps/web/src/app/collections/[slug]/page.tsx:66-70",
+      "title": "Admin-authored HTML rendered raw; no sanitizer exists; JSON-LD not escaped",
+      "evidence": "6 dangerouslySetInnerHTML sites; comment claims 'rendered after sanitization (PRD §9.4)' but repo-wide grep for sanitiz|dompurify|sanitize-html|xss finds zero implementation; JSON.stringify(jsonLd) not <-escaped",
+      "impact": "Stored-XSS path from any DB write (compromised admin app, seed, or future injection); JSON-LD script-tag breakout via title/seoDescription containing </script>; comments actively mislead reviewers",
+      "fix": "Add sanitizeRichText() (vetted allow-list lib: sanitize-html) + safeJsonLd() (< -> \\u003c) in packages/commerce with unit tests; wire all 6 sites",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-3",
+      "severity": "high",
+      "location": "apps/web/src/components/checkout-flow.tsx:139-149",
+      "title": "Null-Stripe race treated as payment success",
+      "evidence": "const { error: confirmError } = await stripe?.confirmPayment({ elements, redirect: \"if_required\" }) ?? { error: undefined }; if (confirmError) {...} router.push(\"/checkout/success\");",
+      "impact": "If useStripe() returns null (stripe.js blocked/not ready), optional chain short-circuits to undefined, ?? fabricates success shape, user lands on confirmation with no PaymentIntent confirmed and no webhook order",
+      "fix": "if (!stripe || !elements) { setError(...); return; } before confirm",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H4d",
+      "severity": "high",
+      "location": "packages/commerce/src/checkout-service.ts:189-198,249-267; apps/web/src/app/api/webhooks/stripe/route.ts:47-51",
+      "title": "Paid orders can be silently lost: webhook_event commits pre-placement; mismatch consumes payment without review state",
+      "evidence": "insert(webhookEvent).onConflictDoNothing() auto-commits OUTSIDE the placement tx; on AMOUNT_MISMATCH/OUT_OF_STOCK the handler throws -> 500; Stripe retry then hits the committed event row -> 200 duplicate no-op. PRD §8.7 (normative): mismatch must create order in `review` + payment_orphan alert",
+      "impact": "statement_timeout/deadlock/crash between event insert and placement commit permanently consumes the Stripe event id: money captured, no order, no CS flag, no alert — the exact 'single worst failure mode' §8.7 covers",
+      "fix": "Move webhook_event insert inside the placement transaction; on mismatch/stock failure still place order in `review` + write payment row + emit payment_orphan job, all in-tx",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H-4",
+      "severity": "high",
+      "location": "apps/web/src/components/cart-view.tsx:20-43",
+      "title": "Optimistic qty update never rolled back; failure invisible",
+      "evidence": "refresh(): if (result.ok) { setCart(result.data); } — !ok branch does nothing; comment claims rollback exists",
+      "impact": "On action failure the optimistic (wrong-money) state persists with no error surfaced until full reload",
+      "fix": "On !ok re-sync last server payload + setError with role=alert (or drop optimistic write)",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "H5d",
+      "severity": "high",
+      "location": "live deployment (ops)",
+      "title": "Deployed instances carry no security headers and stale admin proxy (307 loop on /sign-in)",
+      "evidence": "curl -I on both hosts: no HSTS/CSP/nosniff/XFO/Referrer-Policy; /sign-in returned 200 at 23:39 then persistent 307->/sign-in from 23:52; HEAD sets headers + excludes /sign-in from the gate",
+      "impact": "Deployed build predates HEAD; admin intermittently unusable; all §9.3 header controls absent in production",
+      "fix": "Redeploy from main; add deploy-fingerprint smoke (headers + /sign-in status) to release runbook",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H7d",
+      "severity": "high",
+      "location": "apps/admin/src/app/layout.tsx:14-18",
+      "title": "Admin root layout redirects /sign-in to /sign-in — infinite loop, admin unusable while sessionless",
+      "evidence": "Layout calls auth.api.getSession(); `if (!session?.user) redirect('/sign-in')` wraps EVERY page including /sign-in itself. Verified at runtime: GET /sign-in -> 307 location: /sign-in (no redirect param) — browser sees ERR_TOO_MANY_REDIRECTS (matches live LD-3).",
+      "fix": "Move the auth gate + chrome into a `(staff)` route-group layout wrapping all surfaces except /sign-in (shipped 2026-09-09); page-level requirePermission() remains the server control.",
+      "confidence": "Verified"
+    },
+    {
+      "id": "H8d",
+      "severity": "high",
+      "location": "apps/web/proxy.ts, apps/admin/proxy.ts (repo-root placement)",
+      "title": "Proxy convention file was never registered: security headers, request IDs, and the admin proxy gate never ran at runtime",
+      "evidence": "Next 16.3.4 discovers proxy at the parent of the app dir — for src-dir apps that is `src/proxy.ts`. A repo-root proxy.ts compiles (middleware.js emitted) but middleware-manifest.json registers `middleware: {}` — verified empty on HEAD build; runtime responses carried no security headers and no x-request-id (matches live LD-2 exactly). Runtime headers verified PRESENT after moving to src/proxy.ts (CSP, HSTS preload, nosniff, XFO, Referrer-Policy, Permissions-Policy, x-request-id on 200s and even on 500s).",
+      "impact": "§9.3 transport/header controls were entirely inert in every build (including the deployed site); the admin proxy gate never executed (page-level requirePermission was the working gate).",
+      "fix": "Move both proxies to src/proxy.ts; keep matcher inline (Next statically parses config); admin proxy additionally now applies headers to /sign-in while leaving it ungated.",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-1",
+      "severity": "medium",
+      "location": "apps/web/src/components/cart-drawer.tsx:23-33",
+      "title": "Drawer discards ActionResult failures; store lastError dead code",
+      "fix": "Inspect result; setError + role=alert strip in drawer",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-2",
+      "severity": "medium",
+      "location": "14 sites: site-header.tsx:21,24; layout.tsx:34; app/page.tsx:139,157,179; journal/page.tsx:12; collections/page.tsx:13; collections/[slug]/page.tsx:26; products/[slug]/page.tsx:15; checkout/page.tsx:18; account/page.tsx:21; api/search/typeahead/route.ts:50",
+      "title": "catch(() => null) without paired console.error (violates AGENTS.md); two have user-facing harm",
+      "fix": "Pair every catch with console.error(context); checkout/account distinguish empty-vs-error",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-3",
+      "severity": "medium",
+      "location": "apps/web/src/components/product-buy-panel.tsx:36-45",
+      "title": "?variant= deep-link hydration mismatch (window-dependent useState initializer)",
+      "fix": "Default-variant init + useEffect sync from location.search",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-4",
+      "severity": "medium",
+      "location": "apps/web/src/app/layout.tsx:33-34 + site-header.tsx:23-25",
+      "title": "cookies() in root layout forces dynamic rendering everywhere; documented ISR revalidate:300 inert; duplicate cart fetch per request",
+      "fix": "Move cart reads out of root layout into client island fed by getCartAction; or document dynamic-render tradeoff (doc fix)",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-5",
+      "severity": "medium",
+      "location": "apps/web/src/components/site-header.tsx:45",
+      "title": "No mobile navigation at all (<768px); live mobile probe confirms no hamburger",
+      "fix": "Hamburger + Drawer side=left nav below md (planned surface per drawer docblock; FR-102)",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M-6",
+      "severity": "medium",
+      "location": "apps/web/src/app/sign-in/page.tsx:50-57",
+      "title": "minLength=10 on sign-in input blocks legacy/short passwords client-side",
+      "fix": "Drop minLength on sign-in (keep required); enforce policy at registration/reset only",
+      "confidence": "Reasoned"
+    },
+    {
+      "id": "M-7",
+      "severity": "medium",
+      "location": "apps/web/src/app/journal/page.tsx (+ no journal/[slug] route)",
+      "title": "Journal teasers are not links and no detail route exists — looks shipped, is a stub",
+      "fix": "Interim: honest deferred notice naming FR-703 (like /lookbooks 404); Phase 1: journal detail route",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M1d",
+      "severity": "medium",
+      "location": "packages/commerce/src/pricing.ts:80-91,199-200; cart-service.ts:242,284; checkout-service.ts:71-79",
+      "title": "free_shipping never selected; tiered discounts 0 (tiersJson dropped); category conditions never satisfied (FR-810 kinds silently no-op)",
+      "fix": "Select free_shipping when best; load tiersJson; fetch category ids; fail loudly on unsupported kinds",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M2d",
+      "severity": "medium",
+      "location": "packages/commerce/src/checkout-service.ts:276-281",
+      "title": "Order-number substring offset wrong (from 10; 'SH-2026-' is 8 chars) — collides at seq >= 100,000, then all placements for the year fail",
+      "fix": "split_part(number,'-',3)::int; integration test at CI",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M3d",
+      "severity": "medium",
+      "location": "packages/commerce/src/checkout-service.ts:258-268,354-372",
+      "title": "Multi-warehouse FOR UPDATE without warehouse predicate; single arbitrary row checked/decremented (= B1 territory)",
+      "fix": "Aggregate availability across warehouses deterministically; prefer non-showroom warehouse; set fulfillableFrom",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M4d",
+      "severity": "medium",
+      "location": "packages/commerce/src/jobs.ts:78-98",
+      "title": "Jobs stranded in running forever after crash mid-drain (no lease/reaper)",
+      "fix": "running_until lease + stale-claim re-queue (FOR UPDATE SKIP LOCKED)",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M5d",
+      "severity": "medium",
+      "location": "packages/db/src/seed/ensure-seeded.ts:540-544; packages/db/src/schema/content.ts (announcement)",
+      "title": "Announcement insert not idempotent (no conflict target, no unique key) — duplicates on every re-seed",
+      "fix": "SELECT-guard like shipping block now; unique key on message with B6 migration later",
+      "confidence": "Verified"
+    },
+    {
+      "id": "M6d",
+      "severity": "medium",
+      "location": "packages/db/src/scripts/migrate.ts",
+      "title": "db:migrate lacks the local-host guard that AGENTS.md documents",
+      "fix": "Extract assertLocalDatabase/isLocalDatabaseUrl (unit-tested) and call in migrate.ts",
+      "confidence": "Verified"
+    },
+    {
+      "id": "L-batch",
+      "severity": "low",
+      "location": "various",
+      "title": "L-1 /shop canonical missing; L-2 no robots.ts/sitemap.ts (B8); L-3 duplicate cart fetch no cache(); L-4 metadataBase localhost fallback; L-5 touch targets <44px; L-6 fieldErrors never rendered; L-7 static-page title from slug; L-8 newsletter copy promises unimplemented double opt-in; L9d typeahead wildcards unescaped; L1d state machine vs §7.7 mismatch (review->shipped allowed; refund_full from pending_payment); L2d FX float rounding; L3d percent promo float division; L4d applyPromotionByCode not transactional; L5d addLine unique-violation race; L6d rate-limit retention per-bucket only; L7d dotenv CJS-in-ESM shim silent catch + build noise; L8d .env before .env.local precedence",
+      "fix": "see remediation plan slices",
+      "confidence": "Mixed (Verified/Reasoned per item)"
+    },
+    {
+      "id": "H6d",
+      "severity": "high",
+      "location": ".github/workflows/ci.yml (Secret scan step)",
+      "title": "CI secret-scan gate is inverted: passes on leaks, fails on clean repos",
+      "evidence": "rg ... . && echo 'secret scan clean' || { echo error; exit 1; } — rg exits 0 when a match is FOUND, so the step succeeded with secrets present and failed (exit 1) when the repo was clean. Verified locally: no-match exit 1, with-match exit 0.",
+      "impact": "The §13.3 'secret scan' gate never protected anything: every clean run was red (disguised as flakiness) and a genuine leak would have sailed through green.",
+      "fix": "if rg <patterns> . ; then error+exit 1; else echo clean; fi  — shipped with the 2026-09-09 remediation; also gains non-placeholder BETTER_AUTH_SECRET/CRON_SECRET patterns (C2).",
+      "confidence": "Verified"
+    },
+    {
+      "id": "I-batch",
+      "severity": "informational",
+      "location": "various",
+      "title": "ui ./separator dead export; health log typo 'ealth]'; webkit project never run; no root seed:admin alias; getCartDto drops unpriced lines + nondeterministic image pick; PI idempotency-key metadata reuse edge; unknown@scandihaven.example order email fallback; Klarna mark while flag off (live); PRD §10.1 theme.css vs tokens.css doc bug",
+      "confidence": "Verified"
+    }
+  ],
+  "struck": [
+    {
+      "title": "CI push trigger 'branches: ain]' corrupted",
+      "reason": "STRUCK after raw-byte verification: the file contains branches: [main] (0x5b 0x6d ...); terminal display swallowed the [m substring as an apparent ANSI reset. CI triggers correctly on main. The prior audit's 'valid' retraction was correct."
+    }
+  ]
+}

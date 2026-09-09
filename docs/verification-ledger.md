@@ -56,3 +56,47 @@ Environment note: audit/remediation sandbox has **no Docker and no local Postgre
 - `packages/auth/package.json` gained an exports entry (`./next-handler`) — package metadata for new source, not a dependency change.
 - Dependency audit status at remediation time: 1 moderate, 0 high (audit gate blocking is safe).
 - Deferred slices with rationale: `docs/plans/2026-09-08-remediation-plan.md` §3 (B1–B12).
+
+## 2026-09-09 — Code review + security audit remediation pass
+
+Environment note: sandbox has no Docker/Postgres/Stripe. Real-PG integration suites run in CI (PG 17 service, migrate+seed precede the test step). All findings in `docs/audits/2026-09-09-code-review-security-audit/findings.json`.
+
+### Executed slices (TDD: red → green where seams allow)
+
+| Slice | Change | Evidence | Confidence |
+|---|---|---|---|
+| R1 secrets | `git rm --cached .env .env.local`; CI scan: if-match-fail semantics + non-placeholder `BETTER_AUTH_SECRET`/`CRON_SECRET` PCRE2 patterns + `docs/audits/**` exclusion; evidence files redacted | hardened scan dry-run catches secret shapes; `git ls-files` shows only `.env.example` | Verified |
+| R2 pool | `packages/db/client.ts` caches Pool/Drizzle unconditionally; `client-caching.test.ts` 3/3 (identity + slots under NODE_ENV=production) | red 3-fail observed → green | Verified |
+| R3 matcher | `apps/web/src/lib/proxy-matcher.ts` (`shouldProxy`) + drift-guard test vs inline proxy.ts literal; PDP proxied, `products/*.svg` exempt | red (PDP unproxied under old token) → green 6/6 | Verified |
+| R4 sanitizer | `@scandihaven/commerce/rich-text` (sanitizeRichText allow-list + safeJsonLd escape) + 11 unit tests; wired to all 6 `dangerouslySetInnerHTML` sites | red (module missing) → green; grep: every `__html:` wrapped | Verified |
+| R5 stripe guard | checkout-flow null-Stripe → retryable error, no false `/checkout/success` | code + typecheck (no stripe.js harness in sandbox) | Reasoned |
+| R6 webhook | `webhook_event` insert inside placement TX; `resolvePlacementOutcome` pure seam (4 unit tests); AMOUNT_MISMATCH/OUT_OF_STOCK → order in `review` + payment row + `ops.payment_orphan` job, cart converted, no stock decrement/email/analytics | unit red→green; TX semantics exercised in CI integration runs | Verified (pure seam) / Reasoned (PG) |
+| R7 order numbers | `split_part(number,'-',3)` replaces `substring(number from 10)` (collision at seq ≥ 100,000) | arithmetic analysis; CI integration covers placements | Reasoned |
+| R8 seed | announcement insert existence-guarded (duplicate rows on re-seed) | code review; CI re-seeds | Reasoned |
+| R9 migrate guard | shared `local-db.ts` `isLocalDatabaseUrl`/`assertLocalDatabase` (6 unit tests incl. IPv6 bracket case) wired into migrate + reset + ensure-seeded | red (missing) → green | Verified |
+| R10 silent catches | 14 `catch(() => null)` sites paired with labeled `console.error`; checkout page distinguishes empty-cart vs lookup failure (rethrows to boundary) | lint/typecheck | Verified |
+| R11 cart UX | cart-view rolls optimistic update back to server payload + `role="alert"`; cart-drawer surfaces ActionResult failures | typecheck; behavior by review | Reasoned |
+| R12 hydration | PDP `?variant=` read via `useSyncExternalStore` (server snapshot null) — no hydration mismatch, popstate-aware | typecheck + build | Verified (mechanism) |
+| R13 sign-in | `minLength={10}` removed from storefront sign-in input | code | Verified |
+| R14 E2E spec | checkout test waits for drawer text (mirrors cart test) instead of `waitForTimeout(500)` | spec review | Verified |
+| R15 smalls | health log prefix fixed; dead `./separator` export removed | grep | Verified |
+| R17 admin loop | `(staff)` route-group layout carries gate+chrome; `/sign-in` split (server wrapper `force-dynamic` + Suspense around client form) | runtime: `/sign-in` 200×2 (was 307-loop); `/`, `/products` 307 → sign-in?redirect | Verified |
+| R18 proxy location | both proxies moved to `src/proxy.ts`; builds print `ƒ Proxy (Middleware)`; runtime headers verified | manifest `{}` before → headers (CSP/HSTS/nosniff/XFO/Referrer-Policy/Permissions-Policy/x-request-id) present on 200 + 500 after | Verified |
+| R19 admin sign-in headers | admin proxy redirects everywhere except `/sign-in`, headers everywhere | runtime: `/sign-in` 200 with CSP/HSTS | Verified |
+
+### Post-remediation gates
+
+| Command | Result | Confidence |
+|---|---|---|
+| `pnpm lint` | 8/8 tasks, 0 errors, 0 warnings | Verified |
+| `pnpm typecheck` | 8/8 tasks | Verified |
+| `pnpm test` | 7/7 tasks — commerce 76 unit passed (+15 new; 12 integration skip→CI), db 17, config 25, web 9, auth 8, admin 4; coverage gates hold (90.68% lines / 89.28% funcs) | Verified |
+| `pnpm build` | 2/2 tasks, both proxies registered (`ƒ Proxy (Middleware)`); remaining Turbopack "Ecmascript file had an error" lines are the pre-existing L7d dotenv shim noise (documented, build succeeds) | Verified |
+| runtime prod boot | storefront headers + PDP coverage, admin gate 307s, `/sign-in` 200 no-loop — verified via curl against `next start` (DB-less: health 503 degraded is the honest state) | Verified |
+| `pnpm e2e` | local sandbox has no PG; CI executes against migrated+seeded DB | Unverifiable here |
+
+### Ops actions required outside this repo
+
+1. **Rotate `BETTER_AUTH_SECRET` and `CRON_SECRET`** in every deployed environment (they were public in git history — audit C2).
+2. Redeploy both apps from `main` (live instances predate the security-header/proxy and admin-loop fixes — LD-2/LD-3).
+3. Add a deploy-fingerprint smoke (headers present + `/sign-in` status) to the release runbook.
