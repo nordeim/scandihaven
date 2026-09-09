@@ -15,34 +15,14 @@
  * Origin while carrying our Host, so the CSRF check stays intact. Browsers
  * never send `x-forwarded-host`, and non-browser clients hold no victim
  * credentials, so trusting the serving host does not open a CSRF path.
+ *
+ * Since 2026-09-10 (round 4, R4-6) the derivation lives canonically in
+ * `@scandihaven/config/site-url` (same proxy-controlled header set) so the
+ * auth trusted-origins and the storefront canonical/OG URL resolution can
+ * never drift apart; this module re-exports it unchanged.
  */
 
-/** Structural subset of `Headers` so tests can pass plain objects. */
-export interface OriginHeaders {
-  get(name: string): string | null | undefined;
-}
+export { requestOriginFromHeaders } from "@scandihaven/config/site-url";
 
-const LOOPBACK_HOST_PATTERN = /^(localhost|127\.0\.0\.1|::1|\[::1\])(:\d+)?$/i;
-
-/** First token of a comma-separated proxy chain (e.g. "https,http"), trimmed. */
-function firstToken(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const token = value.split(",")[0]?.trim();
-  return token ? token : null;
-}
-
-/**
- * Derive `scheme://host[:port]` for the origin this request was served on,
- * or null when the request carries no host information (e.g. direct
- * `auth.api` calls, which better-auth handles via its own fallbacks).
- */
-export function requestOriginFromHeaders(
-  headers: OriginHeaders | null | undefined,
-): string | null {
-  if (!headers) return null;
-  const host = firstToken(headers.get("x-forwarded-host")) ?? firstToken(headers.get("host"));
-  if (!host) return null;
-  const forwardedProto = firstToken(headers.get("x-forwarded-proto"));
-  const proto = forwardedProto ?? (LOOPBACK_HOST_PATTERN.test(host) ? "http" : "https");
-  return `${proto}://${host}`;
-}
+/** Kept for API stability: the structural `Headers` subset the derivation reads. */
+export type { SiteUrlHeaders as OriginHeaders } from "@scandihaven/config/site-url";
