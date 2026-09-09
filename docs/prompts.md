@@ -15,6 +15,14 @@ Do not create any new git branch. All git commits must be to the main branch.
 
 ---
 
+please meticulously plan to create `start_server.sh` to initialize the database (db:migrate and db:seed) and restart the application servers 'prod' and 'prod:admin' assuming the codebase was freshly cloned from the GitHub repo and that the postgres container was freshly created. use `start_server.sh.sample` as basis to adapt.
+
+please meticulously plan to proceed with your best recommendations
+
+please meticulously review @AGENTS.md , @CLAUDE.md , @README.md and @PRD.md to have a deep understanding of the project and its codebase design and architecture. next, meticulously plan to review and validate the code changes in recent git commits as listed in @docs/recent_code_changes.txt and @docs/session_2.md
+
+---
+
 please meticulously convert the 'clone-plan-rothershrine' document into a markdown file for your future reference and alignment going forward. Next, meticulously review and validate the plan against the relevant skills from the   'my-pi-agent' repo to help you complete your task of cloning the `https://www.rothershrine.org/` website successfully. You can review https://github.com/nordeim/my-pi-agent/blob/main/skills/skills-catalog.md for the relevant skills in the 'my-pi-agent' repo
 
 Next, convert the plan into a detailed ToDo list before meticulously executing the plan in stages sequentially to complete the building of a complete production-ready and enterprise grade codebase for the 'cloned' website. Use the TDD approach to make code changes.

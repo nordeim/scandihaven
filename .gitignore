@@ -38,11 +38,15 @@ ssh-key.txt
 **/ssh-key.txt
 docs/ssh-key.txt
 
-# Local server helpers (not part of repo; see start_server_log.txt)
-start_server.sh
+# Local server helpers — logs/pids are ignored, but start_server.sh is tracked
+!start_server.sh
 start_server.sh.sample
 server.log
+server-admin.log
+server*.log
 server.pid
+server-admin.pid
+server*.pid
 
 # OS / editor
 .DS_Store
