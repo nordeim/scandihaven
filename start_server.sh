@@ -444,7 +444,7 @@ health_check() {
 
   check "storefront health" "http://localhost:3000/api/health" '"status":"ok"'
   check "storefront shop"   "http://localhost:3000/shop" "Halden"
-  check "storefront product PDP" "http://localhost:3000/products/halden-armchair" "Halden"
+  check "storefront product PDP" "http://localhost:3000/products/halden-linen-armchair" "Halden"
   check "storefront cart"   "http://localhost:3000/cart" "cart"
   # security headers (H8d)
   local headers
