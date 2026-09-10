@@ -23,3 +23,15 @@ GREEN: **53/53** local full suite (46 prior + 7 new), lint 8/8, typecheck 8/8, t
 PAD §11: R-SEO-1/R-SEO-2 rows flipped Open→Resolved with round-4 commit + round-6 live evidence; the facet-indexing row is now honestly marked blocked-by-R-SHOP-2 (no filter UI emits facet URLs yet). Traceability: FR-104 Deferred→Aligned with the new loci, FR-101 note, FR-106 spec count. Verification ledger round-6 entry appended. AGENTS.md/CLAUDE.md conventions updated (combobox role override, derived-state rule, NEXT_PUBLIC build-time inlining, the .env re-tracking lesson with a pre-commit check).
 ## Final verification before push
 Full gate suite green: lint 8/8, typecheck 8/8, tests 7/7 (integration suites live on PG 17.5), build 2/2, Playwright web 53/53 + admin 8/8 local (admin also 8/8 vs live). `skills/` and `infrastructure/` untouched throughout. Byte-level commit check before push (round-4 lesson).
+
+## Step 6: Push to GitHub via SSH wrapper
+Push verified — `origin/main` at `ba79e5ed`, in parity (`git rev-parse HEAD origin/main` identical). Post-push live re-check: web **46/53 vs live** — the 7 remaining failures are exactly the new R6-2 header-search specs awaiting redeploy (the admin gate suite passes 8/8 vs live immediately, since it characterizes deployed behavior). Ops queue: rotate the exposed secrets, redeploy via `./start_server.sh` to publish the header search.
+
+All done. Round-6 summary:
+
+| ID | Finding | Fix | Evidence |
+|---|---|---|---|
+| R6-1 | `.env` re-tracked in `316befa` with real secrets (second re-exposure) | Untracked; rotation = ops action | CI scan red→green on checkout simulation |
+| R6-2 | No search affordance sitewide (FR-101/FR-104 M) despite live API + results page | ARIA combobox typeahead + categories in the API + mobile drawer link | 6 unit + 7 E2E red→green; 53/53 local |
+| R6-3 | Admin app: zero browser coverage; CI E2E scoped web only | 8 credential-free gate specs + config + CI step | 8/8 local + 8/8 vs live |
+| R6-4 | PAD §11 stale rows (R-SEO-1/R-SEO-2 "Open" though shipped round 4) | Rows Resolved with evidence; facet row marked blocked | Docs aligned: PAD, traceability, ledger, AGENTS/CLAUDE, session_11 |
