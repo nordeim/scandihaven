@@ -68,3 +68,5 @@ server*.pid
 **/.mypy_cache/
 **/.ruff_cache/
 **/.venv/
+**/__pycache__/
+*.pyc
