@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { listProducts, productQuerySchema } from "@scandihaven/commerce/catalog";
+import { listProducts, productQuerySchema, hasActiveCategory } from "@scandihaven/commerce/catalog";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { publicPageMetadata } from "@/lib/seo";
 import { formatMinor } from "@/lib/format";
@@ -37,6 +37,16 @@ export default async function CategoryPage({
 }) {
   const { category: categorySlug } = await params;
   const search = await searchParams;
+
+  // Known-active categories ALWAYS render (round 5, R5-3): the sitemap lists
+  // every active category, so a product-less one must resolve with its empty
+  // state — previously `result.total === 0` 404'd them, making 2/20 sitemap
+  // URLs dead and the empty-state branch below unreachable. Unknown or
+  // inactive slugs still 404 (FR-201: only UNKNOWN slugs are not found).
+  if (!(await hasActiveCategory(categorySlug))) {
+    notFound();
+  }
+
   const parsed = productQuerySchema.safeParse({
     categorySlug,
     sort: pick(search.sort) ?? "featured",
@@ -45,10 +55,6 @@ export default async function CategoryPage({
   });
   const query = parsed.success ? parsed.data : productQuerySchema.parse({ categorySlug });
   const result = await listProducts(query);
-
-  if (result.total === 0 && query.page === 1) {
-    notFound();
-  }
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">

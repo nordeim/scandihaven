@@ -375,6 +375,22 @@ export async function listLatestJournal(limit = 3) {
 }
 
 /**
+ * Whether an ACTIVE category exists for this slug (round 5, R5-3 / FR-201):
+ * known-empty categories render an honest empty state (200) while unknown or
+ * inactive slugs 404. The sitemap lists every active category, so a
+ * product-less category page must still resolve — otherwise the sitemap
+ * would advertise URLs that 404.
+ */
+export async function hasActiveCategory(slug: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: category.id })
+    .from(category)
+    .where(and(eq(category.slug, slug), eq(category.isActive, true)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
  * Sitemap catalog seam (live E2E audit 2026-09-10 round 4, R4-3; PRD §11.1):
  * every indexable catalog URL for `app/sitemap.ts`. Only active rows are
  * returned (draft/archived products and inactive categories/collections

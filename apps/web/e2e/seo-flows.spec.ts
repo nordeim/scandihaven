@@ -43,6 +43,21 @@ test.describe("sitemap.xml (R4-3, PRD §11.1)", () => {
     const body = await (await request.get("/sitemap.xml")).text();
     expect(body).toContain("<lastmod>");
   });
+
+  test("every listed URL resolves (round 5, R5-3 — no sitemap entries that 404)", async ({ request }) => {
+    const body = await (await request.get("/sitemap.xml")).text();
+    const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1] ?? "");
+    expect(locs.length).toBeGreaterThan(5);
+
+    // A sitemap that advertises 404s burns crawl budget and surfaces
+    // coverage errors — each advertised URL must return 200.
+    const broken: string[] = [];
+    for (const loc of locs) {
+      const resp = await request.get(loc);
+      if (resp.status() !== 200) broken.push(`${loc} → ${resp.status()}`);
+    }
+    expect(broken, "sitemap URLs returning non-200").toEqual([]);
+  });
 });
 
 test.describe("robots.txt (R4-4, PRD §11.1)", () => {

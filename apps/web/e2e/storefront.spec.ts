@@ -158,3 +158,20 @@ test.describe("accessibility (PRD §12.2)", () => {
     });
   }
 });
+
+test.describe("category pages — empty vs unknown (round 5, R5-3, FR-201)", () => {
+  test("a known active category with zero products renders an honest empty state (200)", async ({ page }) => {
+    // "beds" is seeded active with no products and is advertised in the
+    // sitemap — it must NOT 404 (the sitemap would list a broken URL).
+    const response = await page.goto("/shop/beds");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: /beds/i })).toBeVisible();
+    await expect(page.getByText(/no pieces here yet/i)).toBeVisible();
+    await expect(page.locator('a[href^="/products/"]')).toHaveCount(0);
+  });
+
+  test("an unknown category slug still 404s (FR-201)", async ({ page }) => {
+    const response = await page.goto("/shop/no-such-category-xyz");
+    expect(response?.status()).toBe(404);
+  });
+});
