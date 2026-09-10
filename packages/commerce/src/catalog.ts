@@ -443,3 +443,26 @@ export async function searchTypeahead(q: string, limit = 8) {
     .limit(limit);
   return rows;
 }
+
+/**
+ * Active categories matching a typeahead query (round 6, R6-2; PRD FR-104:
+ * typeahead spans products/categories/journal). Companion to
+ * `searchTypeahead` — kept a separate function so the SearchProvider port
+ * (`search-provider.ts`) keeps its product-row contract untouched. The
+ * journal group stays reserved for the FR-703 reader route (linking here
+ * would 404 — FR-109 honesty).
+ */
+export async function searchTypeaheadCategories(q: string, limit = 4) {
+  const rows = await db
+    .select({ slug: category.slug, title: category.name })
+    .from(category)
+    .where(
+      and(
+        eq(category.isActive, true),
+        or(ilike(category.name, `%${q}%`), ilike(category.slug, `%${q}%`))!,
+      ),
+    )
+    .orderBy(asc(category.sortOrder))
+    .limit(limit);
+  return rows;
+}

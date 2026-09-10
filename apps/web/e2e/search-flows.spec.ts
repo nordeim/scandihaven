@@ -58,3 +58,73 @@ test.describe("search results page (FR-106)", () => {
     await expect(page.getByRole("link", { name: /^lighting$/i }).first()).toBeVisible();
   });
 });
+
+test.describe("header search typeahead (round 6, R6-2; PRD FR-101/FR-104)", () => {
+  // FR-101: the global header carries search. R6-2: the typeahead affordance
+  // was missing sitewide (API + results page existed unsurfaced).
+  test("desktop header exposes a search input", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await expect(search).toBeVisible();
+  });
+
+  test("typing ≥2 chars opens suggestions from the typeahead API", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("lamp", { delay: 60 });
+    const listbox = page.getByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await expect(listbox.getByText(/Øresund table lamp/i)).toBeVisible();
+  });
+
+  test("sub-minimum input does not open the dropdown", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("l", { delay: 60 });
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+  });
+
+  test("keyboard: ArrowDown + Enter navigates to the highlighted PDP (FR-104)", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("lamp", { delay: 60 });
+    const listbox = page.getByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await search.press("ArrowDown");
+    await search.press("Enter");
+    await page.waitForURL(/\/products\/oresund-table-lamp/);
+    expect(page.url()).toContain("/products/oresund-table-lamp");
+  });
+
+  test("bare submit navigates to the shareable results page", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("lamp", { delay: 60 });
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await search.press("Enter");
+    await page.waitForURL(/\/search\?q=lamp/);
+    await expect(page.getByRole("heading", { level: 1, name: /search/i })).toBeVisible();
+  });
+
+  test("Escape dismisses the suggestion listbox", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("lamp", { delay: 60 });
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await search.press("Escape");
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+  });
+
+  test("mobile drawer exposes a Search link (FR-102 parity)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.getByRole("button", { name: /open menu/i }).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByRole("link", { name: /search/i })).toBeVisible();
+  });
+});

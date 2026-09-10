@@ -8,6 +8,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@scandihaven/ui/drawer";
 const NAV_LINKS = [
   { href: "/shop", label: "Shop" },
   { href: "/collections", label: "Collections" },
+  { href: "/search", label: "Search" },
   { href: "/our-story", label: "Our Story" },
   { href: "/journal", label: "Journal" },
 ] as const;
@@ -17,7 +18,8 @@ const NAV_LINKS = [
  * the primary nav is `hidden md:flex`, so below 768px no navigation existed
  * at all. Radix-backed drawer (focus-trapped, Esc/scrim close, scroll lock —
  * the FR-102 a11y floor the primitive documents); links close the drawer so
- * the customer lands on the page they chose.
+ * the customer lands on the page they chose. The Search link (round 6, R6-2,
+ * FR-104) mirrors the desktop header combobox, which is hidden below md.
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false);

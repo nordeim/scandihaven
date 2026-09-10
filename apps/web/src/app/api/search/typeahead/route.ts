@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@scandihaven/db/client";
-import { searchTypeahead } from "@scandihaven/commerce/catalog";
+import { searchTypeahead, searchTypeaheadCategories } from "@scandihaven/commerce/catalog";
 import { consumeRateLimit } from "@scandihaven/commerce/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +11,16 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(10).default(6),
 });
 
-// §8.4: route-handler responses are Zod-validated contracts. Matches
-// searchTypeahead's row shape ({ slug, title }); categories/journal are
-// reserved for the FR-104 expansion (search slice in the remediation backlog).
+// §8.4: route-handler responses are Zod-validated contracts. Products come
+// from `searchTypeahead` (FTS + ILIKE over active product titles); categories
+// from `searchTypeaheadCategories` (R6-2, FR-104: typeahead spans
+// products/categories). Journal stays reserved for the FR-703 reader route —
+// advertising journal hits would link to 404s (FR-109 honesty).
+const hitSchema = z.object({ slug: z.string(), title: z.string() });
 const responseSchema = z.object({
-  products: z.array(z.object({ slug: z.string(), title: z.string() })),
-  categories: z.array(z.unknown()),
-  journal: z.array(z.unknown()),
+  products: z.array(hitSchema),
+  categories: z.array(hitSchema),
+  journal: z.array(hitSchema),
 });
 
 /** Search typeahead (PRD FR-104/FR-106, §8.4) — 60/min/IP (§9.4). */
@@ -47,7 +50,16 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ products: [], categories: [], journal: [] });
   }
-  const products = await searchTypeahead(parsed.data.q, parsed.data.limit).catch((error: unknown) => { console.error("[typeahead] search failed", error); return [] as never; });
-  const body = responseSchema.parse({ products, categories: [], journal: [] });
+  const [products, categories] = await Promise.all([
+    searchTypeahead(parsed.data.q, parsed.data.limit).catch((error: unknown) => {
+      console.error("[typeahead] product search failed", error);
+      return [] as never;
+    }),
+    searchTypeaheadCategories(parsed.data.q, 4).catch((error: unknown) => {
+      console.error("[typeahead] category search failed", error);
+      return [] as never;
+    }),
+  ]);
+  const body = responseSchema.parse({ products, categories, journal: [] });
   return NextResponse.json(body);
 }

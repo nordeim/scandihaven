@@ -6,6 +6,7 @@ import { getCartDto } from "@scandihaven/commerce/cart-service";
 import { getCartId } from "@/lib/cart-session";
 import { CartTrigger } from "@/components/cart-trigger";
 import { MobileNav } from "@/components/mobile-nav";
+import { SearchTrigger } from "@/components/search-trigger";
 
 /**
  * Global header (PRD FR-101): announcement bar, primary nav, account, cart.
@@ -63,7 +64,13 @@ export async function SiteHeader() {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* FR-101: the global header carries search (round 6, R6-2). The
+              combobox is desktop-only; the mobile drawer carries a Search
+              link so the affordance exists at every viewport. */}
+          <div className="hidden md:block">
+            <SearchTrigger />
+          </div>
           <Link
             href="/account"
             className="rounded-pill px-3 py-2 text-sm text-ink-2 transition-colors hover:bg-bg-2 hover:text-ink"
