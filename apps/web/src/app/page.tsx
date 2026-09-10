@@ -1,11 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { listFeaturedCategories, listLatestJournal, listProducts } from "@scandihaven/commerce/catalog";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { buttonVariants } from "@scandihaven/ui/button";
 import { Skeleton } from "@scandihaven/ui/skeleton";
 import { NewsletterForm } from "@/components/newsletter-form";
+import { publicPageMetadata } from "@/lib/seo";
 import { formatMinor } from "@/lib/format";
+
+// Canonical + per-page og:url (round 5, R5-2, FR-313).
+export const metadata: Metadata = publicPageMetadata({ path: "/" });
 
 /**
  * Homepage (PRD FR-701): announcement bar lives in the header; this page renders

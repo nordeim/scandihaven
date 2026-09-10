@@ -6,6 +6,7 @@ import { db } from "@scandihaven/db/client";
 import { collection, collectionProduct } from "@scandihaven/db/schema";
 import { listProducts } from "@scandihaven/commerce/catalog";
 import { sanitizeRichText } from "@scandihaven/commerce/rich-text";
+import { publicPageMetadata } from "@/lib/seo";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { formatMinor } from "@/lib/format";
 
@@ -25,9 +26,12 @@ async function getCollection(slug: string) {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const col = await getCollection(slug).catch((error: unknown) => { console.error("[collection] load failed", error); return null; });
-  return col
-    ? { title: col.title, description: col.subtitle ?? undefined }
-    : { title: "Collection not found" };
+  // Canonical + per-page og:url (round 5, R5-2, FR-313).
+  return publicPageMetadata({
+    path: `/collections/${slug}`,
+    title: col?.title ?? "Collection not found",
+    ...(col?.subtitle ? { description: col.subtitle } : {}),
+  });
 }
 
 /** Collection page (PRD FR-702): editorial header + product grid. */

@@ -59,8 +59,26 @@ test.describe("robots.txt (R4-4, PRD §11.1)", () => {
     expect(body).toMatch(/disallow:\s*\/api/i);
     expect(body).toMatch(new RegExp(`sitemap:\\s*${SERVED_ORIGIN}/sitemap\\.xml`, "i"));
 
-    // Never a blanket disallow
-    expect(body).not.toMatch(/disallow:\s*\/\s*$/im);
+    // No blanket disallow for the wildcard group. Checked per GROUP, not per
+    // line: a production zone may legitimately prepend Cloudflare-managed
+    // per-bot blocks ("User-agent: GPTBot" → "Disallow: /") above the app's
+    // own rules — a bare regex over the whole body false-positives on those
+    // (round 5, R5-1). Only a `User-agent: *` group may not disallow "/".
+    const groups = body
+      .split(/user-agent:/i)
+      .slice(1)
+      .map((group) => {
+        const lines = group.split("\n");
+        const ua = (lines[0] ?? "").trim().toLowerCase();
+        const disallows = lines
+          .filter((line) => /^disallow:/i.test(line))
+          .map((line) => line.replace(/^disallow:/i, "").trim());
+        return { ua, disallows };
+      });
+    const wildcardBlanket = groups.filter(
+      (g) => (g.ua === "*" || g.ua === "") && g.disallows.includes("/"),
+    );
+    expect(wildcardBlanket).toEqual([]);
   });
 });
 
@@ -102,6 +120,64 @@ test.describe("canonical + OG metadata (R4-6/R4-7, FR-313)", () => {
       .first()
       .getAttribute("content");
     expect(twitterCard).toBeTruthy();
+  });
+});
+
+test.describe("canonical + og:url sitewide (round 5, R5-2, FR-313)", () => {
+  // Every public page declares a canonical and a per-page og:url resolved
+  // against the SERVED origin. Round 4 fixed the PDP only; the layout's
+  // build-time metadataBase still bound every other page's og:url (and the
+  // category canonical) to http://localhost:3000 when NEXT_PUBLIC_SITE_URL
+  // is unset, and home/PLP/collections/journal/static pages emitted no
+  // canonical at all.
+  const pages: Array<[string, string]> = [
+    ["/", "/"],
+    ["/shop", "/shop"],
+    ["/shop/lighting", "/shop/lighting"],
+    ["/collections", "/collections"],
+    ["/collections/autumn-collection", "/collections/autumn-collection"],
+    ["/journal", "/journal"],
+    ["/our-story", "/our-story"],
+  ];
+
+  for (const [path, canonicalPath] of pages) {
+    test(`canonical and og:url match the served origin for ${path}`, async ({ page }) => {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+
+      // Next resolves a "/" canonical to the bare origin (no trailing slash);
+      // normalize both sides so the comparison is about the ORIGIN.
+      const normalize = (value: string | null) => (value ?? "").replace(/\/+$/, "");
+
+      const canonical = await page
+        .locator('link[rel="canonical"]')
+        .first()
+        .getAttribute("href");
+      expect(normalize(canonical), `canonical for ${path}`).toBe(
+        normalize(`${SERVED_ORIGIN}${canonicalPath}`),
+      );
+
+      const ogUrl = await page
+        .locator('meta[property="og:url"]')
+        .first()
+        .getAttribute("content");
+      expect(normalize(ogUrl), `og:url for ${path}`).toBe(
+        normalize(`${SERVED_ORIGIN}${canonicalPath}`),
+      );
+    });
+  }
+
+  test("layout og/twitter fields survive per-page openGraph.url overrides", async ({ page }) => {
+    await page.goto("/shop", { waitUntil: "domcontentloaded" });
+    const ogTitle = await page
+      .locator('meta[property="og:title"]')
+      .first()
+      .getAttribute("content");
+    expect(ogTitle).toBeTruthy();
+    const siteName = await page
+      .locator('meta[property="og:site_name"]')
+      .first()
+      .getAttribute("content");
+    expect(siteName).toBe("Scandi Haven");
   });
 });
 

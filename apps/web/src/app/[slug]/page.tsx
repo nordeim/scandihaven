@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@scandihaven/db/client";
 import { staticPage } from "@scandihaven/db/schema";
 import { sanitizeRichText } from "@scandihaven/commerce/rich-text";
+import { publicPageMetadata } from "@/lib/seo";
 import { eq, and } from "drizzle-orm";
 
 type Params = Promise<{ slug: string }>;
@@ -11,7 +12,11 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  return { title: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ") };
+  // Canonical + per-page og:url (round 5, R5-2, FR-313).
+  return publicPageMetadata({
+    path: `/${slug}`,
+    title: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " "),
+  });
 }
 
 /** Static content pages (PRD FR-704): admin-managed, render-time sanitized rich text (§9.4). */

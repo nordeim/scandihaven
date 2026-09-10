@@ -3,7 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import { getCartDto } from "@scandihaven/commerce/cart-service";
 import { safeJsonLd } from "@scandihaven/commerce/rich-text";
 import { getCartId } from "@/lib/cart-session";
-import { organizationJsonLd, webSiteJsonLd } from "@/lib/seo";
+import { organizationJsonLd, webSiteJsonLd, DEFAULT_TITLE, DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 import { currentSiteUrl } from "@/lib/site-origin";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
@@ -22,32 +22,42 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: {
-    default: "Scandi Haven — Slow Living, Beautifully Made",
-    template: "%s | Scandi Haven",
-  },
-  description:
-    "Scandi Haven crafts understated furniture, lighting and textiles for the slow-living home. Sustainably made in Northern Europe.",
-  // PRD §11.1: per-page og:*, twitter:* (round 4, R4-7 — the home page
-  // previously emitted no social metadata at all). og:url stays relative so
-  // the Next Metadata API resolves it against metadataBase per page.
-  openGraph: {
-    title: "Scandi Haven — Slow Living, Beautifully Made",
-    description:
-      "Scandi Haven crafts understated furniture, lighting and textiles for the slow-living home. Sustainably made in Northern Europe.",
-    type: "website",
-    url: "/",
-    siteName: "Scandi Haven",
-  },
-  twitter: {
-    card: "summary",
-    title: "Scandi Haven — Slow Living, Beautifully Made",
-    description:
-      "Scandi Haven crafts understated furniture, lighting and textiles for the slow-living home. Sustainably made in Northern Europe.",
-  },
-};
+// Metadata origin is resolved PER REQUEST (round 5, R5-2 — completing the
+// round-4 R4-6 seam): a static `metadataBase: new URL(env ?? localhost)` is
+// evaluated at build time, so a deployment without NEXT_PUBLIC_SITE_URL set
+// advertised http://localhost:3000 as og:url on every page except the PDP
+// (which already resolves request-scoped). Storefront routes are
+// request-dynamic (the root layout reads the cart cookie), so awaiting
+// headers() here adds no new dynamic surface.
+export async function generateMetadata(): Promise<Metadata> {
+  const siteUrl = await currentSiteUrl();
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: DEFAULT_TITLE,
+      template: "%s | Scandi Haven",
+    },
+    description: DEFAULT_DESCRIPTION,
+    // PRD §11.1: per-page og:*, twitter:* (round 4, R4-7 — the home page
+    // previously emitted no social metadata at all). og:url stays relative so
+    // the Next Metadata API resolves it against metadataBase per page.
+    // Public pages override this via `publicPageMetadata` (round 5, R5-2),
+    // which emits the FULL object — Next replaces a segment's openGraph
+    // wholesale, so a partial override would drop these fields.
+    openGraph: {
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      type: "website",
+      url: "/",
+      siteName: SITE_NAME,
+    },
+    twitter: {
+      card: "summary",
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+    },
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [cartId, siteUrl] = await Promise.all([getCartId(), currentSiteUrl()]);

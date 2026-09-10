@@ -3,15 +3,18 @@ import type { Metadata } from "next";
 import { listProducts, productQuerySchema } from "@scandihaven/commerce/catalog";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { Button } from "@scandihaven/ui/button";
+import { publicPageMetadata } from "@/lib/seo";
 import { formatMinor } from "@/lib/format";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export const metadata: Metadata = {
+// Canonical + per-page og:url (round 5, R5-2, FR-313).
+export const metadata: Metadata = publicPageMetadata({
+  path: "/shop",
   title: "Shop all",
   description:
     "Handcrafted furniture, lighting, textiles and ceramics — made to order in Northern Europe.",
-};
+});
 
 const SORTS = [
   { value: "featured", label: "Featured" },

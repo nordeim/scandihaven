@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import type { Metadata } from "next";
 
 /**
  * SEO builders (live E2E audit 2026-09-10 round 4, R4-3/R4-4/R4-7/R4-8;
@@ -7,6 +8,45 @@ import type { MetadataRoute } from "next";
  * the entry rules (exclusions, priorities, JSON-LD shapes) are pinned by
  * unit tests without a server or database.
  */
+
+/** Sitewide default og/twitter copy (round 4, R4-7; shared with the layout). */
+export const SITE_NAME = "Scandi Haven";
+export const DEFAULT_TITLE = "Scandi Haven — Slow Living, Beautifully Made";
+export const DEFAULT_DESCRIPTION =
+  "Scandi Haven crafts understated furniture, lighting and textiles for the slow-living home. Sustainably made in Northern Europe.";
+
+export interface PublicPageMetadataInput {
+  /** Canonical path of THIS page, e.g. "/shop" or "/shop/lighting". */
+  path: string;
+  title?: string;
+  description?: string;
+}
+
+/**
+ * Per-page canonical + openGraph for public surfaces (round 5, R5-2, FR-313).
+ *
+ * Next's metadata merge REPLACES a segment's `openGraph` object wholesale, so
+ * a page that set only `openGraph: { url }` would silently drop the layout's
+ * og:title/description/siteName. This builder emits the complete object and
+ * keeps the canonical/og:url pair in lockstep; relative paths resolve against
+ * the root layout's request-scoped `metadataBase` (`currentSiteUrl()`).
+ */
+export function publicPageMetadata({ path, title, description }: PublicPageMetadataInput): Metadata {
+  const resolvedTitle = title ?? DEFAULT_TITLE;
+  const resolvedDescription = description ?? DEFAULT_DESCRIPTION;
+  return {
+    title: resolvedTitle,
+    description: resolvedDescription,
+    alternates: { canonical: path },
+    openGraph: {
+      title: resolvedTitle,
+      description: resolvedDescription,
+      type: "website",
+      url: path,
+      siteName: SITE_NAME,
+    },
+  };
+}
 
 export interface SitemapCatalogInput {
   siteUrl: string;

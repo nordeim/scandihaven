@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { listLatestJournal } from "@scandihaven/commerce/catalog";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+// Canonical + per-page og:url (round 5, R5-2, FR-313).
+export const metadata: Metadata = publicPageMetadata({
+  path: "/journal",
   title: "Journal",
   description: "Stories from the workshop — craft, home, people, sustainability.",
-};
+});
 
 export const revalidate = 300;
 

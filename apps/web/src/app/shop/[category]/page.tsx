@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { listProducts, productQuerySchema } from "@scandihaven/commerce/catalog";
 import { ProductCard } from "@scandihaven/ui/product-card";
+import { publicPageMetadata } from "@/lib/seo";
 import { formatMinor } from "@/lib/format";
 
 type Params = Promise<{ category: string }>;
@@ -15,11 +16,15 @@ function pick(param: string | string[] | undefined): string | undefined {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { category } = await params;
   const name = category.charAt(0).toUpperCase() + category.slice(1);
-  return {
+  // Canonical + per-page og:url (round 5, R5-2): previously this canonical
+  // bound to the build-time localhost fallback on deployments without
+  // NEXT_PUBLIC_SITE_URL; the builder resolves against the layout's
+  // request-scoped metadataBase.
+  return publicPageMetadata({
+    path: `/shop/${category}`,
     title: name,
     description: `Handcrafted ${category} — made to order in Northern Europe.`,
-    alternates: { canonical: `/shop/${category}` },
-  };
+  });
 }
 
 /** Category PLP (PRD FR-201): /shop/{category} with subtree products. */

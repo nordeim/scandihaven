@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listCollections } from "@scandihaven/commerce/catalog";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+// Canonical + per-page og:url (round 5, R5-2, FR-313).
+export const metadata: Metadata = publicPageMetadata({
+  path: "/collections",
   title: "Collections",
   description: "Curated collections of handcrafted Scandinavian pieces.",
-};
+});
 
 export const revalidate = 300;
 

@@ -12,6 +12,7 @@ import {
   buildRobotsRules,
   buildSitemapEntries,
   organizationJsonLd,
+  publicPageMetadata,
   webSiteJsonLd,
 } from "./seo";
 
@@ -122,5 +123,40 @@ describe("breadcrumbJsonLd (R4-8, FR-312/FR-313)", () => {
     expect(items[0]?.item).toBe(`${SITE_URL}/`);
     expect(items[3]?.name).toBe("Øresund Table Lamp");
     expect(items[3]?.item).toBe(`${SITE_URL}/products/oresund-table-lamp`);
+  });
+});
+
+describe("publicPageMetadata (round 5, R5-2, FR-313)", () => {
+  it("declares the canonical path and a COMPLETE per-page openGraph object", () => {
+    // Next replaces a segment's openGraph object wholesale — a page that
+    // only sets og:url would drop the layout's og:title/description/siteName.
+    // The builder therefore emits the full object, centralized here.
+    const meta = publicPageMetadata({ path: "/shop", title: "Shop all" });
+    expect(meta.alternates).toEqual({ canonical: "/shop" });
+    const og = meta.openGraph as Record<string, unknown>;
+    expect(og.url).toBe("/shop");
+    expect(og.title).toBe("Shop all");
+    expect(og.siteName).toBe("Scandi Haven");
+    expect(og.type).toBe("website");
+    expect(og.description).toBeTruthy();
+  });
+
+  it("falls back to the sitewide default title/description when not provided", () => {
+    const meta = publicPageMetadata({ path: "/" });
+    const og = meta.openGraph as Record<string, unknown>;
+    expect(og.url).toBe("/");
+    expect(og.title).toBe("Scandi Haven — Slow Living, Beautifully Made");
+    expect(meta.title).toBe("Scandi Haven — Slow Living, Beautifully Made");
+    expect(meta.description).toBeTruthy();
+    expect(og.description).toBeTruthy();
+  });
+
+  it("carries per-page titles through both title fields and the og block", () => {
+    const meta = publicPageMetadata({ path: "/journal", title: "Journal", description: "Stories from the workshop." });
+    expect(meta.title).toBe("Journal");
+    expect(meta.description).toBe("Stories from the workshop.");
+    const og = meta.openGraph as Record<string, unknown>;
+    expect(og.title).toBe("Journal");
+    expect(og.description).toBe("Stories from the workshop.");
   });
 });
