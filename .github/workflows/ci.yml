@@ -72,6 +72,13 @@ jobs:
       - name: E2E (Chromium)
         run: pnpm --filter @scandihaven/web exec playwright test --project=chromium
 
+      # Admin gate coverage (round 6, R6-3; PRD §12.1): credential-free
+      # browser specs for the §9.2 gate + sign-in surface. The admin build
+      # already exists (Build step); the webServer hook boots `next start`
+      # on :3001 against the migrated+seeded Postgres service.
+      - name: E2E admin (Chromium)
+        run: pnpm --filter @scandihaven/admin exec playwright test --project=chromium
+
       - name: Dependency audit (high+)
         # PR-blocking per PRD §12.1 — verified passing (1 moderate, 0 high).
         run: pnpm audit --audit-level high
