@@ -15,7 +15,7 @@ Run from the repo root unless noted. PNPM 10 + Turborepo 2 — always use `pnpm`
 | `pnpm prod:admin` | Admin prod server on :3001 — requires prior `pnpm build` |
 | `pnpm lint` / `pnpm typecheck` | ESLint 9 flat / `tsc --noEmit` per workspace |
 | `pnpm test` | Vitest unit suites + real-PG integration suites (auto-skip unless `DATABASE_URL` points at localhost; commerce coverage gates: 90% lines / 85% functions on pure domain modules) |
-| `pnpm e2e` | Playwright, Chromium project, against `apps/web` |
+| `pnpm e2e` | Playwright, Chromium, both apps — `apps/web` (storefront suite) + `apps/admin` (credential-free gate suite, R6-3) |
 | `pnpm db:setup` | `db:migrate && db:seed` — fresh container init (migrate + idempotent seed, local hosts only) |
 | `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | drizzle-kit migrate / idempotent seed / drop+recreate (local hosts only) |
 | `pnpm db:generate` | Regenerate drizzle migrations after schema edits |
@@ -70,6 +70,9 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - **Post-auth `?redirect=` params are never trusted raw**: validate through `@scandihaven/config/redirect-path` (`validateRedirectPath`) in both apps — the admin previously pushed the raw value into `router.push` (open redirect).
 - **Workspace vitest configs pin `testTimeout: 30_000`** (R5-4): suites cold-import the workspace TS graph (auth/commerce/db compiled on the fly), and under 7-way parallel turbo runs on 2-CPU sandboxes the first import crossed vitest's 5000ms default (the round-3 "intermittent admin guard flake" — root-caused 2026-09-10 round 5; `Test timed out in 5000ms` captured verbatim). Keep the headroom when adding workspaces; assertions stay untouched.
 - **robots.txt assertions are GROUP-aware** (R5-1): a production zone may legitimately prepend Cloudflare-managed per-bot `Disallow: /` blocks above the app rules — assert against the `User-agent: *` group(s), never the raw body with a line regex. **The sitemap must never advertise a URL that 404s** (R5-3): a parity spec fetches every `<loc>`; known-empty active categories render a 200 empty state (`hasActiveCategory`), unknown slugs 404 (FR-201).
+- **Header search combobox** (R6-2, FR-104): `search-trigger.tsx` is an ARIA 1.2 combobox — the explicit `role="combobox"` OVERRIDES the implicit `searchbox` role of `input[type=search]`, so E2E must target `getByRole("combobox")`. Dropdown visibility is DERIVED (`focused × ready × has-options`) — `react-hooks/set-state-in-effect` blocks effect-body setState. The journal typeahead group stays empty until the FR-703 reader route exists (a live link to it would 404 — FR-109).
+- **`NEXT_PUBLIC_*` is inlined at build time** (R6-2): canonical/og:url specs run locally need `NEXT_PUBLIC_SITE_URL` set to the tested origin BEFORE the build (CI does this at job level) — a runtime export alone does not change an already-built server bundle, and turbo will serve a cached build unless the var is in `globalEnv` or `--force` is used.
+- **`.env` re-tracking happens via docs commits** (R6-1: `316befa` "new start server log" re-added it a second time after 4afec43) — before committing log/doc/artifact batches, run `git ls-files | grep '^\.env$'`; untrack with `git rm --cached` and treat rotation as an ops action. The CI scan (verified) catches it when CI runs.
 
 ## Environment
 
@@ -82,6 +85,7 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - `docs/audits/2026-09-10-live-e2e-audit/` — live E2E round 3 (checkout stale-chunk crash, CI-red cart specs, promo re-validation, card price, mobile nav FR-102, CSP beacon, canonical boot guard) + remediation plan in `docs/plans/2026-09-10-live-e2e-remediation.md`.
 - `docs/plans/2026-09-10-live-e2e-remediation-round4.md` — live E2E round 4 (secrets re-exposure + scan gap, sitemap/robots/search surfaces, absolute canonicals, skills cache hygiene) with the evidence-labelled findings table.
 - `docs/plans/2026-09-10-live-e2e-remediation-round5.md` — live E2E round 5 (robots group-aware assertion, sitewide canonical/og:url via request-scoped metadataBase + `publicPageMetadata`, sitemap↔reality parity for empty categories, the workspace test-timeout root cause).
+- `docs/plans/2026-09-11-live-e2e-remediation-round6.md` — live E2E round 6 (`.env` re-untrack + rotation ops action, FR-101/FR-104 header search typeahead, credential-free admin gate E2E + CI step, PAD/traceability stale-row alignment).
 - `README.md` — human onboarding (setup, verification, design tokens).
 - `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).
 
