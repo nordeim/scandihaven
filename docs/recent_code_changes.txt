@@ -52,3 +52,51 @@ Fast-forward
  create mode 100644 packages/config/src/redirect-path.ts
  create mode 100644 packages/config/src/site-url.test.ts
  create mode 100644 packages/config/src/site-url.ts
+$ git pull
+remote: Enumerating objects: 98, done.
+remote: Counting objects: 100% (98/98), done.
+remote: Compressing objects: 100% (23/23), done.
+remote: Total 60 (delta 34), reused 58 (delta 32), pack-reused 0 (from 0)
+Unpacking objects: 100% (60/60), 39.60 KiB | 171.00 KiB/s, done.
+From github.com:nordeim/scandihaven
+   8aacd13..61a1f91  main       -> origin/main
+Updating 8aacd13..61a1f91
+Fast-forward
+ .github/workflows/ci.yml                                             |  11 +++++--
+ .gitignore                                                           |   9 ++++++
+ AGENTS.md                                                            |   3 ++
+ CLAUDE.md                                                            |   1 +
+ README.md                                                            |   7 +++--
+ apps/web/e2e/search-flows.spec.ts                                    |  60 +++++++++++++++++++++++++++++++++++++
+ apps/web/e2e/seo-flows.spec.ts                                       | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/e2e/storefront.spec.ts                                      |   2 +-
+ apps/web/src/app/layout.tsx                                          |  36 +++++++++++++++++++++-
+ apps/web/src/app/products/[slug]/page.tsx                            |  42 +++++++++++++++++++++++---
+ apps/web/src/app/robots.ts                                           |  27 +++++++++++++++++
+ apps/web/src/app/search/page.tsx                                     | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/app/sitemap.ts                                          |  32 ++++++++++++++++++++
+ apps/web/src/lib/seo.test.ts                                         | 126 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/lib/seo.ts                                              | 124 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/lib/site-origin.ts                                      |  20 +++++++++++++
+ docs/plans/2026-09-10-live-e2e-remediation-round4.md                 |  97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/session_7.md                                                    |  77 +++++++++++++++++++++++++++++++++++++++++++++++
+ docs/traceability.md                                                 |  10 +++----
+ docs/verification-ledger.md                                          |  23 ++++++++++++++
+ packages/auth/src/trusted-origins.ts                                 |  36 +++++-----------------
+ packages/commerce/src/catalog.ts                                     |  37 +++++++++++++++++++++++
+ packages/commerce/src/sitemap-entries.integration.test.ts            |  67 +++++++++++++++++++++++++++++++++++++++++
+ packages/config/src/site-url.test.ts                                 | 106 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ packages/config/src/site-url.ts                                      |  78 ++++++++++++++++++++++++++++++++++++++++++++++++
+
+ create mode 100644 apps/web/e2e/search-flows.spec.ts
+ create mode 100644 apps/web/e2e/seo-flows.spec.ts
+ create mode 100644 apps/web/src/app/robots.ts
+ create mode 100644 apps/web/src/app/search/page.tsx
+ create mode 100644 apps/web/src/app/sitemap.ts
+ create mode 100644 apps/web/src/lib/seo.test.ts
+ create mode 100644 apps/web/src/lib/seo.ts
+ create mode 100644 apps/web/src/lib/site-origin.ts
+ create mode 100644 docs/plans/2026-09-10-live-e2e-remediation-round4.md
+ create mode 100644 docs/session_7.md
+ create mode 100644 packages/commerce/src/sitemap-entries.integration.test.ts
+
