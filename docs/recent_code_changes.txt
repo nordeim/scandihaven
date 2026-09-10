@@ -1,102 +1,40 @@
 $ git pull
-Updating 840e8f1..ccadc78
-Fast-forward
- AGENTS.md                                                     |   5 +++++
- CLAUDE.md                                                     |   4 ++++
- README.md                                                     |   5 ++++-
- apps/admin/src/app/global-error.tsx                           |  45 +++++++++++++++++++++++++++++++++++++++++++++
- apps/admin/src/app/sign-in/sign-in-form.tsx                   |   7 +++++--
- apps/admin/src/instrumentation.ts                             |   8 ++++++++
- apps/web/e2e/cart-flows.spec.ts                               |  31 ++++++++++++++++++++++---------
- apps/web/e2e/storefront.spec.ts                               |  35 +++++++++++++++++++++++++++++++++++
- apps/web/src/app/account/page.tsx                             |   5 ++++-
- apps/web/src/app/error.tsx                                    |   9 +++++++++
- apps/web/src/app/global-error.tsx                             |  48 ++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/app/sign-in/page.tsx                             |  75 +++++++++------------------------------------------------------------------
- apps/web/src/app/sign-in/sign-in-form.tsx                     |  79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/components/cart-view.tsx                         |  20 +++++++++++++++++---
- apps/web/src/components/mobile-nav.tsx                        |  50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/components/site-header.tsx                       |  12 +++++++++---
- apps/web/src/instrumentation.ts                               |   9 +++++++++
- docs/audits/2026-09-10-live-e2e-audit/findings.md             | 119 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- docs/plans/2026-09-10-live-e2e-remediation.md                 |  90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- docs/traceability.md                                          |  22 ++++++++++++----------
- docs/verification-ledger.md                                   |  22 ++++++++++++++++++++++
- packages/commerce/src/cart-service.ts                         |  21 ++++++++++++++++++---
- packages/commerce/src/catalog-price.integration.test.ts       | 108 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- packages/commerce/src/catalog.ts                              |  13 ++++++++++++-
- packages/commerce/src/checkout-promotions.integration.test.ts |  59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- packages/commerce/src/checkout-service.ts                     |  89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------------
- packages/commerce/src/promotions.test.ts                      |  79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- packages/commerce/src/promotions.ts                           |  17 +++++++++++++++++
- packages/config/package.json                                  |   9 ++++++---
- packages/config/src/chunk-recovery.test.ts                    |  39 +++++++++++++++++++++++++++++++++++++++
- packages/config/src/chunk-recovery.ts                         |  58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- packages/config/src/redirect-path.test.ts                     |  52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- packages/config/src/redirect-path.ts                          |  43 +++++++++++++++++++++++++++++++++++++++++++
- packages/config/src/security-headers.test.ts                  |   9 +++++++++
- packages/config/src/security-headers.ts                       |   7 +++++--
- packages/config/src/site-url.test.ts                          |  39 +++++++++++++++++++++++++++++++++++++++
- packages/config/src/site-url.ts                               |  47 +++++++++++++++++++++++++++++++++++++++++++++++
- 37 files changed, 1270 insertions(+), 119 deletions(-)
- create mode 100644 apps/admin/src/app/global-error.tsx
- create mode 100644 apps/web/src/app/global-error.tsx
- create mode 100644 apps/web/src/app/sign-in/sign-in-form.tsx
- create mode 100644 apps/web/src/components/mobile-nav.tsx
- create mode 100644 docs/audits/2026-09-10-live-e2e-audit/findings.md
- create mode 100644 docs/plans/2026-09-10-live-e2e-remediation.md
- create mode 100644 packages/commerce/src/catalog-price.integration.test.ts
- create mode 100644 packages/config/src/chunk-recovery.test.ts
- create mode 100644 packages/config/src/chunk-recovery.ts
- create mode 100644 packages/config/src/redirect-path.test.ts
- create mode 100644 packages/config/src/redirect-path.ts
- create mode 100644 packages/config/src/site-url.test.ts
- create mode 100644 packages/config/src/site-url.ts
-$ git pull
-remote: Enumerating objects: 98, done.
-remote: Counting objects: 100% (98/98), done.
-remote: Compressing objects: 100% (23/23), done.
-remote: Total 60 (delta 34), reused 58 (delta 32), pack-reused 0 (from 0)
-Unpacking objects: 100% (60/60), 39.60 KiB | 171.00 KiB/s, done.
+remote: Enumerating objects: 128, done.
+remote: Counting objects: 100% (128/128), done.
+remote: Compressing objects: 100% (20/20), done.
+remote: Total 79 (delta 53), reused 79 (delta 53), pack-reused 0 (from 0)
+Unpacking objects: 100% (79/79), 34.83 KiB | 165.00 KiB/s, done.
 From github.com:nordeim/scandihaven
-   8aacd13..61a1f91  main       -> origin/main
-Updating 8aacd13..61a1f91
+   d98a415..3061cf0  main       -> origin/main
+Updating d98a415..3061cf0
 Fast-forward
- .github/workflows/ci.yml                                             |  11 +++++--
- .gitignore                                                           |   9 ++++++
- AGENTS.md                                                            |   3 ++
- CLAUDE.md                                                            |   1 +
- README.md                                                            |   7 +++--
- apps/web/e2e/search-flows.spec.ts                                    |  60 +++++++++++++++++++++++++++++++++++++
- apps/web/e2e/seo-flows.spec.ts                                       | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/e2e/storefront.spec.ts                                      |   2 +-
- apps/web/src/app/layout.tsx                                          |  36 +++++++++++++++++++++-
- apps/web/src/app/products/[slug]/page.tsx                            |  42 +++++++++++++++++++++++---
- apps/web/src/app/robots.ts                                           |  27 +++++++++++++++++
- apps/web/src/app/search/page.tsx                                     | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/app/sitemap.ts                                          |  32 ++++++++++++++++++++
- apps/web/src/lib/seo.test.ts                                         | 126 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/lib/seo.ts                                              | 124 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- apps/web/src/lib/site-origin.ts                                      |  20 +++++++++++++
- docs/plans/2026-09-10-live-e2e-remediation-round4.md                 |  97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- docs/session_7.md                                                    |  77 +++++++++++++++++++++++++++++++++++++++++++++++
- docs/traceability.md                                                 |  10 +++----
- docs/verification-ledger.md                                          |  23 ++++++++++++++
- packages/auth/src/trusted-origins.ts                                 |  36 +++++-----------------
- packages/commerce/src/catalog.ts                                     |  37 +++++++++++++++++++++++
- packages/commerce/src/sitemap-entries.integration.test.ts            |  67 +++++++++++++++++++++++++++++++++++++++++
- packages/config/src/site-url.test.ts                                 | 106 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- packages/config/src/site-url.ts                                      |  78 ++++++++++++++++++++++++++++++++++++++++++++++++
+ .gitignore                                                                             |   2 ++
+ AGENTS.md                                                                              |   5 ++++-
+ CLAUDE.md                                                                              |   4 +++-
+ README.md                                                                              |   5 ++++-
+ apps/admin/vitest.config.ts                                                            |   8 ++++++++
+ apps/web/e2e/seo-flows.spec.ts                                                         |  95 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ apps/web/e2e/storefront.spec.ts                                                        |  17 +++++++++++++++++
+ apps/web/src/app/[slug]/page.tsx                                                       |   7 ++++++-
+ apps/web/src/app/collections/[slug]/page.tsx                                           |  10 +++++++---
+ apps/web/src/app/collections/page.tsx                                                  |   7 +++++--
+ apps/web/src/app/journal/page.tsx                                                      |   7 +++++--
+ apps/web/src/app/layout.tsx                                                            |  64 +++++++++++++++++++++++++++++++++++++---------------------------
+ apps/web/src/app/page.tsx                                                              |   5 +++++
+ apps/web/src/app/shop/[category]/page.tsx                                              |  27 +++++++++++++++++++--------
+ apps/web/src/app/shop/page.tsx                                                         |   7 +++++--
+ apps/web/src/lib/seo.test.ts                                                           |  36 ++++++++++++++++++++++++++++++++++++
+ apps/web/src/lib/seo.ts                                                                |  40 ++++++++++++++++++++++++++++++++++++++++
+ apps/web/vitest.config.ts                                                              |   5 +++++
+ docs/plans/2026-09-10-live-e2e-remediation-round5.md                                   |  87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/traceability.md                                                                   |   6 +++---
+ docs/verification-ledger.md                                                            |  23 +++++++++++++++++++++++
+ packages/auth/vitest.config.ts                                                         |   6 ++++++
+ packages/commerce/src/catalog-category.integration.test.ts                             |  46 ++++++++++++++++++++++++++++++++++++++++++++++
+ packages/commerce/src/catalog.ts                                                       |  16 ++++++++++++++++
+ packages/commerce/vitest.config.ts                                                     |   6 ++++++
+ packages/config/vitest.config.ts                                                       |   5 +++++
+ packages/db/vitest.config.ts                                                           |   5 +++++
 
- create mode 100644 apps/web/e2e/search-flows.spec.ts
- create mode 100644 apps/web/e2e/seo-flows.spec.ts
- create mode 100644 apps/web/src/app/robots.ts
- create mode 100644 apps/web/src/app/search/page.tsx
- create mode 100644 apps/web/src/app/sitemap.ts
- create mode 100644 apps/web/src/lib/seo.test.ts
- create mode 100644 apps/web/src/lib/seo.ts
- create mode 100644 apps/web/src/lib/site-origin.ts
- create mode 100644 docs/plans/2026-09-10-live-e2e-remediation-round4.md
- create mode 100644 docs/session_7.md
- create mode 100644 packages/commerce/src/sitemap-entries.integration.test.ts
-
+ create mode 100644 docs/plans/2026-09-10-live-e2e-remediation-round5.md
+ create mode 100644 packages/commerce/src/catalog-category.integration.test.ts
