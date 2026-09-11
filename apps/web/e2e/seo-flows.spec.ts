@@ -26,6 +26,10 @@ test.describe("sitemap.xml (R4-3, PRD §11.1)", () => {
     expect(body).toContain("/shop/lighting</loc>");
     expect(body).toContain("/journal</loc>");
 
+    // Journal article URLs (round 7, R7-2, FR-703) — category-scoped
+    expect(body).toContain("/journal/craft/the-slow-chair</loc>");
+    expect(body).toContain("/journal/people/wool-that-remembers-water</loc>");
+
     // Private surfaces never appear
     expect(body).not.toContain("/cart</loc>");
     expect(body).not.toContain("/checkout</loc>");

@@ -27,6 +27,9 @@ describe("buildSitemapEntries (R4-3, PRD §11.1)", () => {
     ],
     categories: [{ slug: "lighting" }, { slug: "furniture" }],
     collections: [{ slug: "slow-living" }],
+    journal: [
+      { slug: "the-slow-chair", category: "craft", updatedAt: new Date("2026-09-03T10:00:00Z") },
+    ],
   });
 
   it("emits static + catalog entries with absolute URLs", () => {
@@ -56,6 +59,15 @@ describe("buildSitemapEntries (R4-3, PRD §11.1)", () => {
     const category = entries.find((e) => e.url.endsWith("/shop/lighting"));
     expect(category?.changeFrequency).toBe("daily");
     expect((category?.priority ?? 0)).toBeLessThan(product?.priority ?? 1);
+  });
+
+  it("emits journal article URLs with their category segment (R7-2, FR-703)", () => {
+    const journalEntry = entries.find((e) => e.url === `${SITE_URL}/journal/craft/the-slow-chair`);
+    expect(journalEntry).toBeDefined();
+    expect(journalEntry?.lastModified).toEqual(new Date("2026-09-03T10:00:00Z"));
+    expect(journalEntry?.changeFrequency).toBe("daily");
+    // Articles sit below category PLPs (0.4) — editorial content, not catalog
+    expect(journalEntry?.priority).toBe(0.4);
   });
 });
 

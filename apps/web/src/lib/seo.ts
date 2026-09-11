@@ -53,16 +53,18 @@ export interface SitemapCatalogInput {
   products: { slug: string; updatedAt: Date }[];
   categories: { slug: string }[];
   collections: { slug: string }[];
+  /** Published journal articles (round 7, R7-2, FR-703) — category-scoped reader routes. */
+  journal?: { slug: string; category: string; updatedAt: Date }[];
 }
 
 /**
  * Sitemap entries (PRD §11.1): static pages, category PLPs, collection
- * pages, and product PDPs — products weighted highest, everything daily.
- * Cart/checkout/account/search/admin/API surfaces are excluded by
- * construction (never listed here).
+ * pages, product PDPs, and journal article routes (R7-2, FR-703) — products
+ * weighted highest, everything daily. Cart/checkout/account/search/admin/API
+ * surfaces are excluded by construction (never listed here).
  */
 export function buildSitemapEntries(input: SitemapCatalogInput): MetadataRoute.Sitemap {
-  const { siteUrl, products, categories, collections } = input;
+  const { siteUrl, products, categories, collections, journal = [] } = input;
   const base = siteUrl.replace(/\/$/, "");
 
   return [
@@ -84,6 +86,12 @@ export function buildSitemapEntries(input: SitemapCatalogInput): MetadataRoute.S
       url: `${base}/collections/${collection.slug}`,
       changeFrequency: "daily" as const,
       priority: 0.5,
+    })),
+    ...journal.map((post) => ({
+      url: `${base}/journal/${post.category}/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: "daily" as const,
+      priority: 0.4,
     })),
     ...products.map((product) => ({
       url: `${base}/products/${product.slug}`,

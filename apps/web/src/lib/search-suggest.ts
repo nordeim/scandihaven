@@ -3,8 +3,8 @@
  * between the typeahead route contract `{products, categories, journal}` and
  * the dropdown UI. Mirrors the route's 2-char minimum, caps total suggestions
  * so the dropdown stays a typeahead rather than a results page, and tolerates
- * the route's reserved-but-empty groups (journal stays empty until the
- * FR-703 reader route ships — dead links would violate FR-109 honesty).
+ * malformed group payloads. Since round 7 (R7-2, FR-703) the journal group is
+ * live — rows link to the `/journal/{category}/{slug}` reader route.
  */
 
 export type SuggestionKind = "product" | "category" | "journal";
@@ -43,7 +43,7 @@ function readString(record: UnknownRecord, keys: string[]): string {
 function groupFrom(
   kind: SuggestionKind,
   label: string,
-  href: (slug: string) => string,
+  href: (slug: string, row: UnknownRecord) => string,
   rows: UnknownRecord[],
   remaining: number,
   sink: { count: number; groups: SuggestionGroup[] },
@@ -56,7 +56,7 @@ function groupFrom(
     if (!slug) continue;
     const name = readString(row, ["title", "name"]);
     if (!name) continue;
-    items.push({ kind, label: name, href: href(slug) });
+    items.push({ kind, label: name, href: href(slug, row) });
     sink.count += 1;
   }
   if (items.length > 0) sink.groups.push({ label, items });
@@ -82,7 +82,20 @@ export function buildSuggestions(
 
   groupFrom("product", "Products", (slug) => `/products/${slug}`, asRecordArray(query.products), cap, sink);
   groupFrom("category", "Collections", (slug) => `/shop/${slug}`, asRecordArray(query.categories), cap, sink);
-  groupFrom("journal", "Journal", (slug) => `/journal/${slug}`, asRecordArray(query.journal), cap, sink);
+  groupFrom(
+    "journal",
+    "Journal",
+    (slug, row) => {
+      // FR-703 reader routes are category-scoped (R7-2). Rows without a
+      // category fall back to the flat path — the shaping stays tolerant of
+      // contract drift (never crashes the dropdown).
+      const category = readString(row, ["category"]);
+      return category ? `/journal/${category}/${slug}` : `/journal/${slug}`;
+    },
+    asRecordArray(query.journal),
+    cap,
+    sink,
+  );
 
   return { groups: sink.groups, total: sink.count };
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listLatestJournal } from "@scandihaven/commerce/catalog";
 import { publicPageMetadata } from "@/lib/seo";
 
@@ -23,7 +24,12 @@ export default async function JournalPage() {
           {posts.map((post) => (
             <article key={post.slug} className="border-b border-line pb-10">
               <p className="text-xs uppercase tracking-wide text-muted">{post.category}</p>
-              <h2 className="mt-2 font-display text-2xl">{post.title}</h2>
+              {/* FR-703: the index links into the category-scoped reader route (R7-2) */}
+              <h2 className="mt-2 font-display text-2xl">
+                <Link href={`/journal/${post.category}/${post.slug}`} className="hover:text-accent-2">
+                  {post.title}
+                </Link>
+              </h2>
               {post.excerpt ? (
                 <p className="mt-2 leading-relaxed text-ink-2">{post.excerpt}</p>
               ) : null}

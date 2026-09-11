@@ -20,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [entries, headerList] = await Promise.all([
     listSitemapEntries().catch((error: unknown) => {
       console.error("[sitemap] catalog load failed", error);
-      return { products: [], categories: [], collections: [] };
+      return { products: [], categories: [], collections: [], journal: [] };
     }),
     headers(),
   ]);

@@ -71,13 +71,27 @@ describe("buildSuggestions", () => {
       {
         products: [],
         categories: [{ slug: "lighting", title: "Lighting" }],
-        journal: [{ slug: "oak-and-linen", title: "Oak & Linen" }],
+        journal: [{ slug: "oak-and-linen", category: "craft", title: "Oak & Linen" }],
       },
       10,
     );
     expect(result.groups.map((g) => g.label).sort()).toEqual(["Collections", "Journal"]);
     const all = result.groups.flatMap((g) => g.items);
     expect(all).toContainEqual({ kind: "category", label: "Lighting", href: "/shop/lighting" });
-    expect(all).toContainEqual({ kind: "journal", label: "Oak & Linen", href: "/journal/oak-and-linen" });
+    // Journal links are category-scoped to the FR-703 reader route (R7-2)
+    expect(all).toContainEqual({
+      kind: "journal",
+      label: "Oak & Linen",
+      href: "/journal/craft/oak-and-linen",
+    });
+  });
+
+  it("falls back to a category-less journal href when the row lacks a category (contract tolerance)", () => {
+    const result = buildSuggestions(
+      { products: [], categories: [], journal: [{ slug: "legacy-post", title: "Legacy Post" }] },
+      10,
+    );
+    const journalItem = result.groups[0]?.items[0];
+    expect(journalItem?.href).toBe("/journal/legacy-post");
   });
 });

@@ -6,6 +6,7 @@ import {
   category,
   collection,
   inventoryLevel,
+  journalPost,
   media,
   product,
   productImage,
@@ -360,7 +361,6 @@ export async function listFeaturedCategories() {
 }
 
 export async function listLatestJournal(limit = 3) {
-  const { journalPost } = await import("@scandihaven/db/schema");
   return db
     .select({
       slug: journalPost.slug,
@@ -370,6 +370,57 @@ export async function listLatestJournal(limit = 3) {
     })
     .from(journalPost)
     .where(eq(journalPost.isPublished, true))
+    .orderBy(desc(journalPost.publishedAt))
+    .limit(limit);
+}
+
+/**
+ * Single published journal post for the FR-703 reader route (round 7, R7-2):
+ * the route validates the URL's category segment against `post.category` —
+ * an article only resolves under its own category (FR-201-style honesty).
+ * Returns null for unknown slugs and unpublished drafts; the route then
+ * `notFound()`s.
+ */
+export async function getJournalPost(slug: string): Promise<{
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  bodyHtml: string;
+  category: string;
+  author: string;
+  publishedAt: Date | null;
+  relatedProductIds: string[];
+} | null> {
+  const rows = await db
+    .select({
+      slug: journalPost.slug,
+      title: journalPost.title,
+      excerpt: journalPost.excerpt,
+      bodyHtml: journalPost.bodyHtml,
+      category: journalPost.category,
+      author: journalPost.author,
+      publishedAt: journalPost.publishedAt,
+      relatedProductIds: journalPost.relatedProductIds,
+    })
+    .from(journalPost)
+    .where(and(eq(journalPost.slug, slug), eq(journalPost.isPublished, true)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row, relatedProductIds: Array.isArray(row.relatedProductIds) ? row.relatedProductIds : [] };
+}
+
+/**
+ * Published journal posts matching a typeahead query (round 7, R7-2; FR-104's
+ * third group — reserved-but-empty since R6-2 because the reader route did
+ * not exist; dead links would violate FR-109 honesty). Rows carry the
+ * category so the client can build `/journal/{category}/{slug}` hrefs.
+ */
+export async function searchTypeaheadJournal(q: string, limit = 3) {
+  return db
+    .select({ slug: journalPost.slug, title: journalPost.title, category: journalPost.category })
+    .from(journalPost)
+    .where(and(eq(journalPost.isPublished, true), ilike(journalPost.title, `%${q}%`)))
     .orderBy(desc(journalPost.publishedAt))
     .limit(limit);
 }
@@ -395,15 +446,16 @@ export async function hasActiveCategory(slug: string): Promise<boolean> {
  * every indexable catalog URL for `app/sitemap.ts`. Only active rows are
  * returned (draft/archived products and inactive categories/collections
  * must never leak into the sitemap); `updated_at` feeds the entries'
- * `lastModified`. Journal is intentionally absent — only the `/journal`
- * listing route exists today (article routes are a deferred FR-704 surface).
+ * `lastModified`. Journal articles joined in round 7 (R7-2, FR-703) —
+ * published posts only, with their category segment for the reader route.
  */
 export async function listSitemapEntries(): Promise<{
   products: { slug: string; updatedAt: Date }[];
   categories: { slug: string }[];
   collections: { slug: string }[];
+  journal: { slug: string; category: string; updatedAt: Date }[];
 }> {
-  const [productRows, categoryRows, collectionRows] = await Promise.all([
+  const [productRows, categoryRows, collectionRows, journalRows] = await Promise.all([
     db
       .select({ slug: product.slug, updatedAt: product.updatedAt })
       .from(product)
@@ -419,11 +471,17 @@ export async function listSitemapEntries(): Promise<{
       .from(collection)
       .where(eq(collection.isActive, true))
       .orderBy(asc(collection.slug)),
+    db
+      .select({ slug: journalPost.slug, category: journalPost.category, updatedAt: journalPost.updatedAt })
+      .from(journalPost)
+      .where(eq(journalPost.isPublished, true))
+      .orderBy(asc(journalPost.slug)),
   ]);
   return {
     products: productRows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt })),
     categories: categoryRows,
     collections: collectionRows,
+    journal: journalRows,
   };
 }
 

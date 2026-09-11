@@ -127,4 +127,21 @@ test.describe("header search typeahead (round 6, R6-2; PRD FR-101/FR-104)", () =
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByRole("link", { name: /search/i })).toBeVisible();
   });
+
+  test("journal group surfaces seeded posts linking to the reader route (R7-2, FR-104)", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    await search.pressSequentially("slow", { delay: 60 });
+    const listbox = page.getByRole("listbox");
+    await expect(listbox).toBeVisible();
+    const journalOption = listbox.getByRole("option", { name: /the slow chair/i }).first();
+    await expect(journalOption).toBeVisible();
+    await expect(journalOption.getByText("Journal")).toBeVisible();
+    // Options navigate via mousedown (no anchor) — click through to the FR-703
+    // category-scoped reader route.
+    await journalOption.click();
+    await page.waitForURL(/\/journal\/craft\/the-slow-chair$/);
+    await expect(page.getByRole("heading", { level: 1, name: /the slow chair/i })).toBeVisible();
+  });
 });

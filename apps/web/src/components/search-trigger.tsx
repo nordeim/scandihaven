@@ -164,7 +164,7 @@ export function SearchTrigger() {
             >
               <span className="truncate">{suggestion.label}</span>
               <span className="shrink-0 text-xs uppercase tracking-wide text-muted">
-                {suggestion.kind === "product" ? "Product" : "Category"}
+                {suggestion.kind === "product" ? "Product" : suggestion.kind === "journal" ? "Journal" : "Category"}
               </span>
             </li>
           ))}

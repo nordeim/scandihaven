@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@scandihaven/db/client";
-import { searchTypeahead, searchTypeaheadCategories } from "@scandihaven/commerce/catalog";
+import { searchTypeahead, searchTypeaheadCategories, searchTypeaheadJournal } from "@scandihaven/commerce/catalog";
 import { consumeRateLimit } from "@scandihaven/commerce/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +13,15 @@ const querySchema = z.object({
 
 // §8.4: route-handler responses are Zod-validated contracts. Products come
 // from `searchTypeahead` (FTS + ILIKE over active product titles); categories
-// from `searchTypeaheadCategories` (R6-2, FR-104: typeahead spans
-// products/categories). Journal stays reserved for the FR-703 reader route —
-// advertising journal hits would link to 404s (FR-109 honesty).
+// from `searchTypeaheadCategories` (R6-2, FR-104); journal from
+// `searchTypeaheadJournal` (R7-2, FR-703) — rows link to the category-scoped
+// reader route, so advertising them no longer violates FR-109 honesty.
 const hitSchema = z.object({ slug: z.string(), title: z.string() });
+const journalHitSchema = z.object({ slug: z.string(), title: z.string(), category: z.string() });
 const responseSchema = z.object({
   products: z.array(hitSchema),
   categories: z.array(hitSchema),
-  journal: z.array(hitSchema),
+  journal: z.array(journalHitSchema),
 });
 
 /** Search typeahead (PRD FR-104/FR-106, §8.4) — 60/min/IP (§9.4). */
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ products: [], categories: [], journal: [] });
   }
-  const [products, categories] = await Promise.all([
+  const [products, categories, journal] = await Promise.all([
     searchTypeahead(parsed.data.q, parsed.data.limit).catch((error: unknown) => {
       console.error("[typeahead] product search failed", error);
       return [] as never;
@@ -59,7 +60,11 @@ export async function GET(request: NextRequest) {
       console.error("[typeahead] category search failed", error);
       return [] as never;
     }),
+    searchTypeaheadJournal(parsed.data.q, 3).catch((error: unknown) => {
+      console.error("[typeahead] journal search failed", error);
+      return [] as never;
+    }),
   ]);
-  const body = responseSchema.parse({ products, categories, journal: [] });
+  const body = responseSchema.parse({ products, categories, journal });
   return NextResponse.json(body);
 }
