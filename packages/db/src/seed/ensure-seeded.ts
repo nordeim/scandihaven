@@ -149,6 +149,11 @@ const DEMO_PRODUCTS: ProductSeed[] = [
     variants: [
       { sku: "SH-HYG-THR-SND", material: "Wool", color: "Sand", isDefault: true, priceMinor: 14_900, compareAtMinor: 17_900, stockByWarehouse: { AAL: 40, CPH: 8 }, imageUrls: ["/products/hygge-throw.svg"] },
       { sku: "SH-HYG-THR-SGE", material: "Wool", color: "Sage", colorHex: "#8B9A82", priceMinor: 14_900, stockByWarehouse: { AAL: 27 }, imageUrls: ["/products/hygge-throw.svg"] },
+      // R8-6 (FR-310): one deliberately sold-out variant so the PDP "Notify
+      // me" flow has a live surface. 0 on hand vs safety 2 → available < 0;
+      // the throw's short lead time (≤ 7 days) keeps it out_of_stock rather
+      // than made_to_order. New natural key — additive on existing DBs too.
+      { sku: "SH-HYG-THR-RST", material: "Wool", color: "Rust", colorHex: "#B0572B", priceMinor: 14_900, stockByWarehouse: { AAL: 0 }, imageUrls: ["/products/hygge-throw.svg"] },
     ],
     collections: ["hygge-edit", "autumn-collection"],
   },

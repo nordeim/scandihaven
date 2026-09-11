@@ -4,9 +4,11 @@ import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LeadTimeBadge } from "@scandihaven/ui/lead-time-badge";
 import { Button } from "@scandihaven/ui/button";
+import { Input } from "@scandihaven/ui/input";
 import { QuantityStepper } from "@scandihaven/ui/quantity-stepper";
 import type { VariantDto } from "@scandihaven/commerce/dto";
 import { addToCartAction } from "@/actions/cart";
+import { notifyBackInStockAction } from "@/actions/back-in-stock";
 import { useCartStore } from "@/stores/cart-store";
 import { formatMinor } from "@/lib/format";
 
@@ -62,6 +64,10 @@ export function ProductBuyPanel({
   );
 
   if (!selected) return null;
+
+  // FR-310 (R8-6): sold-out variants expose the notify capture even though
+  // their swatches stay disabled (selection contract unchanged).
+  const outOfStock = variants.filter((v) => v.availability === "out_of_stock");
 
   /** FR-302: selection is reflected in the URL (?variant=SKU) via replaceState. */
   const onSelectVariant = (sku: string) => {
@@ -169,10 +175,74 @@ export function ProductBuyPanel({
         </p>
       ) : null}
 
+      {/* FR-310 (round 8, R8-6): a sold-out variant keeps its disabled swatch
+          and gains an honest "Notify me" capture — the back_in_stock_request
+          row feeds the FR-914 batched notifications later. */}
+      {outOfStock.map((variant) => (
+        <NotifyMeRow key={variant.id} variant={variant} />
+      ))}
+
       <p className="text-sm leading-relaxed text-muted">
         Made slowly in our Aalborg workshop. 10-year guarantee, carbon-neutral delivery,
         14-day returns on in-stock pieces.
       </p>
     </div>
+  );
+}
+
+function NotifyMeRow({ variant }: { variant: VariantDto }) {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMessage(null);
+    startTransition(async () => {
+      const result = await notifyBackInStockAction({ variantId: variant.id, email });
+      setMessage(
+        result.ok
+          ? result.data.status === "already_registered"
+            ? "You are already on the list."
+            : "You are on the list — we will email you when it is back in stock."
+          : result.error.message,
+      );
+    });
+  };
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      aria-label={`Notify me — ${variant.color ?? variant.sku}`}
+      className="rounded-card border border-line bg-bg-2 p-4"
+    >
+      <p className="text-sm text-ink-2">
+        <span className="font-medium">{variant.color ?? variant.sku}</span> is out of stock —
+        we will let you know when it returns.
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <label htmlFor={`notify-${variant.id}`} className="sr-only">
+          {`Notify me — ${variant.color ?? variant.sku}`}
+        </label>
+        <Input
+          id={`notify-${variant.id}`}
+          type="email"
+          required
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="flex-1"
+          autoComplete="email"
+        />
+        <Button type="submit" variant="outline" disabled={isPending}>
+          {isPending ? "Saving…" : "Notify me"}
+        </Button>
+      </div>
+      {message ? (
+        <p role="status" className="mt-2 text-sm text-ink-2">
+          {message}
+        </p>
+      ) : null}
+    </form>
   );
 }

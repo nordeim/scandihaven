@@ -268,3 +268,22 @@ test.describe("footer newsletter + social (R8-4, FR-107)", () => {
     }
   });
 });
+
+test.describe("back-in-stock notify (R8-6, FR-310)", () => {
+  test("out-of-stock variant exposes a notify form with honest dedupe", async ({ page }) => {
+    await page.goto("/products/hygge-wool-throw");
+    // The Rust variant is seeded sold-out: its swatch is disabled (the
+    // tooltip names the state) and a Notify me form targets it (FR-310 M).
+    const rustSwatch = page.getByRole("button", { name: "Rust", exact: true });
+    await expect(rustSwatch).toBeDisabled();
+    const email = page.getByRole("textbox", { name: /notify me — rust/i });
+    await expect(email).toBeVisible();
+    await email.fill("e2e-r8-notify@example.com");
+    await page.getByRole("button", { name: /notify me$/i }).first().click();
+    const status = page.getByRole("status").filter({ hasText: /list|back in stock/i }).first();
+    await expect(status).toBeVisible();
+    // Re-submitting the same email is an honest dedupe, not a duplicate row.
+    await page.getByRole("button", { name: /notify me$/i }).first().click();
+    await expect(page.getByText(/already on the list/i).first()).toBeVisible();
+  });
+});
