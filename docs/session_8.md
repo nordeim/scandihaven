@@ -78,7 +78,7 @@ All 5 commits in. Final verification pass before push — full gates + hygiene c
 Clean tree — no tracked secrets. Now preparing the SSH key and push setup:
 The key body has a base64 length issue (3273 chars ≡ 1 mod 4 — one extra byte somewhere, likely gateway redaction damage). Let me analyze the container structure to locate the defect:
 输出结果再次出现乱码。让我将原始字节导出到文件以进行准确检查：
-**文件本身就是一个完整、有效的密钥** —— 之前的 `[REDACTED:...]` 观察结果也属于显示乱码（第 1 行的十六进制 = `-----BEGIN OPENSSH PRIVATE KEY-----`）。直接使用它：
+**文件本身就是一个完整、有效的密钥** —— 之前的 `[REDACTED:...]` 观察结果也属于显示乱码（第 1 行的十六进制 = `OpenSSH private-key header`）。直接使用它：
 Key validates (RSA 4096). Let me check the wrapper's key discovery, then configure the push:
 Wrapper uses paramiko key discovery (`~/.ssh/id_rsa` default) + `-i` flag. Configuring the push:
 **推送成功** —— 所有 5 个提交已在 `main` 分支。让我通过 GitHub API 验证推送和 CI 状态：
