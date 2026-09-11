@@ -15,7 +15,6 @@ const dbReady = /\/\/([^/]*@)?(localhost|127\.0\.0\.1)[:/]/.test(dbUrl);
 
 describe.skipIf(!dbReady)("listApprovedTestimonials (R8-5, FR-701 §9)", () => {
   const fixtureProductId = "77777777-7777-7777-7777-777777777771";
-  const base = Date.UTC(2026, 0, 1);
 
   beforeAll(async () => {
     await db.execute(sql`
