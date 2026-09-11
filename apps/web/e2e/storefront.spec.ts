@@ -271,6 +271,19 @@ test.describe("footer newsletter + social (R8-4, FR-107)", () => {
 
 test.describe("back-in-stock notify (R8-6, FR-310)", () => {
   test("out-of-stock variant exposes a notify form with honest dedupe", async ({ page }) => {
+    // Fixture setup (documented deviation from black-box purity): repeated
+    // local suite runs share one rate-limit bucket ("unknown" IP — no
+    // proxy headers on loopback) and would exhaust the honest 3/hour window
+    // without exercising the feature. CI runs the suite once per push, so
+    // this reset only ever fires in a dev loop. The guardrail itself is NOT
+    // weakened: submissions inside this spec still consume and respect the
+    // limit, and the rate limiter's own integration suite pins its contract.
+    const { db, pool } = await import("@scandihaven/db/client");
+    const { rateLimitHit } = await import("@scandihaven/db/schema");
+    const { like } = await import("drizzle-orm");
+    await db.delete(rateLimitHit).where(like(rateLimitHit.bucket, "back_in_stock:%"));
+    await pool.end();
+
     await page.goto("/products/hygge-wool-throw");
     // The Rust variant is seeded sold-out: its swatch is disabled (the
     // tooltip names the state) and a Notify me form targets it (FR-310 M).
@@ -278,12 +291,16 @@ test.describe("back-in-stock notify (R8-6, FR-310)", () => {
     await expect(rustSwatch).toBeDisabled();
     const email = page.getByRole("textbox", { name: /notify me — rust/i });
     await expect(email).toBeVisible();
-    await email.fill("e2e-r8-notify@example.com");
-    await page.getByRole("button", { name: /notify me$/i }).first().click();
-    const status = page.getByRole("status").filter({ hasText: /list|back in stock/i }).first();
-    await expect(status).toBeVisible();
+    // Run-unique address: the (variant, email) dedupe must not collide with a
+    // previous run, keeping the two-click contract below deterministic
+    // (also keeps the 3/hour/IP back_in_stock window headroom — 2 clicks).
+    const address = `e2e-r8-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+    await email.fill(address);
+    const notifyButton = page.getByRole("button", { name: /notify me$/i }).first();
+    await notifyButton.click();
+    await expect(page.getByText(/we will email you when it is back in stock/i)).toBeVisible();
     // Re-submitting the same email is an honest dedupe, not a duplicate row.
-    await page.getByRole("button", { name: /notify me$/i }).first().click();
+    await notifyButton.click();
     await expect(page.getByText(/already on the list/i).first()).toBeVisible();
   });
 });
