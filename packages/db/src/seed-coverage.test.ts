@@ -58,6 +58,16 @@ describe.skipIf(!dbReady)("seed: FR-704 static page coverage (R7-3)", () => {
     expect(pairs).toContain("rug->throw");
   });
 
+  it("seeds approved reviews so the FR-701 §9 testimonials and FR-308 read-path render (R8-5)", async () => {
+    const rows = await db.execute<{ n: string; products: string }>(
+      sql`SELECT COUNT(*)::text AS n, COUNT(DISTINCT product_id)::text AS products FROM review WHERE status = 'approved'`,
+    );
+    const count = Number(rows.rows[0]?.n ?? "0");
+    const products = Number(rows.rows[0]?.products ?? "0");
+    expect(count, "approved review seed rows").toBeGreaterThanOrEqual(6);
+    expect(products, "distinct products carrying approved reviews").toBeGreaterThanOrEqual(4);
+  });
+
   it("ends the pool cleanly", async () => {
     await pool.end().catch(() => undefined);
   });

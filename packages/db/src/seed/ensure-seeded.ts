@@ -21,6 +21,7 @@ import {
   product,
   productImage,
   productVariant,
+  review,
   searchSynonym,
   shippingRate,
   shippingZone,
@@ -626,6 +627,95 @@ export async function ensureSeeded(): Promise<{ seeded: boolean }> {
         },
       ])
       .onConflictDoNothing();
+
+    // ---- Reviews (PRD FR-308 / FR-701 §9; live audit round 8, R8-5) ----
+    // The `review` table has no natural key, so guard by existence per
+    // product: a re-seed must not duplicate rows (announcement-block idiom).
+    // `isVerifiedPurchase` stays false — no order rows back these demo rows,
+    // and the verified badge must stay honest.
+    const seededReviews = await tx.select({ id: review.id }).from(review).limit(1);
+    if (!seededReviews[0]) {
+      const reviewSeed: Array<{
+        productSlug: string;
+        authorName: string;
+        rating: number;
+        title: string;
+        body: string;
+        daysAgo: number;
+      }> = [
+        {
+          productSlug: "halden-linen-armchair",
+          authorName: "Mette Sørensen",
+          rating: 5,
+          title: "Worth every week of waiting",
+          body: "Six weeks felt endless, and then it arrived. The linen has already softened beautifully and the oak smells like a workshop. This is the first chair in years I do not want to get out of.",
+          daysAgo: 12,
+        },
+        {
+          productSlug: "halden-linen-armchair",
+          authorName: "Jonas Lindqvist",
+          rating: 4,
+          title: "Solid, honest furniture",
+          body: "Beautiful joinery and the charcoal linen hides everyday life well. One star held back only because the delivery window was wider than promised — the chair itself is flawless.",
+          daysAgo: 26,
+        },
+        {
+          productSlug: "oresund-table-lamp",
+          authorName: "Astrid Berg",
+          rating: 5,
+          title: "The light everyone asks about",
+          body: "Warm brass with a matte black shade option — we chose both. Guests ask about it every time. Shipped in three days, packed like it was made of glass.",
+          daysAgo: 8,
+        },
+        {
+          productSlug: "hygge-wool-throw",
+          authorName: "Freja Holm",
+          rating: 5,
+          title: "Wool that actually breathes",
+          body: "Heavy in the good way. It kept its shape after the first wash and the sand colour matches everything. Buying the sage one before winter.",
+          daysAgo: 5,
+        },
+        {
+          productSlug: "hygge-wool-throw",
+          authorName: "Emil Kragh",
+          rating: 4,
+          title: "Lovely, slightly itchier than expected",
+          body: "Genuine Norwegian wool — so yes, it has some texture. The weave is tight and even and the edges are hand-finished. We love it.",
+          daysAgo: 19,
+        },
+        {
+          productSlug: "birch-side-table",
+          authorName: "Ida Nystrøm",
+          rating: 5,
+          title: "Perfect bedside companion",
+          body: "The edge profile is silky and the FSC birch grain is quiet and even. Assembly was one bolt. Feels like it will outlive me.",
+          daysAgo: 15,
+        },
+        {
+          productSlug: "kyst-stoneware-vase",
+          authorName: "Sofie Andersen",
+          rating: 4,
+          title: "Beautiful glaze, honest weight",
+          body: "The reactive glaze pools exactly as photographed. Slightly heavier than expected — which suits us. Water-tight with fresh stems.",
+          daysAgo: 9,
+        },
+      ];
+      for (const [index, seed] of reviewSeed.entries()) {
+        const productId = productIdBySlug.get(seed.productSlug);
+        if (!productId) continue;
+        await tx.insert(review).values({
+          productId,
+          authorName: seed.authorName,
+          rating: seed.rating,
+          title: seed.title,
+          body: seed.body,
+          status: "approved",
+          isVerifiedPurchase: false,
+          helpfulCount: (index % 5) + 1,
+          createdAt: new Date(Date.now() - seed.daysAgo * 86_400_000),
+        });
+      }
+    }
 
     return { seeded: true };
   });

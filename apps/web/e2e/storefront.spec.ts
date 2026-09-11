@@ -218,3 +218,35 @@ test.describe("category pages — empty vs unknown (round 5, R5-3, FR-201)", () 
     expect(response?.status()).toBe(404);
   });
 });
+
+test.describe("homepage FR-701 sections (R8-5)", () => {
+  test("brand story teaser, materials cards, and testimonials render", async ({ page }) => {
+    await page.goto("/");
+    // §6 brand story teaser (links the /our-story static page)
+    const story = page.getByRole("link", { name: /our story/i }).first();
+    await expect(story).toBeVisible();
+    // §7 materials section links the /materials static page
+    await expect(page.getByRole("heading", { name: "Materials we trust" })).toBeVisible();
+    const oakCard = page.getByRole("link", { name: /FSC oak/i }).first();
+    await expect(oakCard).toBeVisible();
+    await expect(oakCard).toHaveAttribute("href", "/materials");
+    // §9 testimonials render from approved reviews (seeded, R8-5)
+    await expect(page.getByRole("heading", { name: /what customers say|testimonials/i })).toBeVisible();
+    const reviewQuote = page.locator("blockquote, figure, [class*=testimonial]").first();
+    await expect(reviewQuote.or(page.getByText(/★★★★/).first())).toBeVisible();
+  });
+});
+
+test.describe("PDP aggregateRating JSON-LD (R8-5, FR-312)", () => {
+  test("Product JSON-LD carries aggregateRating when approved reviews exist", async ({ page }) => {
+    await page.goto("/products/halden-linen-armchair");
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    const product = blocks.map((b) => JSON.parse(b)).find((j) => j["@type"] === "Product");
+    expect(product).toBeDefined();
+    expect(product.aggregateRating).toBeDefined();
+    expect(Number(product.aggregateRating.reviewCount ?? product.aggregateRating.ratingCount)).toBeGreaterThan(0);
+    expect(Number(product.aggregateRating.ratingValue)).toBeGreaterThan(0);
+    // The rendered reviews section must appear too (FR-308 read-path)
+    await expect(page.getByRole("heading", { name: /reviews/i })).toBeVisible();
+  });
+});

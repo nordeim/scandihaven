@@ -389,6 +389,39 @@ export async function listFeaturedCategories() {
     .limit(4);
 }
 
+export type TestimonialDto = {
+  authorName: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  productSlug: string;
+  productTitle: string;
+};
+
+/**
+ * Homepage testimonials source (live E2E audit round 8, R8-5; FR-701 §9):
+ * "3-up from approved reviews". Previously no commerce query read approved
+ * reviews and the seed created none, so the section could never render.
+ * Newest-first, bounded, joined to the product for deep links; pending and
+ * rejected rows never surface.
+ */
+export async function listApprovedTestimonials(limit = 3): Promise<TestimonialDto[]> {
+  return db
+    .select({
+      authorName: review.authorName,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      productSlug: product.slug,
+      productTitle: product.title,
+    })
+    .from(review)
+    .innerJoin(product, eq(product.id, review.productId))
+    .where(eq(review.status, "approved"))
+    .orderBy(desc(review.createdAt))
+    .limit(limit);
+}
+
 export async function listLatestJournal(limit = 3) {
   return db
     .select({

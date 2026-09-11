@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { listFeaturedCategories, listLatestJournal, listProducts } from "@scandihaven/commerce/catalog";
+import { listApprovedTestimonials, listFeaturedCategories, listLatestJournal, listProducts } from "@scandihaven/commerce/catalog";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { buttonVariants } from "@scandihaven/ui/button";
 import { Skeleton } from "@scandihaven/ui/skeleton";
 import { NewsletterForm } from "@/components/newsletter-form";
+import { StarsRating } from "@/components/stars-rating";
 import { publicPageMetadata } from "@/lib/seo";
 import { formatMinor } from "@/lib/format";
 
@@ -15,8 +16,9 @@ export const metadata: Metadata = publicPageMetadata({ path: "/" });
 /**
  * Homepage (PRD FR-701): announcement bar lives in the header; this page renders
  * hero → trust marquee → featured categories → new arrivals → brand story →
- * editorial block → journal preview → newsletter. Every section degrades to
- * hidden (never a blank block) when its content is missing.
+ * materials → editorial block → testimonials → journal preview → newsletter.
+ * Every section degrades to hidden (never a blank block) when its content is
+ * missing.
  */
 export default async function HomePage() {
   return (
@@ -88,6 +90,69 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Brand story teaser (FR-701 §6; round 8, R8-5) */}
+      <section className="mx-auto w-full max-w-7xl px-5 py-16 md:px-8">
+        <div className="grid items-center gap-10 md:grid-cols-2">
+          <div>
+            <p className="text-sm uppercase tracking-[0.2em] text-accent-2">Our story</p>
+            <h2 className="mt-4 font-display text-3xl md:text-4xl">
+              A workshop, a river, and no hurry
+            </h2>
+            <p className="mt-4 max-w-md leading-relaxed text-ink-2">
+              We design in Aalborg, work with mills and joineries we can visit in
+              a morning, and let oak decide its own timeline. Ten-year guarantees
+              are easy to give when you build this way.
+            </p>
+            <Link
+              href="/our-story"
+              className={buttonVariants({ variant: "outline" }) + " mt-6 inline-block"}
+            >
+              Read our story
+            </Link>
+          </div>
+          <div className="aspect-[4/3] overflow-hidden rounded-image bg-bg-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/products/birch-side-table.svg"
+              alt="Birch side table in the Aalborg workshop"
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Materials (FR-701 §7; round 8, R8-5) */}
+      <section className="border-y border-line bg-bg-2">
+        <div className="mx-auto w-full max-w-7xl px-5 py-16 md:px-8">
+          <h2 className="font-display text-3xl">Materials we trust</h2>
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            {[
+              {
+                name: "FSC oak",
+                copy: "Solid, certified, and finished with natural oil — never a veneer in sight.",
+              },
+              {
+                name: "Belgian linen",
+                copy: "Woven at a family mill in Flanders, OEKO-TEX Standard 100 certified.",
+              },
+              {
+                name: "Norwegian wool",
+                copy: "Long-fibre wool that breathes in summer and holds warmth in winter.",
+              },
+            ].map((material) => (
+              <Link
+                key={material.name}
+                href="/materials"
+                className="rounded-card border border-line bg-bg p-6 transition-colors hover:border-accent"
+              >
+                <h3 className="font-display text-xl">{material.name}</h3>
+                <p className="mt-2 text-md leading-relaxed text-ink-2">{material.copy}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Editorial collection block — dark (FR-701 §8) */}
       <section className="bg-dark text-bg">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-20 md:grid-cols-2 md:px-8">
@@ -116,6 +181,13 @@ export default async function HomePage() {
             />
           </div>
         </div>
+      </section>
+
+      {/* Testimonials (FR-701 §9; round 8, R8-5) */}
+      <section className="mx-auto w-full max-w-7xl px-5 py-16 md:px-8">
+        <Suspense fallback={<Skeleton className="mt-8 h-64" />}>
+          <Testimonials />
+        </Suspense>
       </section>
 
       {/* Journal preview (FR-701 §10) */}
@@ -176,6 +248,33 @@ async function NewArrivals() {
           priority={index < 2}
         />
       ))}
+    </div>
+  );
+}
+
+async function Testimonials() {
+  const testimonials = await listApprovedTestimonials(3).catch((error: unknown) => { console.error("[home] testimonials load failed", error); return [] as never; });
+  if (testimonials.length === 0) return null;
+  return (
+    <div>
+      <h2 className="font-display text-3xl">What customers say</h2>
+      <div className="mt-8 grid gap-6 md:grid-cols-3">
+        {testimonials.map((t) => (
+          <figure key={`${t.productSlug}-${t.authorName}`} className="flex flex-col rounded-card border border-line p-6">
+            <StarsRating rating={t.rating} />
+            <blockquote className="mt-3 flex-1 text-md leading-relaxed text-ink-2">
+              {t.title ? <span className="block font-medium text-ink">{t.title}</span> : null}
+              {t.body}
+            </blockquote>
+            <figcaption className="mt-4 text-sm text-muted">
+              {t.authorName} —{" "}
+              <Link href={`/products/${t.productSlug}`} className="text-accent-2 hover:underline">
+                {t.productTitle}
+              </Link>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
     </div>
   );
 }
