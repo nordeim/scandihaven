@@ -1,9 +1,9 @@
-# Scandi Haven — Master Project Architecture Document (PAD) v1.0
+# Scandi Haven — Master Project Architecture Document (PAD) v1.1
 
 > **Classification:** INTERNAL — ENGINEERING SOURCE OF TRUTH
 > **Status:** DEFINITIVE PRODUCTION-LOCKED BLUEPRINT
 > **Companion:** `PRD.md` v4.0 (Approved for build, 2026-09-08)
-> **Last Updated:** 2026-09-10
+> **Last Updated:** 2026-09-11
 > **Audience:** Every engineer who ships, debugs, audits, or extends Scandi Haven — from day-one onboarding to incident response at 02:00.
 > **Rule:** If the PRD states *what* and *why*, this PAD states *how, where, and in what version* — as built, as verified, as deployed. Where they disagree, the PAD is truth for code and the PRD is truth for intent; file an ADR to reconcile.
 
@@ -14,6 +14,7 @@
 | Version | Date | Author | Tags | Summary |
 |---|---|---|---|---|
 | **v1.0 Initial** | 2026-09-10 | Product Engineering | [SYN] | **Synthesis of alignment audit.** Promotes the 2026-09-08 PRD alignment audit, 2026-09-09 code-review + security audit (2 Critical / 9 High), and 2026-09-10 live-site E2E round-3 into the locked as-built record. No new decisions — every ADR, NFR-STACK rule, and pinned version is cited to its file:line evidence. Establishes the PAD as the single as-built companion to `PRD.md` v4.0. |
+| **v1.1 Round-6/7 status sync** | 2026-09-11 | Product Engineering | [FIX] | **Drift correction + round-7 remediation record.** Adds the missing revision entry for round-6 status edits (§11 rows already carried 2026-09-11 live evidence). Round 7 (`docs/plans/2026-09-11-live-e2e-remediation-round7.md`): `R-DB-1` closed (maintained `search_vector` + GIN, migration 0001), `R-SHOP-1` closed (synonym expansion + trigram union), FR-703 journal reader route + FR-704 full dozen static pages shipped, `R-DB-2` explicitly deferred with rationale. Also corrects structural drift: TOC §11 title now matches the body heading, and the §4.2 money citation now points at ADR-001 (the commerce-engine decision) instead of ADR-7. |
 
 > **Tag legend:** [SYN] synthesis · [ADD] addition · [CHG] change · [DEP] deprecation · [FIX] correction of drift
 
@@ -34,7 +35,7 @@
 8. [Design System — `packages/ui` & Tailwind v4](#8-design-system--packagesui--tailwind-v4)
 9. [Cross-Cutting Concerns — Security, Rate Limiting, Jobs, Email](#9-cross-cutting-concerns--security-rate-limiting-jobs-email)
 10. [Quality Engineering — Testing, A11y, Observability](#10-quality-engineering--testing-a11y-observability)
-11. [Environments, Infrastructure & Release](#11-environments-infrastructure--release)
+11. [Known Issues & Outstanding Tasks](#11-known-issues--outstanding-tasks)
 12. [Traceability & Verification Ledger](#12-traceability--verification-ledger)
 13. [Appendices — Glossary, References, Known Gaps](#13-appendices--glossary-references-known-gaps)
 
@@ -1314,7 +1315,7 @@ erDiagram
 | **Ops** | `audit_log`, `webhook_event`, `job`, `rate_limit_hit`, `redirect`, `newsletter_subscriber`, `fx_rate`, `shipping_zone`/`shipping_rate`, `announcement`, `nav_entry`, `static_page`, `journal_post`, `lookbook`, `analytics_event` | `webhook_event.stripe_event_id UNIQUE`, `job.idempotency_key UNIQUE`, `rate_limit_hit PK(bucket,window_start)`, `redirect.source_path UNIQUE` | `packages/db/src/schema/ops.ts:24-148` + `content.ts` |
 | **Auth** | `user`, `session`, `account`, `verification` (Better-Auth owned, `role`/`banned` extensions) | `user.email citext UNIQUE`, `session.token UNIQUE`, `verification_identifier_value_idx UNIQUE(identifier,value)` | `packages/db/src/schema/auth.ts:50-74` |
 
-Money is `integer` minor units everywhere (`amount`, `total`, `tax`, `shipping` — never floats, ADR-7). Timestamps are `timestamptz` UTC (`created_at`, `updated_at`).
+Money is `integer` minor units everywhere (`amount`, `total`, `tax`, `shipping` — never floats, ADR-001). Timestamps are `timestamptz` UTC (`created_at`, `updated_at`).
 
 ### 4.3 Persistence Strategy
 
@@ -1680,13 +1681,13 @@ Order matters: `pnpm lint typecheck test build` works without DB; with local PG 
 | **RESOLVED** | `sitemap.ts` + `robots.ts` absent (daily weights + image entries, disallow `/admin,/account,/cart,/checkout,/search,/api`) | ~~Indexability — crawlers miss catalog or index blocked surfaces~~ | **Resolved — round 4 (`180cc54`), live-verified round 6 (2026-09-11): sitemap 20 absolute URLs all 200, robots app rules + Sitemap line present** | §11.1, §11-sitemap, §11-robots | `R-SEO-1` (closed) |
 | **OPEN** | Facet URL `≥2 facets → noindex,follow` + `?page=N` `rel next/prev` + self-canonical `0/1-curated` not emitted (blocked by R-SHOP-2 — no filter UI emits facet URLs yet) | Crawl budget + index bloat — every filter combo indexed | **Open — P0 (blocked by R-SHOP-2)** | FR-203 §11.1, §11-facet-indexing | `R-SEO-1` |
 | **RESOLVED** | `/search?q=` results page absent (typeahead API exists, page does not) | ~~Search journey break~~ | **Resolved — round 4 (R4-5), live-verified round 6 (2026-09-11): `/search?q=lamp` 200 + noindex + shareable sort** | FR-106 §8.8 | `R-SEO-2` (closed) |
-| **CRITICAL** | `product.search_vector tsvector + GIN` table + trigger absent | Search drifts — `websearch_to_tsquery` + `ILIKE` only, no vector maintained | **Open — P0** | §7.3 §8.8-search-stack | `R-DB-1` (S) |
-| **HIGH** | Missing `CHECK` constraints (`amount>=0`, `qty 1..99`, `rating 1..5`, `alt<>''`) + `category.parent FK` + `updated_at $onUpdate` + promotion partial uniques | Data integrity — app guards exist but DDL should enforce | **Open — P0** | §7.2–§7.5, §7.9, §7.8 | `R-DB-2` (M) |
+| **RESOLVED** | `product.search_vector tsvector + GIN` maintained-column + trigger absent | ~~Search drifts — `websearch_to_tsquery` + `ILIKE` only, no vector maintained~~ | **Resolved — round 7 (`3cfa4f8`, 2026-09-11): `search_vector` GENERATED ALWAYS STORED (title A / materials+desc B weights, PRD §8.8) + GIN index; `listProducts`/`searchTypeahead` probe the maintained vector; existing rows backfilled; integration-pinned** | §7.3 §8.8-search-stack | `R-DB-1` (closed) |
+| **HIGH** | Missing `CHECK` constraints (`amount>=0`, `qty 1..99`, `rating 1..5`, `alt<>''`) + `category.parent FK` + `updated_at $onUpdate` + promotion partial uniques | Data integrity — app guards exist but DDL should enforce | **Open — P0 — deliberately deferred in round 7: touches money/order-state DDL (PRD §15 asks scope confirmation) and each constraint needs pre-flight data validation; deserves a dedicated session, not a tail-end batch** | §7.2–§7.5, §7.9, §7.8 | `R-DB-2` (M) |
 | **HIGH** | `two_factor` table + Better-Auth twoFactor plugin + proxy `/admin` second-factor gate missing (Owner/Admin password-only) | Account takeover — admin `role` enumeration | **Open — P1** | §7.8, §9.2, §9-2FA | `R-SEC-1` (M) — do not launch admin without |
 | **HIGH** | File uploads (trade cert, return photo, review photo): allow-list/size caps/random keys/signed URLs absent | Stored XSS / path traversal | **Open — P1** | §9-upload, FR-901/912 | `R-SEC-2` (M) |
 | **HIGH** | Inventory reservation not two-phase — `qty_reserved` never written; single-step `qty_on_hand-=qty`, arbitrary warehouse pick | Oversell window under concurrent webhooks — mitigated by `FOR UPDATE` re-check but diverges from §7.6 | **Open — P1** | §7.6 | `R-INV-1` (M) |
-| **HIGH** | Faceted PLP UI `FilterPanel`/`SortSelect` + relaxed-facet CTEs + `product_metrics` view for `bestselling` absent | Merchandising — PLP shows unfiltered grid; sort falls through to default | **Open — P1** | FR-202/204, §8.8-catalog-query | `R-SHOP-2` (L) |
-| **HIGH** | Search depth: `pg_trgm ≥0.5` union + `search_synonym` expansion (`couch→sofa`) + synonym seed import not wired | Typo tolerance + synonyms silent miss | **Open — P1** | FR-105, §8.8-search-stack | `R-SHOP-1` (S) |
+| **HIGH** | Faceted PLP UI `FilterPanel`/`SortSelect` + relaxed-facet CTEs + `product_metrics` view for `bestselling` absent | Merchandising — PLP shows unfiltered grid; `?sort=` URL sorting DOES work (round-7 verified: `newest/price_asc/price_desc` honored in SQL — the "sort falls to default" text was stale); facets + `bestselling` remain the gap | **Open — P1** | FR-202/204, §8.8-catalog-query | `R-SHOP-2` (L) |
+| **HIGH** | Search depth: `pg_trgm ≥0.5` union + `search_synonym` expansion (`couch→sofa`) + synonym seed import not wired | ~~Typo tolerance + synonyms silent miss~~ | **Resolved — round 7 (`3cfa4f8`, 2026-09-11): `expandSearchTerms` (pure, unit-tested) unions expanded terms + `similarity(p.title, q) >= 0.5` into both `listProducts` and `searchTypeahead`; the seeded `couch→sofa` row finally queried. Partial two-word typos score ~0.48 and honestly stay below the threshold** | FR-105, §8.8-search-stack | `R-SHOP-1` (closed) |
 | **HIGH** | Reviews verified-buyer server gate + moderation admin + `+21d` `review_request` job (`delivered_at+21d`) + back-in-stock `≤1/day` batch not wired | Content & retention — unverified reviews pass, no automated solicitation | **Open — P1** | FR-308, FR-913/914 | `R-SHOP-3` (M) |
 | **MEDIUM** | Cart `/cart` shipping estimate 500ms postcode + invalid-promo actionable errors; re-validation inline notices not rendered | P2 friction — cart shows stale eligibility silently | **Open — P1** | FR-402/404 §8.5 | `R-CART-1` (M) |
 | **MEDIUM** | `TaxProvider` → Stripe Tax binding not done; `order_line.tax` stays `0`; EU inclusive vs US/UK exclusive display incomplete | Cross-border tax — §7.4 lines persist `tax=0` | **Open — P1** | §8.5-tax, §7.11 | `R-CHECK-1` (S) |
