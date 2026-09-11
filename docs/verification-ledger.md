@@ -357,3 +357,5 @@ Environment: fresh clone @ `a5ffbf7` (main). Embedded PostgreSQL 17.5 (zonky bin
 1. **Rotate `BETTER_AUTH_SECRET` and `CRON_SECRET`** — 4th public exposure (`a5ffbf7`); history keeps the bytes. Cart-cookie HMAC rides `BETTER_AUTH_SECRET` — rotation restarts the 30-day guest-cart window.
 2. Redeploy both apps via `./start_server.sh` to publish R7-2/R7-3/R7-4 (journal routes, static pages, search depth) — and run `pnpm db:migrate` so the deployment's DB gains `search_vector` before the new build serves search traffic.
 3. Carried: Stripe env alignment, junk cart-row cleanup, R-DB-2 DDL hardening as a dedicated session (money/order-state constraints need pre-flight data validation).
+
+**Post-push live re-check (round 7, `b106515`):** web **54/64 vs live** — the 10 remaining failures are exactly the new round-7 specs awaiting redeploy (3 journal reader + 1 typeahead journal group + 1 sitemap journal-URL + 2 FR-704 dozen + 3 search-depth); admin **8/8 vs live**. The redeploy (`./start_server.sh`, which runs `pnpm db:migrate`) is the ops action that publishes round 7 — the DB must gain `search_vector` before the new build serves search traffic.

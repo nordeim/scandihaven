@@ -53,7 +53,7 @@ Gates green: lint 8/8 · typecheck 8/8 · tests 7/7 tasks (config 50, auth 19, a
 
 ## Step 4 — Push to GitHub via SSH wrapper
 
-Pushed to `origin/main` via the SSH wrapper (paramiko) with the uploaded key. Post-push live re-check: the round-7 fixes await redeploy (documented ops action: `./start_server.sh` + `pnpm db:migrate` so the deployment's DB gains `search_vector` before the new build serves search traffic).
+Pushed to `origin/main` at `b106515` via the SSH wrapper (paramiko) with the uploaded key; parity verified (`git rev-parse HEAD origin/main` identical). Post-push live re-check: web **54/64 vs live** — the 10 remaining failures are exactly the new round-7 specs awaiting redeploy (3 journal reader + 1 typeahead journal + 1 sitemap journal-URL + 2 FR-704 dozen + 3 search-depth); admin **8/8 vs live** (characterizes deployed behavior, unchanged). Ops action: `./start_server.sh` (runs `pnpm db:migrate` so the deployment DB gains `search_vector` before the new build serves search traffic).
 
 ## Summary
 
