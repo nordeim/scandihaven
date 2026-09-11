@@ -159,6 +159,36 @@ test.describe("accessibility (PRD §12.2)", () => {
   }
 });
 
+test.describe("static pages — FR-704 full dozen (round 7, R7-3)", () => {
+  const FR_704_SLUGS = [
+    "our-story",
+    "sustainability",
+    "materials",
+    "showrooms",
+    "trade-program",
+    "faq",
+    "shipping",
+    "returns",
+    "privacy",
+    "terms",
+    "cookies",
+    "accessibility",
+  ];
+
+  test("every FR-704 static page resolves (200) and renders its body", async ({ page }) => {
+    for (const slug of FR_704_SLUGS) {
+      const response = await page.goto(`/${slug}`);
+      expect(response?.status(), `/${slug} should resolve`).toBe(200);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    }
+  });
+
+  test("the accessibility statement renders its WCAG 2.2 AA commitment", async ({ page }) => {
+    await page.goto("/accessibility");
+    await expect(page.getByText(/WCAG 2\.2 Level AA/i)).toBeVisible();
+  });
+});
+
 test.describe("category pages — empty vs unknown (round 5, R5-3, FR-201)", () => {
   test("a known active category with zero products renders an honest empty state (200)", async ({ page }) => {
     // "beds" is seeded active with no products and is advertised in the

@@ -510,6 +510,51 @@ export async function ensureSeeded(): Promise<{ seeded: boolean }> {
             "<h2>How long until my order ships?</h2><p>In-stock pieces leave our Aalborg warehouse within 3 business days. Made-to-order furniture follows the lead time shown on the product page at purchase.</p><h2>Do you ship outside Denmark?</h2><p>We ship across the EU, UK, and US. Shipping options and costs are shown at checkout before you pay.</p><h2>Can I return a piece?</h2><p>In-stock items can be returned within 14 days of delivery — see the Returns page for the full policy and how to start one. Made-to-order and personalised pieces are excluded unless faulty.</p><h2>Is the Copenhagen showroom open?</h2><p>Yes — Vestre Havnegade 4, 9000 Aalborg, Tuesday to Saturday 10–17. Pickup at the showroom is always free.</p><h2>How do I care for solid oak and linen?</h2><p>Each product page carries its Materials &amp; care guide. In short: dry-dust the oak, keep it out of direct sun, and let the linen age — it only gets softer.</p>",
           isPublished: true,
         },
+        {
+          // Round 7 (R7-3): the remaining six FR-704 pages. PRD FR-704 lists
+          // all twelve as M-priority; the demo catalog now seeds them so the
+          // routes resolve. Admin management (FR-809) stays the mechanism.
+          slug: "sustainability",
+          title: "Sustainability",
+          bodyHtml:
+            "<p>Every piece starts with material we can trace. Our oak comes from FSC-certified Danish and Swedish forests, our wool from a mill that has run on the same river since 1887, and our stoneware from a family workshop in Jutland. We build to be kept: joints are doweled and glued, never stapled, and every surface is repairable.</p><p>Slow making is not a marketing line — it is how we keep waste out of the stream. We produce to order, ship consolidated, and offset nothing we can avoid producing in the first place.</p>",
+          isPublished: true,
+        },
+        {
+          slug: "materials",
+          title: "Materials",
+          bodyHtml:
+            "<p><strong>Oak.</strong> Solid, quarter-sawn, FSC-certified. Finished with hard-wax oil; dry-dust it and keep it out of direct sun.</p><p><strong>Linen.</strong> Woven from European flax and washed for softness. It ages — let it.</p><p><strong>Wool.</strong> Traceable Scandinavian wool from the mill on the river; naturally flame-resistant and shedding-free.</p><p><strong>Stoneware.</strong> Thrown and glazed by hand; food-safe, dishwasher-safe, and happy with a decade of daily use.</p><p>Each product page carries its own Materials &amp; care guide with specifics.</p>",
+          isPublished: true,
+        },
+        {
+          slug: "showrooms",
+          title: "Showrooms",
+          bodyHtml:
+            "<p><strong>Aalborg — workshop &amp; pickup.</strong> Vestre Havnegade 4, 9000 Aalborg. Tuesday to Saturday, 10–17. See pieces being made and collect orders — pickup is always free.</p><p><strong>Copenhagen — showroom.</strong> Opening autumn — our Copenhagen space will carry the full collection with white-glove pickup. Watch the announcement bar for the opening date.</p>",
+          isPublished: true,
+        },
+        {
+          slug: "trade-program",
+          title: "Trade Program",
+          bodyHtml:
+            "<p>We work with interior architects, studios, and hospitality projects across Northern Europe. Trade members receive tiered pricing, consolidated shipping, and a dedicated concierge contact.</p><p>The full self-service application flow — including resale-certificate upload and 48-hour review — is in preparation. Until it opens, apply and enquire directly at trade@scandihaven.example; approvals and tier assignment are handled manually by our team.</p>",
+          isPublished: true,
+        },
+        {
+          slug: "cookies",
+          title: "Cookies",
+          bodyHtml:
+            "<p>We use the minimum set of cookies that the shop needs to work: your cart, your session, and your cookie choice itself. Analytics and marketing cookies are consent-based and off until you opt in.</p><p>Our managed consent banner is part of the soft-launch hardening now in progress; until it is live, no consent-based cookies are set. You can review categories and change your choice at any time from this page once the banner ships.</p>",
+          isPublished: true,
+        },
+        {
+          slug: "accessibility",
+          title: "Accessibility",
+          bodyHtml:
+            "<p>We target WCAG 2.2 Level AA across the storefront: keyboard operability, visible focus states, 4.5:1 contrast on body text, and honest labelling of every control and image. Our checkout and account flows are tested with screen readers on each release.</p><p>If something on this site is hard to use, tell us at accessibility@scandihaven.example — accessibility reports are treated as bugs, not feedback, and triaged with the same priority.</p>",
+          isPublished: true,
+        },
       ])
       .onConflictDoNothing();
 
