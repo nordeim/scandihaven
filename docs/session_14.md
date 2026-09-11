@@ -58,3 +58,10 @@ Gates green: lint 8/8 · typecheck 8/8 · tests 7/7 tasks (config 50, auth 19, a
 1. Redeploy via `./start_server.sh` (migrate + idempotent seed) to publish round 8 — the deployment DB gains the review seeds and the sold-out Rust variant before the new build serves traffic.
 2. **Carried ops action: rotate `BETTER_AUTH_SECRET`/`CRON_SECRET`** — 4th public exposure, history keeps the bytes.
 3. Queue R-DB-2 (DDL constraints) as its own dedicated session; R-SHOP-2 (facet UI) next; R-SHOP-3 remainder (verified-buyer gate, moderation admin, +21d review-request job, FR-914 batching) after that.
+
+
+## Step 5 — Post-push live re-check
+
+Pushed to `origin/main` at `5a5f73d` via the SSH wrapper (paramiko, `ssh_git_wrapper_v3.py`) after rebasing onto `8c15d3f` (a redeploy-log commit that landed mid-session; rebase clean — it touches only `start_server_log.txt`). Parity verified (`git rev-parse HEAD origin/main` identical).
+
+Live re-check: **web 64/74 vs live** — the 10 remaining failures are exactly the new round-8 specs awaiting redeploy (2 journal-preview links, 2 PLP breadcrumb JSON-LD, 1 checkout placeholder honesty, 2 FR-701 sections + aggregateRating, 1 footer newsletter/social, 1 notify flow, 1 announcement dismissal); admin **8/8 vs live** (behavior unchanged). Ops action: `./start_server.sh` (runs migrate + idempotent seed — the deployment DB gains the review seeds and the sold-out Rust variant before the new build serves traffic).

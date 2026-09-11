@@ -389,3 +389,5 @@ Environment: fresh clone @ `d94c020` (main). Embedded PostgreSQL 17.5 (zonky bin
 1. Redeploy both apps via `./start_server.sh` (runs migrate + idempotent seed) to publish round 8 — the seed adds the sold-out Rust variant and the approved review rows; the PDP reviews/testimonials surfaces render once the deployment DB carries them.
 2. **Carried from R7-1: rotate `BETTER_AUTH_SECRET` and `CRON_SECRET`** — 4th public exposure; history keeps the bytes.
 3. Carried: R-DB-2 DDL hardening as a dedicated session; R-SHOP-2 facets; R-SHOP-3 remainder (verified-buyer gate, moderation admin, +21d review-request job, FR-914 batching).
+
+**Post-push live re-check (round 8, `5a5f73d`):** web **64/74 vs live** — the 10 remaining failures are exactly the new round-8 specs awaiting redeploy; admin **8/8 vs live**. The redeploy (`./start_server.sh`, which runs migrate + idempotent seed) is the ops action that publishes round 8 — the deployment DB must gain the review seeds and the sold-out Rust variant before the new build serves the reviews/testimonials/notify surfaces.
