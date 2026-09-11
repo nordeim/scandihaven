@@ -49,3 +49,23 @@ test.describe("journal reader (R7-2, FR-703)", () => {
     expect(resp?.status()).toBe(404);
   });
 });
+
+test.describe("homepage journal preview (R8-2, FR-701 §10)", () => {
+  test("journal preview cards link to the category-scoped reader routes", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "From the journal" })).toBeVisible();
+    const slowChair = page.getByRole("link", { name: /the slow chair/i }).first();
+    await expect(slowChair).toBeVisible();
+    await expect(slowChair).toHaveAttribute("href", "/journal/craft/the-slow-chair");
+    const wool = page.getByRole("link", { name: /wool that remembers water/i }).first();
+    await expect(wool).toBeVisible();
+    await expect(wool).toHaveAttribute("href", "/journal/people/wool-that-remembers-water");
+  });
+
+  test("a journal preview card click-through resolves the reader route", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: /the slow chair/i }).first().click();
+    await expect(page).toHaveURL(/\/journal\/craft\/the-slow-chair$/);
+    await expect(page.getByRole("heading", { level: 1, name: /the slow chair/i })).toBeVisible();
+  });
+});

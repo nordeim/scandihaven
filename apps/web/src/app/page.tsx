@@ -186,11 +186,18 @@ async function JournalPreview() {
   return (
     <div className="mt-8 grid gap-6 md:grid-cols-3">
       {posts.map((post) => (
-        <article key={post.slug} className="rounded-card border border-line p-6">
+        // R8-2 (live audit round 8): the reader routes shipped in round 7 —
+        // link each preview card to its category-scoped route
+        // (/journal/{category}/{slug}, the R7-2 URL contract).
+        <Link
+          key={post.slug}
+          href={`/journal/${post.category}/${post.slug}`}
+          className="rounded-card border border-line p-6 transition-colors hover:border-accent"
+        >
           <p className="text-xs uppercase tracking-wide text-muted">{post.category}</p>
           <h3 className="mt-2 font-display text-xl">{post.title}</h3>
           <p className="mt-2 text-md text-ink-2">{post.excerpt}</p>
-        </article>
+        </Link>
       ))}
     </div>
   );
