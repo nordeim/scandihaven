@@ -1,49 +1,61 @@
 $ git pull
-Updating a5ffbf7..699ba84
+remote: Enumerating objects: 171, done.
+remote: Counting objects: 100% (171/171), done.
+remote: Compressing objects: 100% (37/37), done.
+remote: Total 130 (delta 90), reused 130 (delta 90), pack-reused 0 (from 0)
+Receiving objects: 100% (130/130), 54.88 KiB | 245.00 KiB/s, done.
+Resolving deltas: 100% (90/90), completed with 34 local objects.
+From github.com:nordeim/scandihaven
+   8c15d3f..91716c0  main       -> origin/main
+Updating 8c15d3f..91716c0
 Fast-forward
- AGENTS.md                                                 |    7 +-
- CLAUDE.md                                                 |    4 +-
- Project_Architecture_Document.md                          |   17 +-
- apps/web/e2e/journal-flows.spec.ts                        |   51 ++
- apps/web/e2e/search-flows.spec.ts                         |   46 ++
- apps/web/e2e/seo-flows.spec.ts                            |    4 +
- apps/web/e2e/storefront.spec.ts                           |   30 +
- apps/web/src/app/api/search/typeahead/route.ts            |   19 +-
- apps/web/src/app/journal/[category]/[slug]/page.tsx       |  144 ++++
- apps/web/src/app/journal/page.tsx                         |    8 +-
- apps/web/src/app/sitemap.ts                               |    2 +-
- apps/web/src/components/search-trigger.tsx                |    2 +-
- apps/web/src/lib/search-suggest.test.ts                   |   18 +-
- apps/web/src/lib/search-suggest.ts                        |   23 +-
- apps/web/src/lib/seo.test.ts                              |   12 +
- apps/web/src/lib/seo.ts                                   |   16 +-
- docs/plans/2026-09-11-live-e2e-remediation-round7.md      |  177 +++++
- docs/session_12.md                                        |   73 ++
- docs/session_8.md                                         |    2 +-
- docs/traceability.md                                      |    8 +-
- docs/verification-ledger.md                               |   29 +
- packages/commerce/src/catalog-journal.integration.test.ts |   77 ++
- packages/commerce/src/catalog.ts                          |  106 ++-
- packages/commerce/src/search-depth.integration.test.ts    |   84 +++
- packages/commerce/src/search-terms.test.ts                |   54 ++
- packages/commerce/src/search-terms.ts                     |   38 +
- packages/db/drizzle/0001_faulty_warpath.sql               |   10 +
- packages/db/drizzle/meta/0001_snapshot.json               | 5779 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- packages/db/drizzle/meta/_journal.json                    |    7 +
- packages/db/src/schema.test.ts                            |   17 +
- packages/db/src/schema/catalog.ts                         |   12 +-
- packages/db/src/schema/custom.ts                          |   11 +
- packages/db/src/seed-coverage.test.ts                     |   64 ++
- packages/db/src/seed/ensure-seeded.ts                     |   45 ++
- 
- create mode 100644 apps/web/e2e/journal-flows.spec.ts
- create mode 100644 apps/web/src/app/journal/[category]/[slug]/page.tsx
- create mode 100644 docs/plans/2026-09-11-live-e2e-remediation-round7.md
- create mode 100644 docs/session_12.md
- create mode 100644 packages/commerce/src/catalog-journal.integration.test.ts
- create mode 100644 packages/commerce/src/search-depth.integration.test.ts
- create mode 100644 packages/commerce/src/search-terms.test.ts
- create mode 100644 packages/commerce/src/search-terms.ts
- create mode 100644 packages/db/drizzle/0001_faulty_warpath.sql
- create mode 100644 packages/db/drizzle/meta/0001_snapshot.json
- create mode 100644 packages/db/src/seed-coverage.test.ts
+ AGENTS.md                                               |   6 +++++
+ CLAUDE.md                                               |   1 +
+ Project_Architecture_Document.md                        |  15 +++++++++---
+ apps/web/e2e/journal-flows.spec.ts                      |  20 ++++++++++++++++
+ apps/web/e2e/seo-flows.spec.ts                          |  32 +++++++++++++++++++++++++
+ apps/web/e2e/storefront.spec.ts                         | 112 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/actions/back-in-stock.test.ts              |  65 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/actions/back-in-stock.ts                   |  58 +++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/actions/checkout.test.ts                   |  83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/actions/checkout.ts                        |  17 ++++++++++----
+ apps/web/src/actions/newsletter.ts                      |   1 +
+ apps/web/src/app/page.tsx                               | 116 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ apps/web/src/app/shop/[category]/page.tsx               |  23 ++++++++++++++++--
+ apps/web/src/app/shop/page.tsx                          |  16 ++++++++++++-
+ apps/web/src/components/announcement-bar.tsx            |  54 ++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/components/checkout-flow.tsx               |  11 +++++++--
+ apps/web/src/components/newsletter-form.tsx             |  24 +++++++++++++++----
+ apps/web/src/components/product-buy-panel.tsx           |  70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ apps/web/src/components/site-footer.tsx                 |  30 ++++++++++++++++++++++--
+ apps/web/src/components/site-header.tsx                 |  15 ++++--------
+ apps/web/src/lib/stripe-config.test.ts                  |  40 +++++++++++++++++++++++++++++++
+ apps/web/src/lib/stripe-config.ts                       |  12 ++++++++++
+ apps/web/src/stores/announcement-store.test.ts          |  31 ++++++++++++++++++++++++
+ apps/web/src/stores/announcement-store.ts               |  38 ++++++++++++++++++++++++++++++
+ docs/plans/2026-09-11-live-e2e-remediation-round8.md    | 190 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/session_14.md                                      |  67 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ docs/traceability.md                                    |  12 +++++-----
+ docs/verification-ledger.md                             |  32 +++++++++++++++++++++++++
+ packages/commerce/package.json                          |   1 +
+ packages/commerce/src/back-in-stock.integration.test.ts |  62 ++++++++++++++++++++++++++++++++++++++++++++++++
+ packages/commerce/src/back-in-stock.ts                  |  38 ++++++++++++++++++++++++++++++
+ packages/commerce/src/catalog.ts                        |  33 ++++++++++++++++++++++++++
+ packages/commerce/src/testimonials.integration.test.ts  |  72 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ packages/db/src/seed-coverage.test.ts                   |  10 ++++++++
+ packages/db/src/seed/ensure-seeded.ts                   |  95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 35 files changed, 1462 insertions(+), 40 deletions(-)
+ create mode 100644 apps/web/src/actions/back-in-stock.test.ts
+ create mode 100644 apps/web/src/actions/back-in-stock.ts
+ create mode 100644 apps/web/src/actions/checkout.test.ts
+ create mode 100644 apps/web/src/components/announcement-bar.tsx
+ create mode 100644 apps/web/src/lib/stripe-config.test.ts
+ create mode 100644 apps/web/src/lib/stripe-config.ts
+ create mode 100644 apps/web/src/stores/announcement-store.test.ts
+ create mode 100644 apps/web/src/stores/announcement-store.ts
+ create mode 100644 docs/plans/2026-09-11-live-e2e-remediation-round8.md
+ create mode 100644 docs/session_14.md
+ create mode 100644 packages/commerce/src/back-in-stock.integration.test.ts
+ create mode 100644 packages/commerce/src/back-in-stock.ts
+ create mode 100644 packages/commerce/src/testimonials.integration.test.ts
+
