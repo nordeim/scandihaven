@@ -19,6 +19,7 @@ const inputSchema = z.object({
  */
 export async function subscribeAction(input: {
   email: string;
+  source?: string;
 }): Promise<ActionResult<{ status: string }>> {
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return fail("VALIDATION", "Enter a valid email address");

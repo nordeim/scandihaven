@@ -250,3 +250,21 @@ test.describe("PDP aggregateRating JSON-LD (R8-5, FR-312)", () => {
     await expect(page.getByRole("heading", { name: /reviews/i })).toBeVisible();
   });
 });
+
+test.describe("footer newsletter + social (R8-4, FR-107)", () => {
+  test("footer carries a newsletter form and labeled social links", async ({ page }) => {
+    await page.goto("/");
+    const footer = page.locator("footer");
+    // Newsletter form (FR-107 M): footer-scoped, distinct id from the
+    // homepage section instance
+    const email = footer.getByLabel("Email address");
+    await expect(email).toBeVisible();
+    await email.fill("e2e-r8-footer@example.com");
+    await footer.getByRole("button", { name: /subscribe/i }).click();
+    await expect(footer.getByRole("status")).toBeVisible();
+    // Social icons expose accessible names (a11y, FR-107 M)
+    for (const network of ["Instagram", "Pinterest", "Facebook"]) {
+      await expect(footer.getByRole("link", { name: network })).toBeVisible();
+    }
+  });
+});

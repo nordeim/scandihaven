@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { NewsletterForm } from "@/components/newsletter-form";
+
 const helpLinks = [
   { href: "/shipping", label: "Shipping" },
   { href: "/returns", label: "Returns" },
@@ -10,6 +12,15 @@ const aboutLinks = [
   { href: "/our-story", label: "Our Story" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
+];
+
+// FR-107 (round 8, R8-4): the footer newsletter was planned (the subscribe
+// action's `source` defaults to "footer") but never rendered; social icons
+// were missing too. External brand links, safely isolated.
+const socialLinks = [
+  { href: "https://instagram.com/scandihaven", label: "Instagram" },
+  { href: "https://pinterest.com/scandihaven", label: "Pinterest" },
+  { href: "https://facebook.com/scandihaven", label: "Facebook" },
 ];
 
 /** Footer (PRD FR-107): link groups, showroom address, payment marks, legal. */
@@ -57,10 +68,25 @@ export function SiteFooter() {
         </nav>
 
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-ink">Guarantee</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-ink">Stay in touch</p>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            10-year guarantee on all furniture. Carbon-neutral delivery across the EU.
+            Slow letters, four times a year. No noise.
           </p>
+          <NewsletterForm source="footer" idPrefix="footer-newsletter" compact />
+          <ul className="mt-5 flex gap-4 text-sm text-ink-2">
+            {socialLinks.map((social) => (
+              <li key={social.href}>
+                <a
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-accent-2"
+                >
+                  {social.label}
+                </a>
+              </li>
+            ))}
+          </ul>
           <p className="mt-4 text-xs text-muted">Visa · Mastercard · Amex · Apple Pay · Klarna</p>
         </div>
       </div>
