@@ -287,3 +287,16 @@ test.describe("back-in-stock notify (R8-6, FR-310)", () => {
     await expect(page.getByText(/already on the list/i).first()).toBeVisible();
   });
 });
+
+test.describe("announcement dismissal (R8-7, FR-108)", () => {
+  test("the announcement bar is dismissible and the dismissal persists", async ({ page }) => {
+    await page.goto("/");
+    const bar = page.getByText("The Autumn Collection is here", { exact: false }).first();
+    await expect(bar).toBeVisible();
+    await page.getByRole("button", { name: /dismiss announcement/i }).click();
+    await expect(bar).not.toBeVisible();
+    // Dismissal persists across reloads (Zustand persist, FR-108)
+    await page.reload();
+    await expect(page.getByText("The Autumn Collection is here", { exact: false }).first()).not.toBeVisible();
+  });
+});

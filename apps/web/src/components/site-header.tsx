@@ -6,6 +6,7 @@ import { getCartDto } from "@scandihaven/commerce/cart-service";
 import { getCartId } from "@/lib/cart-session";
 import { CartTrigger } from "@/components/cart-trigger";
 import { MobileNav } from "@/components/mobile-nav";
+import { AnnouncementBar } from "@/components/announcement-bar";
 import { SearchTrigger } from "@/components/search-trigger";
 
 /**
@@ -15,7 +16,7 @@ import { SearchTrigger } from "@/components/search-trigger";
  */
 export async function SiteHeader() {
   const announcements = await db
-    .select({ message: announcement.message, href: announcement.href })
+    .select({ id: announcement.id, message: announcement.message, href: announcement.href })
     .from(announcement)
     .where(eq(announcement.isActive, true))
     .orderBy(announcement.sortOrder)
@@ -29,15 +30,9 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur">
       {announcements[0] ? (
-        <div className="bg-dark px-4 py-2 text-center text-xs text-bg">
-          {announcements[0].href ? (
-            <Link href={announcements[0].href} className="hover:underline">
-              {announcements[0].message}
-            </Link>
-          ) : (
-            announcements[0].message
-          )}
-        </div>
+        // FR-108 (round 8, R8-7): client island owns the dismissible/persisted
+        // state; the row id scopes the dismissal so new announcements re-show.
+        <AnnouncementBar id={announcements[0].id} message={announcements[0].message} href={announcements[0].href} />
       ) : null}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-5 md:px-8">
         {/* Order is logo / mobile menu / spacer actions — the menu sits with
