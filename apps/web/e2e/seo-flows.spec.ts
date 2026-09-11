@@ -228,3 +228,35 @@ test.describe("structured data (R4-8, FR-312, PRD §11.1)", () => {
     expect(combined).toContain("/search?q={search_term_string}");
   });
 });
+
+test.describe("PLP breadcrumb JSON-LD (R8-3, FR-201)", () => {
+  test("/shop emits BreadcrumbList JSON-LD mirroring the visible trail", async ({ page }) => {
+    await page.goto("/shop");
+    const jsonLdBlocks = await page
+      .locator('script[type="application/ld+json"]')
+      .allTextContents();
+    const crumbs = jsonLdBlocks
+      .map((b) => JSON.parse(b))
+      .find((j) => j["@type"] === "BreadcrumbList");
+    expect(crumbs).toBeDefined();
+    const names = crumbs.itemListElement.map((item: { name: string }) => item.name);
+    expect(names).toEqual(["Home", "Shop"]);
+    const items = crumbs.itemListElement.map((item: { item: string }) => item.item);
+    for (const url of items) expect(url).toMatch(/^https?:\/\//);
+  });
+
+  test("/shop/{category} emits BreadcrumbList JSON-LD ending at the category", async ({ page }) => {
+    await page.goto("/shop/seating");
+    const jsonLdBlocks = await page
+      .locator('script[type="application/ld+json"]')
+      .allTextContents();
+    const crumbs = jsonLdBlocks
+      .map((b) => JSON.parse(b))
+      .find((j) => j["@type"] === "BreadcrumbList");
+    expect(crumbs).toBeDefined();
+    const names = crumbs.itemListElement.map((item: { name: string }) => item.name);
+    expect(names).toEqual(["Home", "Shop", "Seating"]);
+    const last = crumbs.itemListElement.at(-1).item;
+    expect(last).toMatch(/\/shop\/seating$/);
+  });
+});

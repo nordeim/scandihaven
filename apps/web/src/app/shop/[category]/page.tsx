@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { listProducts, productQuerySchema, hasActiveCategory } from "@scandihaven/commerce/catalog";
+import { safeJsonLd } from "@scandihaven/commerce/rich-text";
 import { ProductCard } from "@scandihaven/ui/product-card";
-import { publicPageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, publicPageMetadata } from "@/lib/seo";
+import { currentSiteUrl } from "@/lib/site-origin";
 import { formatMinor } from "@/lib/format";
 
 type Params = Promise<{ category: string }>;
@@ -56,8 +58,25 @@ export default async function CategoryPage({
   const query = parsed.success ? parsed.data : productQuerySchema.parse({ categorySlug });
   const result = await listProducts(query);
 
+  // Display name mirrors the h1/metadata casing; the JSON-LD trail must
+  // mirror the visible breadcrumb (FR-201: "breadcrumbs rendered with
+  // JSON-LD"; round 8, R8-3 — the PLPs previously emitted none).
+  const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
+  const siteUrl = await currentSiteUrl();
+  const crumbs = breadcrumbJsonLd(siteUrl, [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: categoryName, path: `/shop/${categorySlug}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
+      <script
+        type="application/ld+json"
+        // BreadcrumbList (PRD §11.1, FR-201) — same escaping rule as the PDP
+        // (safeJsonLd: a slug containing `</script>` cannot break out).
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(crumbs) }}
+      />
       <nav aria-label="Breadcrumb" className="text-sm text-muted">
         <Link href="/" className="hover:text-accent-2">
           Home
@@ -67,7 +86,7 @@ export default async function CategoryPage({
           Shop
         </Link>
         <span aria-hidden> / </span>
-        <span className="text-ink">{categorySlug}</span>
+        <span className="text-ink">{categoryName}</span>
       </nav>
 
       <div className="mt-6 flex flex-wrap items-baseline justify-between gap-4">

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { listProducts, productQuerySchema } from "@scandihaven/commerce/catalog";
+import { safeJsonLd } from "@scandihaven/commerce/rich-text";
 import { ProductCard } from "@scandihaven/ui/product-card";
 import { Button } from "@scandihaven/ui/button";
-import { publicPageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, publicPageMetadata } from "@/lib/seo";
+import { currentSiteUrl } from "@/lib/site-origin";
 import { formatMinor } from "@/lib/format";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -56,8 +58,20 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
     return `/shop?${next.toString()}`;
   };
 
+  // FR-201 (round 8, R8-3): the PLP breadcrumb mirrors the visible trail —
+  // previously only the PDP emitted BreadcrumbList structured data.
+  const crumbs = breadcrumbJsonLd(await currentSiteUrl(), [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+  ]);
+
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
+      <script
+        type="application/ld+json"
+        // Same escaping rule as the PDP (safeJsonLd, audit 2026-09-09 H-2).
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(crumbs) }}
+      />
       <nav aria-label="Breadcrumb" className="text-sm text-muted">
         <Link href="/" className="hover:text-accent-2">
           Home
