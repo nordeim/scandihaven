@@ -72,6 +72,19 @@ test.describe("storefront smoke", () => {
     ).toBeVisible();
   });
 
+  test("checkout treats placeholder publishable keys as unconfigured (R8-1)", async ({ page }) => {
+    // The local/E2E build carries the .env.example placeholder
+    // (`pk_test_set-me`). R8-1: the client must mirror the server's
+    // `set-me` guard so the honest notice renders INSTEAD of the address
+    // form — never the form followed by a leaked internal config error.
+    await page.goto("/products/oresund-table-lamp");
+    await page.getByRole("button", { name: "Add to cart" }).click();
+    await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
+    await page.goto("/checkout");
+    await expect(page.getByText(/payments are not configured/i)).toBeVisible();
+    await expect(page.locator("input[name=name]")).toHaveCount(0);
+  });
+
   test("health endpoint reports db status", async ({ request }) => {
     const response = await request.get("/api/health");
     expect([200, 503]).toContain(response.status());

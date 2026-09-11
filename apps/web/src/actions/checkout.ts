@@ -50,10 +50,19 @@ export async function createPaymentIntentAction(input: {
     return ok({ clientSecret });
   } catch (error) {
     if (error instanceof CheckoutError) {
-      return fail(
-        error.code === "STRIPE_NOT_CONFIGURED" ? "INTERNAL" : "PAYMENT_REQUIRED",
-        error.message,
-      );
+      if (error.code === "STRIPE_NOT_CONFIGURED") {
+        // R8-1 (live audit round 8): the detailed message ("set
+        // STRIPE_SECRET_KEY in .env…") is an OPERATOR instruction. Log it
+        // server-side; return an honest, customer-safe message — env-var
+        // instructions must never reach the browser (CLAUDE.md: internals
+        // never reach the client).
+        console.error("[checkout] stripe not configured:", error.message);
+        return fail(
+          "INTERNAL",
+          "Online payments are temporarily unavailable. Please contact us to complete your order.",
+        );
+      }
+      return fail("PAYMENT_REQUIRED", error.message);
     }
     console.error("[checkout] intent creation failed", error);
     return fail("INTERNAL", "Could not start payment. Please try again.");

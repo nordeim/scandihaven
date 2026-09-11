@@ -8,12 +8,19 @@ import { Button } from "@scandihaven/ui/button";
 import { Input } from "@scandihaven/ui/input";
 import { Label } from "@scandihaven/ui/label";
 import { createPaymentIntentAction, type CheckoutAddress } from "@/actions/checkout";
+import { isStripePublishableKeyConfigured } from "@/lib/stripe-config";
 import { formatMinor } from "@/lib/format";
 
 /** Checkout client flow (PRD FR-501/FR-508): address form → PaymentIntent → Payment Element. */
 
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+// R8-1: the client must apply the SAME "configured" rule as the server's
+// getStripe() — a `set-me` placeholder is not a configured environment.
+// Previously any non-empty value built a stripePromise, so placeholder-key
+// deployments rendered the address form and failed only after submission.
+const stripePromise = isStripePublishableKeyConfigured(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+)
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
   : null;
 
 export function CheckoutFlow({
