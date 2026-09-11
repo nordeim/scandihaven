@@ -59,6 +59,35 @@ test.describe("search results page (FR-106)", () => {
   });
 });
 
+test.describe("search depth (round 7, R7-4, FR-105)", () => {
+  test("typo tolerance: a misspelled full query still finds the seeded product", async ({ page }) => {
+    await page.goto("/search?q=halden+linnen+armchair");
+    await expect(
+      page.getByRole("heading", { name: /halden linen armchair/i }).first(),
+    ).toBeVisible();
+  });
+
+  test("FTS matches material terms, not just titles (B weight, R-DB-1)", async ({ page }) => {
+    await page.goto("/search?q=oak");
+    await expect(
+      page.getByRole("link", { name: /halden linen armchair/i }).first(),
+    ).toBeVisible();
+  });
+
+  test("typeahead honors typo tolerance too (FR-104/FR-106 parity)", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: /search/i });
+    await search.click();
+    // Full-title query with a typo — trigram similarity ≥ 0.5 (the PAD's
+    // R-SHOP-1 threshold; partial two-word typos score ~0.48 and honestly
+    // stay below it).
+    await search.pressSequentially("halden linnen armchair", { delay: 40 });
+    const listbox = page.getByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await expect(listbox.getByText(/halden linen armchair/i).first()).toBeVisible();
+  });
+});
+
 test.describe("header search typeahead (round 6, R6-2; PRD FR-101/FR-104)", () => {
   // FR-101: the global header carries search. R6-2: the typeahead affordance
   // was missing sitewide (API + results page existed unsurfaced).

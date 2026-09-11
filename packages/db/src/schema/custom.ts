@@ -10,3 +10,14 @@ export const citext = customType<{ data: string; driverData: string }>({
     return "citext";
   },
 });
+
+/**
+ * tsvector for the maintained product search vector (round 7, R-DB-1; PRD
+ * §8.8). Stored as an opaque string at the driver level — the column is
+ * GENERATED ALWAYS by Postgres, so no client ever writes it.
+ */
+export const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});

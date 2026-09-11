@@ -14,7 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { citext } from "./custom";
+import { citext, tsvector } from "./custom";
 import { user } from "./auth";
 import {
   mediaKindEnum,
@@ -80,6 +80,15 @@ export const product = pgTable(
     seoTitle: text("seo_title"),
     seoDescription: text("seo_description"),
     sortOrder: integer("sort_order").notNull().default(0),
+    // Maintained FTS vector (round 7, R-DB-1; PRD §8.8): title weight A,
+    // materials + description weight B. GENERATED ALWAYS (stored) — the
+    // engine maintains it on every write, which replaces the PAD's
+    // trigger-maintenance intent without the trigger's drift risk, and the
+    // GIN index below makes the @@ probes index-backed instead of the old
+    // ad-hoc to_tsvector-per-row scans.
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`setweight(to_tsvector('english'::regconfig, coalesce(title, '')), 'A') || setweight(to_tsvector('english'::regconfig, coalesce(immutable_text_array_to_string(materials, ' '), '') || ' ' || coalesce(description_html, '')), 'B')`,
+    ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -87,6 +96,7 @@ export const product = pgTable(
     uniqueIndex("product_slug_idx").on(table.slug),
     index("product_status_sort_idx").on(table.status, table.sortOrder),
     index("product_category_idx").on(table.categoryId),
+    index("product_search_vector_idx").using("gin", table.searchVector),
   ],
 );
 

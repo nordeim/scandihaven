@@ -112,4 +112,21 @@ describe("drizzle schema shape (PRD §7)", () => {
       expect(Object.keys(getTableColumns(table)).length).toBeGreaterThan(2);
     }
   });
+
+  it("product carries a maintained search_vector with a GIN index (R-DB-1, PRD §8.8)", () => {
+    // The PAD's P0: search must not build an ad-hoc to_tsvector per row —
+    // the column is engine-maintained (GENERATED ALWAYS ... STORED),
+    // A/B field-weighted.
+    const columns = getTableColumns(product);
+    expect("searchVector" in columns).toBe(true);
+    const vector = columns.searchVector as unknown as {
+      generated?: { type?: string; mode?: string };
+    };
+    expect(vector.generated).toBeDefined();
+    expect(vector.generated?.type).toBe("always");
+    expect(vector.generated?.mode).toBe("stored");
+    // GIN index over the vector (indexColumns flattens per-column; the name
+    // is what the migration pins).
+    expect(indexColumns(product).some((c) => c.name === "search_vector")).toBe(true);
+  });
 });

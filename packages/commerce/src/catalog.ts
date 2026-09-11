@@ -12,9 +12,11 @@ import {
   productImage,
   productVariant,
   review,
+  searchSynonym,
   variantPrice,
 } from "@scandihaven/db/schema";
 import type { ProductCardDto, VariantDto } from "./dto";
+import { expandSearchTerms, type SearchSynonymRow } from "./search-terms";
 
 export const CURRENCY_BY_REGION = {
   EU: "EUR",
@@ -105,6 +107,24 @@ function toCard(row: CardRow): ProductCardDto {
 }
 
 /**
+ * Synonym rows for search expansion (round 7, R7-4; FR-105). The table is
+ * tiny and admin-curated — a straight read per search beats a cache for
+ * staleness and testability; the >5k SKU swap trigger (ADR-6) is the point
+ * to revisit.
+ */
+async function loadSearchSynonyms(): Promise<SearchSynonymRow[]> {
+  return db
+    .select({ term: searchSynonym.term, synonym: searchSynonym.synonym })
+    .from(searchSynonym)
+    .catch((error: unknown) => {
+      // Synonym expansion is an enhancement, never a hard dependency — a
+      // failed read degrades to plain FTS instead of failing the search.
+      console.error("[catalog] synonym load failed", error);
+      return [] as SearchSynonymRow[];
+    });
+}
+
+/**
  * One CTE round-trip: availability rollup (no join multiplication) + first image
  * via lateral sub-select + window COUNT for pagination (PRD §8.8).
  */
@@ -128,9 +148,18 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
     conditions.push(sql`p.materials && ${query.material}::text[]`);
   }
   if (query.search) {
+    // Search depth (round 7, R7-4; FR-105; PAD R-DB-1/R-SHOP-1): the
+    // maintained A/B-weighted search_vector (not an ad-hoc per-row
+    // to_tsvector), the query expanded by search_synonym rows (couch → sofa),
+    // and a pg_trgm similarity union for typo tolerance. ILIKE stays for
+    // substring/prefix expectations.
+    const terms = expandSearchTerms(query.search, await loadSearchSynonyms());
     conditions.push(
       or(
-        sql`to_tsvector('english', p.title) @@ websearch_to_tsquery('english', ${query.search})`,
+        ...terms.map(
+          (term) => sql`p.search_vector @@ websearch_to_tsquery('english'::regconfig, ${term})`,
+        ),
+        sql`similarity(p.title, ${query.search}) >= 0.5`,
         sql`p.title ILIKE ${`%${query.search}%`}`,
       )!,
     );
@@ -486,6 +515,10 @@ export async function listSitemapEntries(): Promise<{
 }
 
 export async function searchTypeahead(q: string, limit = 8) {
+  // Same depth contract as listProducts (R7-4): maintained vector + synonym
+  // expansion + trigram union + ILIKE prefix behaviour — typeahead and the
+  // results page must never disagree about what matches.
+  const terms = expandSearchTerms(q, await loadSearchSynonyms());
   const rows = await db
     .select({ slug: product.slug, title: product.title })
     .from(product)
@@ -493,7 +526,10 @@ export async function searchTypeahead(q: string, limit = 8) {
       and(
         eq(product.status, "active"),
         or(
-          sql`to_tsvector('english', ${product.title}) @@ websearch_to_tsquery('english', ${q})`,
+          ...terms.map(
+            (term) => sql`search_vector @@ websearch_to_tsquery('english'::regconfig, ${term})`,
+          ),
+          sql`similarity(title, ${q}) >= 0.5`,
           ilike(product.title, `%${q}%`),
         )!,
       ),
