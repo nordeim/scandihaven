@@ -61,6 +61,13 @@ export const cartDtoSchema = z.object({
   taxMinor: z.number().int(),
   totalMinor: z.number().int(),
   appliedPromotionCode: z.string().nullable(),
+  /**
+   * FR-404 inline notice (R9-1): non-null when an attached promotion stopped
+   * being eligible on re-validation — the discount is dropped from pricing
+   * (E2E-3) AND the shopper is told why, with the re-application hint.
+   * Server-composed, customer-safe copy (M1-PROMO discipline).
+   */
+  promotionNotice: z.string().nullable(),
 });
 
 export type CartDto = z.infer<typeof cartDtoSchema>;

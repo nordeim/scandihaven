@@ -394,6 +394,36 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
   });
   const eligibleIds = new Set(eligiblePromotions.map((p) => p.id));
 
+  // FR-404 inline notice (R9-1, live E2E audit 2026-09-12 round 9): an
+  // attached promotion that stopped being eligible is dropped from pricing
+  // (E2E-3) but must not disappear silently — the notice names the code,
+  // gives the customer-safe reason, and hints at automatic re-application
+  // (the cart_promotion row intentionally stays; re-crossing the threshold
+  // re-applies the code). At most one promotion is attached
+  // (applyPromotionByCode replaces the row), so one notice is correct.
+  const droppedRow = promotionInfo.rows.find((r) => !eligibleIds.has(r.id)) ?? null;
+  let promotionNotice: string | null = null;
+  if (droppedRow) {
+    const droppedInput = promotionInfo.inputs.find((p) => p.id === droppedRow.id) ?? null;
+    const evaluation = droppedInput
+      ? evaluatePromotion(droppedInput, {
+          subtotalMinor,
+          region: cartRow.region,
+          now: new Date(),
+          productIds: lines.map((l) => l.variantId),
+          categoryIds,
+          isGuest: cartRow.userId === null,
+        })
+      : null;
+    const reasonCopy =
+      evaluation && !evaluation.eligible
+        ? humanizePromotionRejection(evaluation.reason)
+        : "Its conditions are no longer met.";
+    promotionNotice =
+      `Code ${droppedRow.code} no longer meets its conditions — ${reasonCopy} ` +
+      "It will re-apply automatically when your cart qualifies again.";
+  }
+
   return {
     id: cartRow.id,
     currency: cartRow.currency,
@@ -406,5 +436,6 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
     totalMinor: totals.total,
     appliedPromotionCode:
       promotionInfo.rows.find((r) => eligibleIds.has(r.id))?.code ?? null,
+    promotionNotice,
   };
 }

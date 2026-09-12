@@ -189,6 +189,13 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
             {promoMessage}
           </p>
         ) : null}
+        {/* FR-404 (R9-1): server-truth notice when re-validation drops an
+            attached code — the discount disappearing is explained inline. */}
+        {cart.promotionNotice ? (
+          <p role="status" className="mt-2 text-sm text-muted">
+            {cart.promotionNotice}
+          </p>
+        ) : null}
         <p className="mt-2 text-xs text-muted">Try WELCOME100 on orders over €500.</p>
 
         <Link href="/checkout" className="mt-6 block">

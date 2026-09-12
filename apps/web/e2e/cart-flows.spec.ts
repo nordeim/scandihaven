@@ -118,4 +118,38 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await page.reload();
     await expect(orderSummary(page)).toContainText(/€100\.00/);
   });
+
+  test("dropping below the promotion minimum explains the drop inline (R9-1, FR-404)", async ({
+    page,
+  }) => {
+    await addFromPdp(page, LAMP_PDP);
+    await page.goto("/cart");
+
+    // €249 → qty 3 = €747 ≥ €500 → the code applies (−€100.00).
+    await page.getByRole("button", { name: LAMP_INCREASE }).click();
+    await page.getByRole("button", { name: LAMP_INCREASE }).click();
+    await expect(orderSummary(page)).toContainText("€747.00");
+    await page.getByLabel("Promotion code").fill("WELCOME100");
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("status")).toContainText(/applied/i);
+    await expect(orderSummary(page)).toContainText(/€100\.00/);
+
+    // Drop back to €249 < €500 → the discount stops pricing in (E2E-3) AND
+    // an inline notice explains the drop (FR-404 — previously silent).
+    await page.getByRole("button", { name: LAMP_DECREASE }).click();
+    await page.getByRole("button", { name: LAMP_DECREASE }).click();
+    await expect(orderSummary(page)).not.toContainText(/discount/i);
+    await expect(page.getByRole("status")).toContainText(/WELCOME100 no longer meets/i);
+
+    // Server truth: the notice survives a reload (the cart_promotion row
+    // stays; the code is not silently forgotten).
+    await page.reload();
+    await expect(page.getByRole("status")).toContainText(/WELCOME100 no longer meets/i);
+
+    // Re-crossing the threshold re-applies the code and clears the notice.
+    await page.getByRole("button", { name: LAMP_INCREASE }).click();
+    await page.getByRole("button", { name: LAMP_INCREASE }).click();
+    await expect(orderSummary(page)).toContainText(/€100\.00/);
+    await expect(page.getByRole("status")).not.toContainText(/no longer meets/i);
+  });
 });
