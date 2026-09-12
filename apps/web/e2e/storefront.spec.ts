@@ -28,6 +28,39 @@ test.describe("storefront smoke", () => {
     await expect(page.getByRole("heading", { name: /halden linen armchair/i })).toBeVisible();
   });
 
+  test("shop cards quick-add the first purchasable variant and open the drawer (R9-4, FR-206)", async ({
+    page,
+  }) => {
+    await page.goto("/shop");
+    // The quick-add button sits OUTSIDE the card link semantics (FR-206
+    // a11y note) — it is its own button, not nested in the heading link.
+    // Every fully-sold-out product renders a disabled control — the seeded
+    // catalog has none, so all six seeded products expose an enabled
+    // quick-add (counted BEFORE the drawer opens: the modal marks the page
+    // aria-hidden and the buttons leave the accessibility tree).
+    const quickAdds = page.getByRole("button", { name: /quick add .+ to cart/i });
+    await expect(quickAdds.first()).toBeEnabled();
+    expect(await quickAdds.count()).toBeGreaterThanOrEqual(6);
+
+    const lampCard = page.locator("article").filter({ hasText: /Øresund Table Lamp/i });
+    const quickAdd = lampCard.getByRole("button", { name: /quick add øresund table lamp/i });
+    await expect(quickAdd).toBeEnabled();
+    await quickAdd.click();
+    // FR-305 contract: add-to-cart opens the mini-cart drawer with the line.
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog").getByText(/Øresund Table Lamp/i)).toBeVisible();
+    // The drawer line prices the DEFAULT variant (E2E-4 consistency — the
+    // same variant the card price advertises). Scoped to the line item:
+    // the amount also renders in the drawer subtotal (E2E-2 discipline).
+    const drawerLine = page
+      .getByRole("dialog")
+      .getByRole("listitem")
+      .filter({ hasText: /Øresund Table Lamp/i });
+    await expect(drawerLine).toBeVisible();
+    await expect(drawerLine).toContainText("€249.00");
+  });
+
   test("PDP shows variant swatches, lead time, and add-to-cart opens drawer", async ({ page }) => {
     await page.goto("/products/oresund-table-lamp");
     await expect(page.getByRole("heading", { level: 1, name: /Øresund table lamp/i })).toBeVisible();

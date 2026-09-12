@@ -16,6 +16,12 @@ export const productCardDtoSchema = z.object({
   availability: z.enum(["in_stock", "made_to_order", "out_of_stock"]),
   leadTimeDaysMin: z.number().int(),
   leadTimeDaysMax: z.number().int(),
+  /**
+   * First PURCHASABLE variant for quick-add (FR-206, R9-4): default first,
+   * then SKU order — the same ordering getProduct uses — skipping sold-out
+   * variants. Null when every variant is out of stock (disabled state).
+   */
+  quickAddVariantId: z.string().uuid().nullable(),
 });
 
 export type ProductCardDto = z.infer<typeof productCardDtoSchema>;

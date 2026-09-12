@@ -7,6 +7,7 @@ import { Button } from "@scandihaven/ui/button";
 import { breadcrumbJsonLd, publicPageMetadata } from "@/lib/seo";
 import { currentSiteUrl } from "@/lib/site-origin";
 import { formatMinor } from "@/lib/format";
+import { QuickAddButton } from "@/components/quick-add-button";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -124,6 +125,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
               formattedCompareAt={
                 product.compareAtMinor ? formatMinor(product.compareAtMinor, product.currency) : null
               }
+              quickAdd={<QuickAddButton variantId={product.quickAddVariantId} productTitle={product.title} />}
               priority={index < 4}
             />
           ))}

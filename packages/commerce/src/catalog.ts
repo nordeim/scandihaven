@@ -76,6 +76,7 @@ type CardRow = {
   available: string | number | null;
   image_url: string | null;
   image_alt: string | null;
+  quick_add_variant_id: string | null;
 };
 
 function toCard(row: CardRow): ProductCardDto {
@@ -103,6 +104,7 @@ function toCard(row: CardRow): ProductCardDto {
     availability: outOfStock ? "out_of_stock" : madeToOrder ? "made_to_order" : "in_stock",
     leadTimeDaysMin: row.lead_time_days_min,
     leadTimeDaysMax: row.lead_time_days_max,
+    quickAddVariantId: row.quick_add_variant_id,
   };
 }
 
@@ -207,6 +209,13 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
              price.amount,
              price.compare_at,
              a.available,
+             -- Quick-add target (FR-206, R9-4): the first PURCHASABLE
+             -- variant — default first, then SKU order (getProduct's
+             -- ordering) — skipping sold-out variants. Purchasable mirrors
+             -- the PDP derivation: inventory available > 0, or made-to-order
+             -- (product lead_time_days_max > 7 with no stock). LEFT JOIN so
+             -- fully-sold-out products keep their card (disabled state).
+             quick.quick_add_variant_id,
              (SELECT m.url FROM product_image pi JOIN media m ON m.id = pi.media_id
               WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1) AS image_url,
              (SELECT m.alt FROM product_image pi JOIN media m ON m.id = pi.media_id
@@ -221,6 +230,18 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
         ORDER BY pv2.is_default DESC, vp2.amount ASC
         LIMIT 1
       ) price ON true
+      LEFT JOIN LATERAL (
+        SELECT pv3.id AS quick_add_variant_id
+        FROM product_variant pv3
+        LEFT JOIN inventory_level il3 ON il3.variant_id = pv3.id
+        WHERE pv3.product_id = p.id AND pv3.is_active
+          AND (
+            COALESCE(il3.qty_on_hand - il3.qty_reserved - il3.safety_stock, 0) > 0
+            OR p.lead_time_days_max > 7
+          )
+        ORDER BY pv3.is_default DESC, pv3.sku ASC
+        LIMIT 1
+      ) quick ON true
       WHERE ${where}
       ORDER BY ${orderBy}
     )
