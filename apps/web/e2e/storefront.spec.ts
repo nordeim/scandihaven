@@ -382,7 +382,7 @@ test.describe("footer newsletter + social (R8-4, FR-107)", () => {
 });
 
 test.describe("back-in-stock notify (R8-6, FR-310)", () => {
-  test("out-of-stock variant exposes a notify form with honest dedupe", async ({ page }) => {
+  test("out-of-stock variant exposes a notify form with honest dedupe", async ({ page }, testInfo) => {
     // Fixture setup (documented deviation from black-box purity): repeated
     // local suite runs share one rate-limit bucket ("unknown" IP — no
     // proxy headers on loopback) and would exhaust the honest 3/hour window
@@ -390,11 +390,24 @@ test.describe("back-in-stock notify (R8-6, FR-310)", () => {
     // this reset only ever fires in a dev loop. The guardrail itself is NOT
     // weakened: submissions inside this spec still consume and respect the
     // limit, and the rate limiter's own integration suite pins its contract.
-    const { db, pool } = await import("@scandihaven/db/client");
-    const { rateLimitHit } = await import("@scandihaven/db/schema");
-    const { like } = await import("drizzle-orm");
-    await db.delete(rateLimitHit).where(like(rateLimitHit.bucket, "back_in_stock:%"));
-    await pool.end();
+    // R10-5 (live audit round 10): the reset only makes sense against a
+    // LOOPBACK target — the bucket it clears lives in the DB behind the
+    // local server, and a live origin's limiter lives in its own database.
+    // Unconditionally connecting also failed vs-live runs whenever
+    // DATABASE_URL was unset (connection AggregateError → spec red even
+    // though the feature worked; session 16 documented the same class).
+    // Vs-live runs skip the reset entirely — no local PG required.
+    const baseURL = testInfo.project.use.baseURL ?? "";
+    const isLoopbackTarget = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(baseURL);
+    if (isLoopbackTarget) {
+      const { db, pool } = await import("@scandihaven/db/client");
+      const { rateLimitHit } = await import("@scandihaven/db/schema");
+      const { like } = await import("drizzle-orm");
+      await db.delete(rateLimitHit).where(like(rateLimitHit.bucket, "back_in_stock:%"));
+      await pool.end();
+    } else {
+      console.warn("[e2e] non-loopback target — skipping local rate-limit fixture reset");
+    }
 
     await page.goto("/products/hygge-wool-throw");
     // The Rust variant is seeded sold-out: its swatch is disabled (the
