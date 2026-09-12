@@ -100,7 +100,7 @@ test.describe("storefront smoke", () => {
     await page.goto("/checkout");
     await expect(
       page
-        .getByText(/payments are not configured/i)
+        .getByText(/payments are temporarily unavailable|payments are not configured/i)
         .or(page.getByRole("button", { name: /continue to payment/i })),
     ).toBeVisible();
   });
@@ -114,8 +114,28 @@ test.describe("storefront smoke", () => {
     await page.getByRole("button", { name: "Add to cart" }).click();
     await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
     await page.goto("/checkout");
-    await expect(page.getByText(/payments are not configured/i)).toBeVisible();
+    await expect(page.getByText(/payments are temporarily unavailable/i)).toBeVisible();
     await expect(page.locator("input[name=name]")).toHaveCount(0);
+  });
+
+  test("the unconfigured checkout notice is customer-safe — no operator detail in the DOM (R10-2)", async ({ page }) => {
+    // R10-2 (live audit round 10): the R8-1 static notice told customers to
+    // "Set STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in .env
+    // … then restart the dev server" — operator instructions (env-var
+    // names, the .env file, restart steps, a test card number) in the
+    // customer-facing DOM. The action path was sanitized in R8-1; this pins
+    // the static branch to the same customer-safety contract: honest notice,
+    // zero operator vocabulary, and the cart stays visible so nothing is lost.
+    await page.goto("/products/oresund-table-lamp");
+    await page.getByRole("button", { name: "Add to cart" }).click();
+    await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
+    await page.goto("/checkout");
+    const main = page.getByRole("main");
+    await expect(page.getByText(/payments are temporarily unavailable/i)).toBeVisible();
+    await expect(
+      main.getByText(/STRIPE_SECRET_KEY|STRIPE_PUBLISHABLE_KEY|\.env|dev server|restart|4242/),
+    ).toHaveCount(0);
+    await expect(page.getByText("Øresund Table Lamp")).toBeVisible();
   });
 
   test("health endpoint reports db status", async ({ request }) => {

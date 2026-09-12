@@ -58,16 +58,16 @@ export function CheckoutFlow({
   };
 
   if (!stripePromise) {
+    // R10-2 (live audit round 10): the notice is customer-safe — no env-var
+    // names, no `.env`, no restart/dev-server steps, no test card numbers.
+    // The R8-1 sanitized the ACTION path; this static branch leaked operator
+    // setup instructions to every customer of a placeholder-key deployment.
+    // Operators learn the setup from README Secrets / server logs, never here.
     return (
       <div className="rounded-card border border-line bg-bg-2 p-6">
-        <p className="font-medium">Payments are not configured in this environment.</p>
+        <p className="font-medium">Payments are temporarily unavailable.</p>
         <p className="mt-2 text-md leading-relaxed text-muted">
-          Set <code className="rounded bg-bg-3 px-1">STRIPE_SECRET_KEY</code> and{" "}
-          <code className="rounded bg-bg-3 px-1">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> in{" "}
-          <code className="rounded bg-bg-3 px-1">.env</code> with test-mode keys
-          (<code className="rounded bg-bg-3 px-1">sk_test_…</code> /{" "}
-          <code className="rounded bg-bg-3 px-1">pk_test_…</code> from the Stripe dashboard),
-          then restart the dev server. Card 4242 4242 4242 4242 completes a test purchase.
+          Please contact us to complete your order — your cart is saved, and nothing has been charged.
         </p>
       </div>
     );
