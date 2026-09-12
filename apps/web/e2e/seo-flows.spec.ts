@@ -198,6 +198,31 @@ test.describe("canonical + og:url sitewide (round 5, R5-2, FR-313)", () => {
       .getAttribute("content");
     expect(siteName).toBe("Scandi Haven");
   });
+
+  test("public pages carry their own twitter card title — not the home default (R10-4)", async ({ page }) => {
+    // PRD §11.1 "per-page … twitter:*": before R10-4, publicPageMetadata
+    // emitted no twitter block, so the root layout default covered every
+    // public page — /shop shared as "Scandi Haven — Slow Living, Beautifully
+    // Made" instead of "Shop all".
+    await page.goto("/shop", { waitUntil: "domcontentloaded" });
+    const twitterTitle = await page
+      .locator('meta[name="twitter:title"]')
+      .first()
+      .getAttribute("content");
+    expect(twitterTitle).toBe("Shop all");
+    const twitterCard = await page
+      .locator('meta[name="twitter:card"]')
+      .first()
+      .getAttribute("content");
+    expect(twitterCard).toBe("summary");
+
+    await page.goto("/journal", { waitUntil: "domcontentloaded" });
+    const journalTwitterTitle = await page
+      .locator('meta[name="twitter:title"]')
+      .first()
+      .getAttribute("content");
+    expect(journalTwitterTitle).toBe("Journal");
+  });
 });
 
 test.describe("structured data (R4-8, FR-312, PRD §11.1)", () => {

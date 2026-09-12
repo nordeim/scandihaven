@@ -23,13 +23,19 @@ export interface PublicPageMetadataInput {
 }
 
 /**
- * Per-page canonical + openGraph for public surfaces (round 5, R5-2, FR-313).
+ * Per-page canonical + openGraph + twitter for public surfaces (round 5,
+ * R5-2, FR-313; twitter added round 10, R10-4).
  *
  * Next's metadata merge REPLACES a segment's `openGraph` object wholesale, so
  * a page that set only `openGraph: { url }` would silently drop the layout's
  * og:title/description/siteName. This builder emits the complete object and
  * keeps the canonical/og:url pair in lockstep; relative paths resolve against
  * the root layout's request-scoped `metadataBase` (`currentSiteUrl()`).
+ *
+ * R10-4 (PRD §11.1 "per-page … twitter:*"): the twitter block carries the
+ * PAGE's own title/description — without it the root layout's default (the
+ * home title) covered every public page, so shared links to /shop, /journal,
+ * category PLPs, and static pages all advertised the home copy.
  */
 export function publicPageMetadata({ path, title, description }: PublicPageMetadataInput): Metadata {
   const resolvedTitle = title ?? DEFAULT_TITLE;
@@ -44,6 +50,11 @@ export function publicPageMetadata({ path, title, description }: PublicPageMetad
       type: "website",
       url: path,
       siteName: SITE_NAME,
+    },
+    twitter: {
+      card: "summary",
+      title: resolvedTitle,
+      description: resolvedDescription,
     },
   };
 }

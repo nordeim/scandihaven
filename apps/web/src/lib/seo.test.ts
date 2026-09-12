@@ -171,4 +171,26 @@ describe("publicPageMetadata (round 5, R5-2, FR-313)", () => {
     expect(og.title).toBe("Journal");
     expect(og.description).toBe("Stories from the workshop.");
   });
+
+  it("emits a per-page twitter card — the page's own title, not the layout default (R10-4)", () => {
+    // PRD §11.1: "per-page title, description, og:*, twitter:*". Before
+    // R10-4 the builder emitted no twitter block, so the root layout's
+    // default (the home title) covered every public page — shared links to
+    // /shop, /collections, /journal, category PLPs, and static pages all
+    // showed "Scandi Haven — Slow Living, Beautifully Made" as their card.
+    const meta = publicPageMetadata({ path: "/shop", title: "Shop all", description: "The full catalog." });
+    const twitter = meta.twitter as Record<string, unknown>;
+    expect(twitter).toBeTruthy();
+    expect(twitter.card).toBe("summary");
+    expect(twitter.title).toBe("Shop all");
+    expect(twitter.description).toBe("The full catalog.");
+  });
+
+  it("falls back to the sitewide default title/description in the twitter card", () => {
+    const meta = publicPageMetadata({ path: "/collections" });
+    const twitter = meta.twitter as Record<string, unknown>;
+    expect(twitter.card).toBe("summary");
+    expect(twitter.title).toBe("Scandi Haven — Slow Living, Beautifully Made");
+    expect(twitter.description).toBeTruthy();
+  });
 });
