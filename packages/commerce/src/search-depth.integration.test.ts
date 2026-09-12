@@ -51,6 +51,32 @@ describe.skipIf(!dbReady)("search depth (R7-4, FR-105)", () => {
     expect(result.items.map((item) => item.slug)).toContain("e2e-r7-fjord-sofa");
   });
 
+  it("synonym-expanded terms match TITLES, not descriptions (R10-3)", async () => {
+    // Seeded lamp→lighting expands to 'lighting', whose stem 'light' matched
+    // the Hygge Wool Throw's description ("light enough to sleep under") —
+    // a customer searching "lamp" was offered a throw. Title-scoped synonym
+    // matching keeps the product-level synonym contract (rug→throw finds the
+    // throw BY TITLE) while description verbs stop leaking into results.
+    const lamp = await listProducts({ search: "lamp", region: "EU" });
+    expect(lamp.items.map((item) => item.slug)).toContain("oresund-table-lamp");
+    expect(lamp.items.map((item) => item.slug)).not.toContain("hygge-wool-throw");
+
+    // rug→throw: the throw matches by TITLE (intended); the Øresund lamp's
+    // "throws a soft, low glow" description must no longer match.
+    const rug = await listProducts({ search: "rug", region: "EU" });
+    expect(rug.items.map((item) => item.slug)).toContain("hygge-wool-throw");
+    expect(rug.items.map((item) => item.slug)).not.toContain("oresund-table-lamp");
+  });
+
+  it("the synonym title-scoping also serves the typeahead (FR-104 parity, R10-3)", async () => {
+    const lamp = await searchTypeahead("lamp", 10);
+    expect(lamp.map((row) => row.slug)).toContain("oresund-table-lamp");
+    expect(lamp.map((row) => row.slug)).not.toContain("hygge-wool-throw");
+    const rug = await searchTypeahead("rug", 10);
+    expect(rug.map((row) => row.slug)).toContain("hygge-wool-throw");
+    expect(rug.map((row) => row.slug)).not.toContain("oresund-table-lamp");
+  });
+
   it("the synonym expansion also serves the typeahead (FR-104 parity)", async () => {
     const rows = await searchTypeahead("couch", 10);
     expect(rows.map((row) => row.slug)).toContain("e2e-r7-fjord-sofa");

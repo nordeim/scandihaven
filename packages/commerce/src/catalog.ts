@@ -154,15 +154,23 @@ export async function listProducts(rawQuery: ProductQueryInput): Promise<Product
     // maintained A/B-weighted search_vector (not an ad-hoc per-row
     // to_tsvector), the query expanded by search_synonym rows (couch → sofa),
     // and a pg_trgm similarity union for typo tolerance. ILIKE stays for
-    // substring/prefix expectations.
-    const terms = expandSearchTerms(query.search, await loadSearchSynonyms());
+    // substring/prefix expectations. R10-3: synonym-EXPANDED terms match
+    // TITLES only — unscoped synonyms hit description text through the
+    // B-weight vector ("lamp" surfaced the Hygge throw via "light enough to
+    // sleep under"; "rug" surfaced the Øresund lamp via "throws a glow").
+    const { original, synonyms: expanded } = expandSearchTerms(query.search, await loadSearchSynonyms());
     conditions.push(
       or(
-        ...terms.map(
-          (term) => sql`p.search_vector @@ websearch_to_tsquery('english'::regconfig, ${term})`,
+        sql`p.search_vector @@ websearch_to_tsquery('english'::regconfig, ${original})`,
+        sql`similarity(p.title, ${original}) >= 0.5`,
+        sql`p.title ILIKE ${`%${original}%`}`,
+        ...expanded.map(
+          (term) =>
+            or(
+              sql`p.title ILIKE ${`%${term}%`}`,
+              sql`similarity(p.title, ${term}) >= 0.5`,
+            )!,
         ),
-        sql`similarity(p.title, ${query.search}) >= 0.5`,
-        sql`p.title ILIKE ${`%${query.search}%`}`,
       )!,
     );
   }
@@ -571,8 +579,9 @@ export async function listSitemapEntries(): Promise<{
 export async function searchTypeahead(q: string, limit = 8) {
   // Same depth contract as listProducts (R7-4): maintained vector + synonym
   // expansion + trigram union + ILIKE prefix behaviour — typeahead and the
-  // results page must never disagree about what matches.
-  const terms = expandSearchTerms(q, await loadSearchSynonyms());
+  // results page must never disagree about what matches. R10-3: synonym
+  // terms are title-scoped here too (symmetry with listProducts).
+  const { original, synonyms: expanded } = expandSearchTerms(q, await loadSearchSynonyms());
   const rows = await db
     .select({ slug: product.slug, title: product.title })
     .from(product)
@@ -580,11 +589,16 @@ export async function searchTypeahead(q: string, limit = 8) {
       and(
         eq(product.status, "active"),
         or(
-          ...terms.map(
-            (term) => sql`search_vector @@ websearch_to_tsquery('english'::regconfig, ${term})`,
+          sql`search_vector @@ websearch_to_tsquery('english'::regconfig, ${original})`,
+          sql`similarity(title, ${original}) >= 0.5`,
+          ilike(product.title, `%${original}%`),
+          ...expanded.map(
+            (term) =>
+              or(
+                ilike(product.title, `%${term}%`),
+                sql`similarity(title, ${term}) >= 0.5`,
+              )!,
           ),
-          sql`similarity(title, ${q}) >= 0.5`,
-          ilike(product.title, `%${q}%`),
         )!,
       ),
     )
