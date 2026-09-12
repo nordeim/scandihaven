@@ -8,6 +8,7 @@ import { MediaImage } from "@scandihaven/ui/media-image";
 import { QuantityStepper } from "@scandihaven/ui/quantity-stepper";
 import type { CartDto } from "@scandihaven/commerce/dto";
 import { applyPromotionAction, removeLineAction, updateQtyAction } from "@/actions/cart";
+import { CartShippingEstimate } from "@/components/cart-shipping-estimate";
 import { formatMinor } from "@/lib/format";
 
 /** Full cart page (PRD FR-402): lines, promo code, totals, checkout CTA. */
@@ -165,6 +166,10 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
           </div>
         </dl>
 
+        {/* FR-402 (R9-3): display-only postcode estimate above the promo
+            field; totals stay server-truth (shippingMinor stays null). */}
+        <CartShippingEstimate />
+
         <form onSubmit={onPromo} className="mt-5 flex gap-2">
           <label htmlFor="promo" className="sr-only">
             Promotion code
@@ -180,19 +185,22 @@ export function CartView({ initialCart }: { initialCart: CartDto | null }) {
             Apply
           </Button>
         </form>
-        {cart.appliedPromotionCode ? (
-          <p role="status" className="mt-2 text-sm text-ink-2">
-            Code {cart.appliedPromotionCode} applied.
-          </p>
-        ) : promoMessage ? (
-          <p role="status" className="mt-2 text-sm text-ink-2">
-            {promoMessage}
+        {/* One labelled live region for apply feedback — applied-status and
+            rejection message are mutually exclusive (appliedPromotionCode
+            drives the branch). Distinct accessible names keep Playwright
+            strict-mode queries unique now that the shipping estimate also
+            renders a status region. */}
+        {(cart.appliedPromotionCode ?? promoMessage) !== null ? (
+          <p role="status" aria-label="Promotion status" className="mt-2 text-sm text-ink-2">
+            {cart.appliedPromotionCode
+              ? `Code ${cart.appliedPromotionCode} applied.`
+              : promoMessage}
           </p>
         ) : null}
         {/* FR-404 (R9-1): server-truth notice when re-validation drops an
             attached code — the discount disappearing is explained inline. */}
         {cart.promotionNotice ? (
-          <p role="status" className="mt-2 text-sm text-muted">
+          <p role="status" aria-label="Promotion notice" className="mt-2 text-sm text-muted">
             {cart.promotionNotice}
           </p>
         ) : null}

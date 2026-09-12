@@ -105,7 +105,9 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     // €500.00 threshold so the shopper knows what to add.
     await page.getByLabel("Promotion code").fill("WELCOME100");
     await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByRole("status")).toContainText(/€251\.00 away from the €500\.00 minimum/i);
+    await expect(page.getByRole("status", { name: "Promotion status" })).toContainText(
+      /€251\.00 away from the €500\.00 minimum/i,
+    );
 
     // Raise the subtotal to €747 → the code applies and shows −€100.00.
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
@@ -113,7 +115,7 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await expect(orderSummary(page)).toContainText("€747.00");
     await page.getByLabel("Promotion code").fill("WELCOME100");
     await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByRole("status")).toContainText(/applied/i);
+    await expect(page.getByRole("status", { name: "Promotion status" })).toContainText(/applied/i);
     await expect(orderSummary(page)).toContainText(/€100\.00/);
 
     // Server truth: the promotion survives a reload.
@@ -133,7 +135,7 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await expect(orderSummary(page)).toContainText("€747.00");
     await page.getByLabel("Promotion code").fill("WELCOME100");
     await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByRole("status")).toContainText(/applied/i);
+    await expect(page.getByRole("status", { name: "Promotion status" })).toContainText(/applied/i);
     await expect(orderSummary(page)).toContainText(/€100\.00/);
 
     // Drop back to €249 < €500 → the discount stops pricing in (E2E-3) AND
@@ -141,17 +143,43 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await page.getByRole("button", { name: LAMP_DECREASE }).click();
     await page.getByRole("button", { name: LAMP_DECREASE }).click();
     await expect(orderSummary(page)).not.toContainText(/discount/i);
-    await expect(page.getByRole("status")).toContainText(/WELCOME100 no longer meets/i);
+    await expect(page.getByRole("status", { name: "Promotion notice" })).toContainText(
+      /WELCOME100 no longer meets/i,
+    );
 
     // Server truth: the notice survives a reload (the cart_promotion row
     // stays; the code is not silently forgotten).
     await page.reload();
-    await expect(page.getByRole("status")).toContainText(/WELCOME100 no longer meets/i);
+    await expect(page.getByRole("status", { name: "Promotion notice" })).toContainText(
+      /WELCOME100 no longer meets/i,
+    );
 
     // Re-crossing the threshold re-applies the code and clears the notice.
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
     await page.getByRole("button", { name: LAMP_INCREASE }).click();
     await expect(orderSummary(page)).toContainText(/€100\.00/);
-    await expect(page.getByRole("status")).not.toContainText(/no longer meets/i);
+    await expect(page.getByRole("status", { name: "Promotion notice" })).not.toBeVisible();
+  });
+
+  test("postcode entry renders shipping options in the estimate budget (R9-3, FR-402)", async ({
+    page,
+  }) => {
+    await addFromPdp(page, LAMP_PDP); // 1.8 kg seeded variant
+    await page.goto("/cart");
+
+    // The estimate block renders with country + postcode inputs; the
+    // debounce fires 400 ms after postcode entry (inside the FR-402 500 ms
+    // budget; the visibility assertion allows CI variance on the round trip).
+    await page.getByLabel("Country").selectOption("DK");
+    await page.getByLabel("Postcode").fill("1050");
+    const estimate = page.getByRole("status", { name: "Shipping estimate" });
+    await expect(estimate).toContainText("Standard — 2–5 days · €49.00", { timeout: 5_000 });
+    await expect(estimate).toContainText("Express — 1–2 days · €129.00");
+    await expect(estimate).toContainText(/Pickup · Free/i);
+
+    // Changing the destination re-estimates: the US zone prices in USD.
+    await page.getByLabel("Country").selectOption("US");
+    await expect(estimate).toContainText(/\$63\.70/);
+    await expect(estimate).not.toContainText("€49.00");
   });
 });

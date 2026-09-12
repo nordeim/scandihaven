@@ -19,7 +19,8 @@
     "./request-dedupe": "./src/request-dedupe.ts",
     "./result": "./src/result.ts",
     "./rich-text": "./src/rich-text.ts",
-    "./search-provider": "./src/search-provider.ts"
+    "./search-provider": "./src/search-provider.ts",
+    "./shipping-rates": "./src/shipping-rates.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
