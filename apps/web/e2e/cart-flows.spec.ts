@@ -100,10 +100,12 @@ test.describe("cart mutation flows (H1-CART regression)", () => {
     await addFromPdp(page, LAMP_PDP);
     await page.goto("/cart");
 
-    // €249 < €500 minimum → rejection must be human copy, not "(min_spend)".
+    // €249 < €500 minimum → rejection must be human copy, not "(min_spend)" —
+    // and actionable since R9-2: the copy names the €251.00 shortfall and the
+    // €500.00 threshold so the shopper knows what to add.
     await page.getByLabel("Promotion code").fill("WELCOME100");
     await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByRole("status")).toContainText(/higher order subtotal/i);
+    await expect(page.getByRole("status")).toContainText(/€251\.00 away from the €500\.00 minimum/i);
 
     // Raise the subtotal to €747 → the code applies and shows −€100.00.
     await page.getByRole("button", { name: LAMP_INCREASE }).click();

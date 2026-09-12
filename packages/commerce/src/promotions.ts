@@ -76,7 +76,54 @@ const PROMOTION_REJECTION_COPY: Record<PromotionRejection, string> = {
   customer_limit: "You've already used this code — it's limited per customer.",
 };
 
-export function humanizePromotionRejection(reason: PromotionRejection): string {
+/**
+ * Amounts for the actionable min_spend copy (live E2E audit 2026-09-12 round
+ * 9, R9-2; FR-402 acceptance: "invalid promo … states show actionable
+ * errors"). When the caller knows the threshold and the current subtotal,
+ * the rejection says exactly how far away the shopper is. Amounts stay
+ * integer minor units until the display-only Intl formatting.
+ */
+export type PromotionRejectionContext = {
+  minSpendMinor?: number;
+  subtotalMinor?: number;
+  /** ISO 4217 code (cart currency); drives the currency symbol in the copy. */
+  currency?: string;
+};
+
+/** Display-only currency formatting for rejection copy (minor units → major). */
+function formatMinorForCopy(amountMinor: number, currency: string): string {
+  // Zero-decimal currencies divide by 1; everything else by 100. The division
+  // is display-only — no arithmetic happens on the float (money rules, §7.2).
+  const zeroDecimal = new Set(["JPY", "KRW", "ISK"]).has(currency);
+  const divisor = zeroDecimal ? 1 : 100;
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency }).format(
+      amountMinor / divisor,
+    );
+  } catch {
+    // Unknown ISO code (or ICU hiccup) — fall back to the plain money.ts
+    // shape rather than throwing over copy.
+    return `${(amountMinor / divisor).toFixed(zeroDecimal ? 0 : 2)} ${currency}`;
+  }
+}
+
+export function humanizePromotionRejection(
+  reason: PromotionRejection,
+  context: PromotionRejectionContext = {},
+): string {
+  if (reason === "min_spend") {
+    const { minSpendMinor, subtotalMinor, currency } = context;
+    if (
+      typeof minSpendMinor === "number" &&
+      typeof subtotalMinor === "number" &&
+      minSpendMinor > subtotalMinor &&
+      currency
+    ) {
+      const shortfall = formatMinorForCopy(minSpendMinor - subtotalMinor, currency);
+      const minimum = formatMinorForCopy(minSpendMinor, currency);
+      return `You're ${shortfall} away from the ${minimum} minimum for this code — add another piece to qualify.`;
+    }
+  }
   return PROMOTION_REJECTION_COPY[reason];
 }
 

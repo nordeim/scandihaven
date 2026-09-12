@@ -105,9 +105,12 @@ describe.skipIf(!dbReady)("getCartDto promotion drop notice (R9-1, FR-404)", () 
     expect(dto.discountMinor).toBe(0);
     // FR-404: the drop is explained inline, not silent.
     expect(dto.promotionNotice).toContain(PROMO_CODE);
-    // Customer-safe reason copy (M1-PROMO discipline), never a raw reason code.
+    // Customer-safe reason copy (M1-PROMO discipline), never a raw reason code —
+    // actionable with amounts since R9-2 (€200.00 subtotal vs €500.00 minimum
+    // → €300.00 shortfall).
     expect(dto.promotionNotice).not.toMatch(/\bmin_spend\b/);
-    expect(dto.promotionNotice).toMatch(/higher order subtotal/i);
+    expect(dto.promotionNotice).toContain("€300.00");
+    expect(dto.promotionNotice).toContain("€500.00");
     // The notice must tell the shopper the code can come back (the
     // cart_promotion row intentionally stays for re-application).
     expect(dto.promotionNotice).toMatch(/re-appl/i);

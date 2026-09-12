@@ -35,6 +35,50 @@ describe("humanizePromotionRejection", () => {
     expect(humanizePromotionRejection("min_spend")).toMatch(/order|spend/i);
   });
 
+  it("names the shortfall and the minimum when amounts are known (R9-2, FR-402)", () => {
+    // €249.00 cart vs a €500.00 minimum → the copy must be actionable: it
+    // says how far away the shopper is and what the threshold is.
+    const message = humanizePromotionRejection("min_spend", {
+      minSpendMinor: 50_000,
+      subtotalMinor: 24_900,
+      currency: "EUR",
+    });
+    expect(message).toContain("€251.00");
+    expect(message).toContain("€500.00");
+    expect(message).toMatch(/away|add/i);
+    expect(message).not.toMatch(/_/);
+  });
+
+  it("rounds the shortfall correctly at non-round minors (R9-2)", () => {
+    const message = humanizePromotionRejection("min_spend", {
+      minSpendMinor: 50_049,
+      subtotalMinor: 24_901,
+      currency: "EUR",
+    });
+    // 50_049 − 24_901 = 25_148 minor → €251.48; the minimum shows €500.49.
+    expect(message).toContain("€251.48");
+    expect(message).toContain("€500.49");
+  });
+
+  it("falls back to the threshold sentence when amounts are unknown (R9-2)", () => {
+    // Without context the copy stays customer-readable, never raw codes.
+    expect(humanizePromotionRejection("min_spend")).toMatch(/order|spend/i);
+    expect(humanizePromotionRejection("min_spend", {})).toMatch(/order|spend/i);
+  });
+
+  it("ignores the context for every non-min_spend reason (R9-2)", () => {
+    // Context is only meaningful for the spend threshold; other reasons keep
+    // their pinned copy so the M1-PROMO guarantees stay byte-stable.
+    for (const reason of REASONS.filter((r) => r !== "min_spend")) {
+      const withContext = humanizePromotionRejection(reason, {
+        minSpendMinor: 50_000,
+        subtotalMinor: 24_900,
+        currency: "EUR",
+      });
+      expect(withContext).toBe(humanizePromotionRejection(reason));
+    }
+  });
+
   it("explains eligibility for region_not_eligible", () => {
     expect(humanizePromotionRejection("region_not_eligible")).toMatch(/region|deliver|ship/i);
   });

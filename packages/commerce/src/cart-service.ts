@@ -279,6 +279,7 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
 
   const dto = await getCartDto(cartId);
   const categoryIds = await resolveCategoryIdsForVariants(dto.lines.map((l) => l.variantId));
+  const conditions = (promo.conditionsJson ?? {}) as PromotionInput["conditions"];
   const evaluation = evaluatePromotion(
     {
       id: promo.id,
@@ -286,7 +287,7 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
       kind: promo.kind,
       value: promo.value,
       tiers: null,
-      conditions: (promo.conditionsJson ?? {}) as PromotionInput["conditions"],
+      conditions,
       startsAt: promo.startsAt,
       endsAt: promo.endsAt,
       usageLimit: promo.usageLimit,
@@ -304,8 +305,17 @@ export async function applyPromotionByCode(cartId: string, code: string): Promis
     },
   );
   if (!evaluation.eligible) {
-    // Customer copy, not the raw reason code (audit 2026-09-09 round 2, M1-PROMO).
-    throw new CartError(humanizePromotionRejection(evaluation.reason), "VALIDATION");
+    // Customer copy, not the raw reason code (audit 2026-09-09 round 2,
+    // M1-PROMO) — with the amounts when they are known so a min-spend
+    // rejection is actionable (R9-2, FR-402: "actionable errors").
+    throw new CartError(
+      humanizePromotionRejection(evaluation.reason, {
+        minSpendMinor: conditions.minSpendMinor,
+        subtotalMinor: dto.subtotalMinor,
+        currency: dto.currency,
+      }),
+      "VALIDATION",
+    );
   }
   await db.delete(cartPromotion).where(eq(cartPromotion.cartId, cartId));
   await db.insert(cartPromotion).values({ cartId, promotionId: promo.id });
@@ -417,7 +427,11 @@ export async function getCartDto(cartId: string): Promise<CartDto> {
       : null;
     const reasonCopy =
       evaluation && !evaluation.eligible
-        ? humanizePromotionRejection(evaluation.reason)
+        ? humanizePromotionRejection(evaluation.reason, {
+            minSpendMinor: droppedInput?.conditions.minSpendMinor,
+            subtotalMinor,
+            currency: cartRow.currency,
+          })
         : "Its conditions are no longer met.";
     promotionNotice =
       `Code ${droppedRow.code} no longer meets its conditions — ${reasonCopy} ` +
