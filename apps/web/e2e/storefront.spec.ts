@@ -180,6 +180,42 @@ test.describe("mobile navigation (FR-102)", () => {
   });
 });
 
+test.describe("sticky mobile add-to-cart bar (R9-5, FR-309)", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("appears after the primary CTA scrolls out and adds the selected variant", async ({ page }) => {
+    await page.goto("/products/halden-linen-armchair");
+    // The bar's CTA carries the live price in its accessible name so the two
+    // add-to-cart buttons never collide in strict mode.
+    const barCta = page.getByRole("button", { name: /add to cart — €1,299\.00/i });
+    // Initially the primary CTA is in view: no sticky bar.
+    await expect(barCta).toHaveCount(0);
+
+    // Scroll the buy-panel CTA out of the viewport → the bar slides in
+    // (price + CTA only, FR-309).
+    await page.evaluate(() => window.scrollBy(0, 1400));
+    await expect(barCta).toBeVisible();
+
+    // The bar adds the SELECTED variant and opens the drawer (same contract
+    // as the primary CTA).
+    await barCta.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByText("Your cart", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("dialog").getByRole("listitem").filter({ hasText: /Halden Linen Armchair/i }),
+    ).toBeVisible();
+  });
+
+  test("never renders on a desktop viewport", async ({ page }) => {
+    // test.use pins 390×844; resize up for the desktop case.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/products/halden-linen-armchair");
+    await page.evaluate(() => window.scrollBy(0, 1400));
+    await page.waitForTimeout(400);
+    await expect(page.getByRole("button", { name: /add to cart — €/i })).toHaveCount(0);
+  });
+});
+
 test.describe("accessibility (PRD §12.2)", () => {
   for (const path of ["/", "/shop", "/products/oresund-table-lamp", "/search?q=lamp"]) {
     test(`axe: no serious violations on ${path}`, async ({ page }) => {

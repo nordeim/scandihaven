@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LeadTimeBadge } from "@scandihaven/ui/lead-time-badge";
 import { Button } from "@scandihaven/ui/button";
@@ -62,6 +62,26 @@ export function ProductBuyPanel({
       variants[0],
     [variants, urlVariant, selectedSku],
   );
+
+  // Sticky mobile add-to-cart bar (FR-309, R9-5): shown only when the primary
+  // CTA row has scrolled out of the viewport. The observer callback fires
+  // asynchronously — never effect-body setState (the R6-2 derived-visibility
+  // discipline). Initial state `true` matches the SSR render (bar hidden),
+  // so deep links that load mid-scroll correct on the first observation.
+  // Declared BEFORE the !selected early return — hooks must run unconditionally
+  // (rules-of-hooks); the effect no-ops when the CTA row never rendered.
+  const ctaRowRef = useRef<HTMLDivElement | null>(null);
+  const [ctaVisible, setCtaVisible] = useState(true);
+  useEffect(() => {
+    const el = ctaRowRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setCtaVisible(entry.isIntersecting);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   if (!selected) return null;
 
@@ -162,7 +182,7 @@ export function ProductBuyPanel({
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div ref={ctaRowRef} className="flex flex-wrap items-center gap-3">
         <QuantityStepper value={qty} onChange={setQty} disabled={isPending} />
         <Button size="lg" onClick={onAdd} disabled={isPending || selected.availability === "out_of_stock"}>
           {isPending ? "Adding…" : "Add to cart"}
@@ -186,6 +206,32 @@ export function ProductBuyPanel({
         Made slowly in our Aalborg workshop. 10-year guarantee, carbon-neutral delivery,
         14-day returns on in-stock pieces.
       </p>
+
+      {/* Sticky mobile add-to-cart bar (FR-309, R9-5): price + CTA only,
+          appearing after the primary CTA scrolls out of view. Hidden on ≥md
+          viewports; never overlaps the footer on short pages (the observer
+          only fires when the CTA actually leaves view); prefers-reduced-motion
+          drops the slide-in transform. */}
+      {!ctaVisible ? (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm motion-reduce:transform-none md:hidden"
+          role="complementary"
+          aria-label="Add to cart"
+        >
+          <div className="mx-auto flex max-w-xl items-center justify-between gap-4 px-5 py-3">
+            <span className="text-md font-medium tabular-nums">
+              {formatMinor(selected.priceMinor, currency)}
+            </span>
+            <Button
+              onClick={onAdd}
+              disabled={isPending || selected.availability === "out_of_stock"}
+              aria-label={`Add to cart — ${formatMinor(selected.priceMinor, currency)}`}
+            >
+              {isPending ? "Adding…" : "Add to cart"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
