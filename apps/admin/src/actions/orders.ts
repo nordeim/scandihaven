@@ -52,10 +52,15 @@ export async function transitionOrderAction(
   if (!parsed.success) return fail("VALIDATION", "Invalid transition input");
   const { orderId, event, from } = parsed.data;
 
-  try {
-    const permission = event === "cancel" ? "orders:cancel" : "orders:fulfill";
-    const guard = await requirePermission(permission);
+  // A-1 (round 11): requirePermission OUTSIDE the try — it re-auths by
+  // THROWING a NEXT_REDIRECT, which the catch below would otherwise log as
+  // an error and swallow into a dead-end INTERNAL fail (expired sessions
+  // could never re-auth from the mutation surface). A thrown redirect is
+  // Next's documented control flow, not a failure.
+  const permission = event === "cancel" ? "orders:cancel" : "orders:fulfill";
+  const guard = await requirePermission(permission);
 
+  try {
     const next = await db.transaction(async (tx) => {
       // Read the authoritative status under lock — never trust the form's
       // `from` for state derivation (§9.7 STRIDE tampering).

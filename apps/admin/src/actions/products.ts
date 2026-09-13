@@ -28,8 +28,13 @@ const productUpdateSchema = z.object({
 export async function updateProductAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
+  // A-1 (round 11): requirePermission OUTSIDE the try — it re-auths by
+  // THROWING a NEXT_REDIRECT, which the catch below would otherwise log as
+  // an error and swallow into a dead-end INTERNAL fail (expired sessions
+  // could never re-auth from the mutation surface).
+  const guard = await requirePermission("catalog:edit");
+
   try {
-    const guard = await requirePermission("catalog:edit");
     const parsed = productUpdateSchema.safeParse(input);
     if (!parsed.success) {
       return fail("VALIDATION", "Invalid product data");
