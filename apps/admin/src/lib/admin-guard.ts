@@ -33,6 +33,17 @@ export class OrderActionError extends Error {
   }
 }
 
+/** Product-action twin of OrderActionError (A-2, round 11). */
+export class ProductActionError extends Error {
+  constructor(
+    public readonly code: "NOT_FOUND" | "CONFLICT",
+    message: string,
+  ) {
+    super(message);
+    this.name = "ProductActionError";
+  }
+}
+
 /**
  * Map a caught error onto the ActionResult error envelope. Returns null for
  * unexpected errors — the caller logs those and returns INTERNAL (§4.5:
@@ -41,6 +52,7 @@ export class OrderActionError extends Error {
 export function toActionError(error: unknown): { code: ErrorCode; message: string } | null {
   if (error instanceof ForbiddenError) return { code: "FORBIDDEN", message: error.message };
   if (error instanceof OrderActionError) return { code: error.code, message: error.message };
+  if (error instanceof ProductActionError) return { code: error.code, message: error.message };
   if (error instanceof InvalidOrderTransition) {
     return { code: "INVALID_TRANSITION", message: error.message };
   }
@@ -74,16 +86,30 @@ export async function requirePermission(permission: Permission): Promise<{
   return { userId: session.user.id, role: roles.join(",") };
 }
 
-export async function writeAudit(input: {
-  actorId: string;
-  actorRole: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  before?: unknown;
-  after?: unknown;
-}): Promise<void> {
-  await db.insert(auditLog).values({
+/** Transaction executor accepted by writeAudit (db or a db.transaction tx). */
+export type AuditExecutor = Pick<typeof db, "insert">;
+
+/**
+ * Append an audit_log row. Pass the open `tx` of a surrounding
+ * db.transaction to make the audit row commit ATOMICALLY with the audited
+ * change (A-2, round 11) — a rolled-back mutation then leaves neither the
+ * change nor its audit, instead of a phantom audit for state that never
+ * landed. Without an executor the row writes through the pool, exactly as
+ * before.
+ */
+export async function writeAudit(
+  input: {
+    actorId: string;
+    actorRole: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    before?: unknown;
+    after?: unknown;
+  },
+  executor: AuditExecutor = db,
+): Promise<void> {
+  await executor.insert(auditLog).values({
     actorId: input.actorId,
     actorRole: input.actorRole,
     action: input.action,
