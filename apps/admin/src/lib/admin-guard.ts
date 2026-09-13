@@ -55,7 +55,16 @@ export async function requirePermission(permission: Permission): Promise<{
   userId: string;
   role: string;
 }> {
-  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null);
+  // A-4 (round 11): a FAILED session check is logged — an auth/DB outage
+  // must not look identical to "not logged in" (the storefront account page
+  // logs the same seam; silent catch(() => null) is the documented
+  // convention violation).
+  const session = await auth.api
+    .getSession({ headers: await headers() })
+    .catch((error: unknown) => {
+      console.error("[admin] session check failed", error);
+      return null;
+    });
   if (!session?.user) redirect("/sign-in");
 
   const roles = parseRoles(session.user.role);

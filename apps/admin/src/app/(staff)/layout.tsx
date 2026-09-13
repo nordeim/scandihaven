@@ -16,7 +16,14 @@ export const metadata: Metadata = {
  * server-side in Server Actions via requirePermission() — this gate is UX.
  */
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null);
+  // A-4 (round 11): log failed session checks — an auth/DB outage must not
+  // look identical to "not logged in" (silent bounce hides the outage).
+  const session = await auth.api
+    .getSession({ headers: await headers() })
+    .catch((error: unknown) => {
+      console.error("[admin] layout session check failed", error);
+      return null;
+    });
   if (!session?.user) {
     redirect("/sign-in");
   }
