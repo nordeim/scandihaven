@@ -1,0 +1,115 @@
+{
+  "audit": "2026-09-13-code-review-security-audit (round 10)",
+  "method": "three tracks: A apps review, B packages review, C security-critical + contract alignment (coordinating agent)",
+  "baseline": "lint 8/8, typecheck 8/8, tests 7/7 (326), build 2/2, web e2e 81/81, admin e2e 8/8",
+  "counts": { "critical": 1, "high": 2, "medium": 5, "low": 11, "informational": 3, "known_reconfirmations": 4 },
+  "findings": [
+    {
+      "id": "R10-6",
+      "severity": "critical",
+      "location": ".env (git-tracked at HEAD fc0379a)",
+      "description": "5th exposure of real secrets: BETTER_AUTH_SECRET (.env:7) and CRON_SECRET (.env:31). CI secret-scan replay flags both. Blocks push; rotation is a required ops action.",
+      "evidence": "git log -- .env shows fc0379a 'update start server log' re-added the 51-line file; scan replay output: ./.env:7 and ./.env:31 match the CI patterns.",
+      "confidence": "Verified",
+      "remediation": "git rm --cached .env; verify clean-checkout scan simulation; rotate both secrets (ops)."
+    },
+    {
+      "id": "R10-6b",
+      "severity": "high",
+      "location": "AGENTS.md:75, docs/verification-ledger.md:341",
+      "description": "Scan-red prose: both sites reproduce the '-----BEGIN' key marker the CI scan hunts, so the gate stays red on a clean checkout even after untracking .env — masking real signals (the fc0379a regression went unnoticed through it).",
+      "evidence": "rg replay on the tracked tree (excluding .env) matches ./AGENTS.md:75 and ./docs/verification-ledger.md:341.",
+      "confidence": "Verified",
+      "remediation": "Rephrase both sites to describe the marker ('the OpenSSH private-key header line') without reproducing it; update AGENTS.md:75 to record the fc0379a 4th re-add (5th exposure); re-run the scan against a git-archive checkout of the staged index."
+    },
+    {
+      "id": "R10-7",
+      "severity": "high",
+      "location": "checkout-service.ts:170-243 (createPaymentIntent), :332-334 (placement cart lock), :614-619 (conversion), cart-service.ts:186-208 (addLine), apps/web/src/lib/cart-session.ts:12-22 (getCartId), apps/web/src/app/checkout/success/page.tsx",
+      "description": "cart.status='converted' written but never enforced: addLine/getCartId/createPaymentIntent/placeOrderFromWebhook ignore it; success page never clears the sh_cart cookie. Re-checkout of a converted cart double-charges the customer for the original items (new PaymentIntent ID evades the payment unique index).",
+      "evidence": "grep for status consumers: only mergeGuestCartIntoUserCart filters 'active'. createPaymentIntent reads cartRow without a status branch; placement locks the row and never reads status; success page is a static RSC with no cookie mutation.",
+      "confidence": "Verified",
+      "remediation": "Guard converted carts at all four seams: getCartId resolves only active carts (converted cookie behaves as no cookie → fresh cart minted on next add); createPaymentIntent rejects non-active carts with typed CART_CONVERTED error (customer-safe action copy); placeOrderFromWebhook no-ops + loud console.error on 'converted' (never place a second order; refund is ops via Stripe); integration specs red-first."
+    },
+    {
+      "id": "A-1",
+      "severity": "medium",
+      "location": "apps/admin/src/actions/orders.ts:104-109, products.ts:100-105, lib/admin-guard.ts:59",
+      "description": "redirect() (NEXT_REDIRECT) thrown inside try blocks is caught by toActionError()=null path → logged as error, swallowed into INTERNAL fail. Expired-session admin mutations dead-end instead of re-authing.",
+      "confidence": "Verified (code); Reasoned (framework semantics)",
+      "remediation": "Call requirePermission before the try, or rethrow NEXT_REDIRECT via unstable_rethrow in the catch."
+    },
+    {
+      "id": "A-2",
+      "severity": "medium",
+      "location": "apps/admin/src/actions/products.ts:42-99",
+      "description": "updateProductAction: multi-table writes (product, variant prices, inventory, movement, audit) without a transaction — partial state + missing audit on mid-failure.",
+      "confidence": "Verified",
+      "remediation": "Wrap in db.transaction (idiom exists in transitionOrderAction)."
+    },
+    {
+      "id": "A-3",
+      "severity": "medium",
+      "location": "apps/admin/src/actions/products.ts:65-86",
+      "description": "Inventory adjustment non-atomic read-modify-write (absolute qtyOnHand write) — lost updates vs concurrent movements; ledger drift.",
+      "confidence": "Verified",
+      "remediation": "Atomic set qtyOnHand = qtyOnHand + delta (or FOR UPDATE inside the A-2 transaction)."
+    },
+    {
+      "id": "A-4",
+      "severity": "medium",
+      "location": "apps/admin/src/lib/admin-guard.ts:58, apps/admin/src/app/(staff)/layout.tsx:19",
+      "description": "Silent .catch(() => null) on admin session checks — convention violation; auth outage indistinguishable from logged-out.",
+      "confidence": "Verified",
+      "remediation": "Pair with console.error (storefront account page shows the idiom)."
+    },
+    {
+      "id": "B-6",
+      "severity": "medium",
+      "location": "cart-service.ts:181 vs checkout-service.ts:395-403",
+      "description": "Made-to-order purchasability rules disagree between add-time and placement-time (zero-stock row + >7d lead time → purchasable then review/orphan).",
+      "confidence": "Reasoned",
+      "remediation": "Align placement's MTO derivation with add-time (skip reservation for >7d lead-time variants with zero availability)."
+    },
+    {
+      "id": "A-5", "severity": "low", "location": "apps/web/src/app/api/webhooks/stripe/route.ts:25-29", "description": "Signature failure caught with no logging.", "confidence": "Verified"
+    },
+    { "id": "A-6", "severity": "low", "location": "apps/web/src/components/cart-shipping-estimate.tsx:62-69", "description": "Stale in-flight estimate can land after postcode drops below the 3-char guard (seq not bumped).", "confidence": "Verified" },
+    { "id": "A-7", "severity": "low", "location": "apps/web/src/app/error.tsx, global-error.tsx (both apps)", "description": "Error boundaries never log the caught error while copy claims logging happened.", "confidence": "Verified" },
+    { "id": "A-8", "severity": "low", "location": "apps/admin products action + edit-form + PDP title", "description": "Cleared SEO fields persist as empty strings → empty title/meta on the PDP.", "confidence": "Verified" },
+    { "id": "A-9", "severity": "low", "location": "admin actions-form.tsx:45-49, edit-form.tsx:113-117", "description": "Action errors use role=status not role=alert.", "confidence": "Verified" },
+    { "id": "A-10", "severity": "low", "location": "apps/web/src/stores/cart-store.ts:11-25", "description": "Dead lastError/setError store fields.", "confidence": "Verified" },
+    { "id": "B-7", "severity": "low", "location": "packages/commerce/src/pricing.ts:152-158", "description": "Tie-break comment promises 3-key ordering; comparator sorts by remainder only.", "confidence": "Verified" },
+    { "id": "B-8", "severity": "low", "location": "packages/db/src/schema/ops.ts:44-47", "description": "webhook_event.processedAt/error never written — schema contract dead.", "confidence": "Verified" },
+    { "id": "B-9", "severity": "low", "location": "packages/commerce/src/jobs.ts:157-164", "description": "queueDepth().failed structurally 0 — status 'failed' never set.", "confidence": "Verified" },
+    { "id": "B-10", "severity": "low", "location": "packages/commerce/src/shipping-rates.ts:62-73", "description": "Weight bands closed not half-open — boundary carts under-quote (display-only).", "confidence": "Verified" },
+    { "id": "B-11", "severity": "low", "location": "packages/commerce/src/cart-service.ts:330-381", "description": "Cart line image + order nondeterministic (no ORDER BY).", "confidence": "Verified" },
+    { "id": "B-12", "severity": "low", "location": "packages/commerce/src/catalog.ts:341-374", "description": "Rating stats computed over newest 50 reviews only.", "confidence": "Verified" },
+    { "id": "A-11", "severity": "informational", "location": "apps/admin/src/actions/products.ts:53-60", "description": "Save flattens per-variant prices (documented Phase-0 choice).", "confidence": "Verified" },
+    { "id": "A-12", "severity": "informational", "location": "apps/web/src/components/newsletter-form.tsx:43", "description": "noValidate={false} no-op prop.", "confidence": "Verified" },
+    { "id": "B-13", "severity": "informational", "location": "packages/commerce/src/checkout-service.ts:313-316", "description": "unknown@ placeholder fallback email persisted to orders.", "confidence": "Verified" }
+  ],
+  "known_reconfirmations": [
+    { "id": "B-1", "tracked": "backlog B3", "note": "promotion usage limits never enforced (usageCount: 0 hardcoded; promotion_redemption never written)" },
+    { "id": "B-2", "tracked": "M3d / R-INV-1", "note": "placement uses one arbitrary warehouse row; unordered FOR UPDATE" },
+    { "id": "B-4", "tracked": "L5d", "note": "addLine SELECT-then-INSERT race" },
+    { "id": "B-5", "tracked": "L4d", "note": "applyPromotionByCode delete+insert not transactional" }
+  ],
+  "verified_clean": [
+    "money conservation + integer discipline (property-tested)",
+    "H4d webhook_event inside placement tx",
+    "promotion re-validation at all three pricing sites (E2E-3)",
+    "order state machine transitions",
+    "order-number advisory lock",
+    "rate-limit atomic upserts",
+    "sanitization complete (14 sites through safeJsonLd/sanitizeRichText)",
+    "open redirect guards",
+    "no SQL injection (all bound params; sql.raw absent)",
+    "zero any; boundary discipline intact",
+    "no console.log; Server Action doctrine; awaiting discipline",
+    "prior audit closures C1/H-1/H-2/H-3/H4d verified in place",
+    "pnpm audit: 1 moderate, 0 high",
+    "AGENTS/CLAUDE/README contract claims hold (except R10-6/R10-6b)"
+  ],
+  "ship_verdict": "BLOCKED until R10-6/R10-6b (untrack + scan-green proof) and R10-7 (converted-cart guard) land; everything else is backlog-ordered debt."
+}
