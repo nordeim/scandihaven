@@ -62,6 +62,16 @@ export async function createPaymentIntentAction(input: {
           "Online payments are temporarily unavailable. Please contact us to complete your order.",
         );
       }
+      if (error.code === "CART_CONVERTED") {
+        // R10-7 (round 11): the cart already placed an order — the stale
+        // cookie must never mint a second payment. Operator detail (cart id)
+        // stays server-side; the customer gets an honest next step.
+        console.error("[checkout] converted cart refused an intent:", error.message);
+        return fail(
+          "VALIDATION",
+          "Your cart was already checked out — your order is on its way. Start a new cart to keep shopping.",
+        );
+      }
       return fail("PAYMENT_REQUIRED", error.message);
     }
     console.error("[checkout] intent creation failed", error);

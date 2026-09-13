@@ -42,6 +42,7 @@ export class CheckoutError extends Error {
     public readonly code:
       | "STRIPE_NOT_CONFIGURED"
       | "CART_EMPTY"
+      | "CART_CONVERTED"
       | "AMOUNT_MISMATCH"
       | "OUT_OF_STOCK"
       | "STRIPE_ERROR",
@@ -171,6 +172,21 @@ export async function createPaymentIntent(
   cartId: string,
   contact?: CheckoutContact,
 ): Promise<string> {
+  // Cart state guards run BEFORE the Stripe call (R10-7): a converted cart
+  // must never mint a second PaymentIntent — the cookie can still point at
+  // a converted cart (the success page does not clear it), a new intent id
+  // evades the payment unique index, and the placement would double-charge
+  // the customer for the original items. Fail fast on bad cart state.
+  const cartRows = await db.select().from(cart).where(eq(cart.id, cartId)).limit(1);
+  const cartRow = cartRows[0];
+  if (!cartRow) throw new CheckoutError("Cart not found", "CART_EMPTY");
+  if (cartRow.status !== "active") {
+    throw new CheckoutError(
+      `Cart ${cartId} is ${cartRow.status} — refused to create a payment intent (R10-7 double-charge guard)`,
+      "CART_CONVERTED",
+    );
+  }
+
   const stripe = getStripe();
   if (!stripe) {
     throw new CheckoutError(
@@ -178,10 +194,6 @@ export async function createPaymentIntent(
       "STRIPE_NOT_CONFIGURED",
     );
   }
-
-  const cartRows = await db.select().from(cart).where(eq(cart.id, cartId)).limit(1);
-  const cartRow = cartRows[0];
-  if (!cartRow) throw new CheckoutError("Cart not found", "CART_EMPTY");
 
   const lineRows = await db
     .select({ line: cartLine, amount: variantPrice.amount })
@@ -307,6 +319,26 @@ export async function placeOrderFromWebhook(input: {
   const cartId = await resolveCartIdFromIntent(input.paymentIntentId);
   if (!cartId) return null;
 
+  // R10-7 (round 11, pre-tx fast-fail): a payment intent against a
+  // CONVERTED cart is the double-charge race the cart-status guard exists
+  // to close (the cookie outlives the checkout, and a new intent id evades
+  // the payment unique index). Never place a second order from an already-
+  // ordered cart: log loudly for the ops refund trail and 200 the event so
+  // Stripe stops retrying. active/merged carts still place — a merged cart
+  // can carry a legitimately pre-merge intent, and a captured payment is
+  // never silently dropped (H4d discipline).
+  const statusRows = await db
+    .select({ status: cart.status })
+    .from(cart)
+    .where(eq(cart.id, cartId))
+    .limit(1);
+  if (statusRows[0]?.status === "converted") {
+    console.error(
+      `[checkout] payment intent ${input.paymentIntentId} targets converted cart ${cartId} — refusing to place a second order (R10-7); refund via Stripe dashboard`,
+    );
+    return null;
+  }
+
   const stripe = getStripe();
   if (!stripe) throw new CheckoutError("Stripe not configured", "STRIPE_NOT_CONFIGURED");
   const intent = await stripe.paymentIntents.retrieve(input.paymentIntentId);
@@ -332,6 +364,17 @@ export async function placeOrderFromWebhook(input: {
     const cartRows = await tx.select().from(cart).where(eq(cart.id, cartId)).limit(1).for("update");
     const cartRow = cartRows[0];
     if (!cartRow) return null;
+
+    // R10-7 (authoritative, race-safe): the pre-tx check is advisory; this
+    // row is locked, so this is the decision point. A conversion that raced
+    // between the pre-tx check and the lock lands here — a second order
+    // would double-charge the customer for the original items.
+    if (cartRow.status === "converted") {
+      console.error(
+        `[checkout] locked cart ${cartId} converted mid-flight for intent ${input.paymentIntentId} — refusing to place a second order (R10-7); refund via Stripe dashboard`,
+      );
+      return null;
+    }
 
     const lineRows = await tx
       .select({

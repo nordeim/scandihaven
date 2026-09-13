@@ -24,7 +24,11 @@ vi.mock("@scandihaven/commerce/checkout-service", () => {
   class CheckoutError extends Error {
     constructor(
       message: string,
-      public readonly code: "STRIPE_NOT_CONFIGURED" | "CART_EMPTY" | "AMOUNT_MISMATCH",
+      public readonly code:
+        | "STRIPE_NOT_CONFIGURED"
+        | "CART_EMPTY"
+        | "CART_CONVERTED"
+        | "AMOUNT_MISMATCH",
     ) {
       super(message);
     }
@@ -79,5 +83,29 @@ describe("createPaymentIntentAction error mapping (R8-1)", () => {
       expect(result.error.code).toBe("PAYMENT_REQUIRED");
       expect(result.error.message).toBe("Cart not found");
     }
+  });
+
+  it("maps CART_CONVERTED to an honest next step — never the operator detail (R10-7)", async () => {
+    // The stale-cookie double-charge guard: the cart already placed an
+    // order; the customer must be told to start a new cart, not see the
+    // cart id / guard internals.
+    createPaymentIntent.mockRejectedValue(
+      new (await import("@scandihaven/commerce/checkout-service")).CheckoutError(
+        "Cart 0f0e7d9a-… is converted — refused to create a payment intent (R10-7 double-charge guard)",
+        "CART_CONVERTED",
+      ),
+    );
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await createPaymentIntentAction({ address });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).not.toMatch(/cart id|0f0e7d9a|converted|double-charge/i);
+      expect(result.error.message).toMatch(/already checked out|start a new cart/i);
+    }
+    // Operator detail (the cart id + guard reason) lands in the server log.
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });
