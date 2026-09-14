@@ -11,7 +11,7 @@ The static brand site had no checkout, accounts, inventory, or administration. T
 | | Feature | Where |
 |---|---|---|
 | 🛍️ | Storefront: home, category PLPs with sort/pagination, PDP with variant swatches & lead-time badges, `/search?q=` results page | `apps/web` |
-| 🔎 | SEO surface: sitemap.xml + robots.txt + absolute canonical/OG URLs + Organization/WebSite/Product/BreadcrumbList JSON-LD | `apps/web` + `@scandihaven/config/site-url` |
+| 🔎 | SEO surface: sitemap.xml + robots.txt + absolute canonical/OG per-request (publicPageMetadata + resolveSiteUrl) + Organization/WebSite/Product/BreadcrumbList JSON-LD — facet SEO (≥2 → noindex) deferred (R-SEO-1) | `apps/web` + `@scandihaven/config/site-url` |
 | 🛒 | Server-truth cart: signed-cookie identity, guest cart, promo codes, mini-cart drawer | `apps/web` + `packages/commerce` |
 | 💳 | Stripe Payment Element checkout; webhook-driven order placement with amount re-verification | `packages/commerce/checkout-service` |
 | 📦 | Multi-warehouse inventory with reservation semantics and append-only movement ledger | `packages/db` schema |
@@ -24,7 +24,7 @@ The static brand site had no checkout, accounts, inventory, or administration. T
 
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| Package manager | pnpm + Turborepo | 10.x / 2.x | Workspace graph, task pipeline |
+| Package manager | pnpm 10.15.0 + Turborepo 2.10.12 (lockfileVersion 9.0, globalEnv 12 vars, testTimeout 30_000 headroom) | 10.15.0 / 2.10.12 | Workspace graph, task pipeline |
 | Storefront & admin | Next.js (App Router, RSC, Turbopack) | 16.3 | SSR for SEO, Server Actions for mutations |
 | UI runtime | React | 19.2 | Server Components by default |
 | Language | TypeScript (strict, `noUncheckedIndexedAccess`) | 5.9 | End-to-end types |
@@ -35,7 +35,7 @@ The static brand site had no checkout, accounts, inventory, or administration. T
 | Auth | Better-Auth (DB sessions, admin plugin) | 1.7 | Email/password, RBAC, 2FA-ready |
 | Validation | Zod | 4.5 | Every boundary: actions, routes, env |
 | Client state | Zustand | 5 | Drawer/UI state only (server is truth) |
-| Payments | Stripe (Payment Element, Tax, webhooks) | 22.x | SAQ-A scope — no card data on our servers |
+| Payments | Stripe (Payment Element, Tax, webhooks) | 22.6.1 (SAQ-A, honest not-configured when keys absent) | SAQ-A scope — no card data on our servers |
 | Email | React Email + Resend | current | Templates as components; log transport in dev |
 | Quality | ESLint 9 flat · Vitest · Playwright · axe | current | Lint, unit/property, E2E, a11y gates |
 
@@ -72,16 +72,17 @@ Requests read through RSC → `commerce` queries → Drizzle. Mutations flow thr
  ├─ 📂 web                  Storefront: routes, Server Actions, cart drawer, checkout
  │  ├─ 📂 e2e               Playwright specs + axe a11y scans
  │  ├─ 📄 proxy.ts          Next 16 proxy: security headers, request IDs
+ │  ├─ 📂 src/app/api       api/webhooks/stripe + api/auth/[...all] + api/search/typeahead (60/min/IP) + api/jobs/run + api/health (5 handlers)
  │  └─ 📂 public/products   Placeholder catalog art (SVG)
  ├─ 📂 admin                Back-office: dashboard, product/order management
  └─ 📄 (each) next.config.ts, proxy.ts, eslint.config.mjs
 📂 packages
  ├─ 📂 db                   Drizzle schema (PRD §7), pooled client, idempotent seed
  ├─ 📂 auth                 Better-Auth server/client + RBAC matrix
- ├─ 📂 commerce             money · pricing · promotions · order-state · catalog/cart/checkout services
+ ├─ 📂 commerce             money · pricing · promotions · order-state · catalog/cart/checkout services · rate-limit / search-terms / shipping-rates / request-dedupe
  ├─ 📂 ui                   tokens.css (@theme) + primitives + composites
  ├─ 📂 email                React Email templates + send adapter
- └─ 📂 config               ESLint factory, tsconfig bases, Zod env parser
+ └─ 📂 config               ESLint factory, tsconfig bases, Zod env parser + security-headers.ts (CSP + Cloudflare Insights allow-list)
 📄 PRD.md                   Final spec: FR-100…FR-999, schema, contracts, rollout
 📄 docker-compose.yml       PostgreSQL 17 (postgres:17-alpine, service `postgres` → scandihaven_postgres, volume postgres_data, network scandihaven_net)
 📄 docker-compose.yml.example  Template — cp to docker-compose.yml
@@ -148,7 +149,7 @@ pnpm db:setup                      # fresh container (migrate && seed)
 pnpm db:reset && pnpm db:setup     # clean cycle (drop → migrate → seed)
 ```
 
-- Coverage gates on the pure domain package: **90% lines / 85% functions** (property-based invariants via fast-check).
+- Coverage gates on the pure domain package: **90.9% stmts / 90.62% funcs / 92.68% lines (gate 90/85 ✅) — vitest testTimeout 30_000 headroom per R5-4** (property-based invariants via fast-check).
 - E2E includes axe scans (WCAG 2.2 AA): serious/critical violations block.
 - Stripe test cards: `4242 4242 4242 4242` · 3-D Secure: `4000 0000 0000 3220`; forward webhooks with `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.
 
@@ -177,6 +178,8 @@ Typography: **Fraunces** (display, via `next/font`) · **Inter** (UI) — self-h
 | 3–4 — Soft launch / launch | ⬜ | Per PRD §13.6 |
 | 5 — Post-launch (trade, gift cards, Net-30) | ⬜ | Schema-ready (`payment_terms`, trade tables) |
 
+> Foundational invariants audit 2026-09-14: 77.1% Aligned (91/118; 11/11 NFR-STACK Pass; commerce 90.9%/90.62%); 14-slice P0-P2 backlog — R-SEC-1 admin 2FA, R-SEO-1 facet SEO, R-SHOP-2a relaxed facet CTEs, R-DB-2 DDL CHECKs must close before launch — see docs/audits/2026-09-14-prd-alignment/REPORT.md.
+
 Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md) (FR → locus → verification → status); core deferred surfaces are stubbed in code with their PRD FR IDs — the full deferred inventory, including surfaces not yet stub-named, is kept there so nothing is silently missing.
 
 ## Troubleshooting
@@ -204,6 +207,9 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 | `sitemap.xml` or `/search?q=` returns 404 on the live site | Shipped 2026-09-10 (round 4): `app/sitemap.ts`, `app/robots.ts`, and `app/search/page.tsx` exist in the codebase — a 404 on the deployment means the live servers predate the fix; redeploy via `./start_server.sh`. Live robots.txt showing a Cloudflare content-signals block instead of the app rules means CF Managed Robots overrides the app file — merge the `Sitemap:` line into the CF ruleset or disable the override |
 | Tests intermittently fail with `Test timed out in 5000ms` under parallel runs | Fixed 2026-09-10 (R5-4): suites cold-import the workspace TS graph (auth → commerce → db compiled on the fly); under 7-way parallel turbo runs that import crossed vitest's 5000ms default. All workspace vitest configs now pin `testTimeout: 30_000` — keep the headroom in new workspaces |
 | `.env` shows up in `git ls-files` after pulling | It must never be tracked (audit C2, R4-1). `git rm --cached .env` untracks it (the file stays locally for dev); rotate any values that were committed while it was tracked — the CI secret scan catches quoted secret values since round 4, but history retains whatever was pushed |
+| Faceted PLP indexed with many combinations | Not wired — ≥2 facets should be noindex,follow (FR-203, R-SEO-1); all shop/category self-canonical today — PR-blocking SEO |
+| Admin sign-in without second factor | Absent — two_factor table + Better-Auth twoFactor plugin + proxy claim not wired (R-SEC-1); session-only today — Blocking |
+| Duplicate cart lines under multi-instance retry | Per-instance Map 5-min dedupe (request-dedupe.ts); horizontal scale needs cart_request_dedupe table (IDEM-02, R-INV-1) |
 
 ## Documentation
 
@@ -213,7 +219,7 @@ Deferred surfaces are tracked in [`docs/traceability.md`](./docs/traceability.md
 - [`start_server.sh`](./start_server.sh) — fresh-clone → prod bootstrapper (see Quick Start; `start_server_log.txt` is a captured build log).
 - [`docs/traceability.md`](./docs/traceability.md) — FR → implementation → verification matrix (PRD §14.2).
 - [`docs/verification-ledger.md`](./docs/verification-ledger.md) — running evidence ledger (PRD §12.4).
-- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08), the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path), and the live E2E audits (2026-09-09 rounds 1–2; **2026-09-10 round 3: live checkout stale-chunk crash, CI-red cart specs, promo min-spend re-validation, card-price consistency, mobile nav FR-102**) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
+- [`docs/audits/`](./docs/audits/) — PRD alignment audit (2026-09-08), the tiered code review + security audit (2026-09-09: secrets in git, prod DB-pool defect, proxy-registration fix, webhook atomicity, §8.7 review path), and the live E2E audits (2026-09-09 rounds 1–2; **2026-09-10 round 3: live checkout stale-chunk crash, CI-red cart specs, promo min-spend re-validation, card-price consistency, mobile nav FR-102**; 2026-09-11 rounds 6-7 (search + journal), 2026-09-12 round 9 (cart + PLP quick-add), 2026-09-13 rounds 10-11 (converted-cart, admin hygiene), 2026-09-14 foundational invariants (118 findings, 77%, 11/11 NFR-STACK, 14-slice backlog) — findings.json machine-readable + evidence/inventory.txt) with findings and report; [`docs/plans/`](./docs/plans/) — remediation slices and backlog.
 - [`PRD_draft.md`](./PRD_draft.md) — original draft (stack recommendation superseded; domain scope preserved).
 
 ## License

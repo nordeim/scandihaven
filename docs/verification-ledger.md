@@ -460,3 +460,26 @@ Environment: same sandbox, same embedded PG. Audit: `docs/audits/2026-09-13-code
 1. **Rotate `BETTER_AUTH_SECRET` and `CRON_SECRET`** — 5th public exposure; history keeps the bytes.
 2. **Redeploy both apps via `./start_server.sh`** to publish rounds 10–11 — AND: the live storefront origin was unreachable for the entire back half of this session (admin origin healthy) — inspect `server.log` on the deployment host; if the process hung/exited, the redeploy fixes both.
 3. Carried: R-DB-2 DDL hardening; R-SHOP-2 facets; R-SHOP-3 remainder; R9-6 wishlist with B9.
+
+## 2026-09-14 — Foundational invariants audit (read-only synthesis, 2026-09-14-prd-alignment)
+
+Environment: read-only synthesis, 6 sub-agent phases, 118 findings (91 Aligned 77.1%, 1 Stub, 17 Drift, 9 Missing), 11/11 NFR-STACK Pass. No Docker/PG needed for this pass; real-PG integration suites use skipIf(!dbReady) and run in CI.
+
+### Gates executed 2026-09-14 (Verified unless noted)
+
+| Command | Result | Confidence |
+|---|---|---|
+| pnpm lint | 8/8 tasks pass, 0 errors, 0 warnings | Verified — executed 2026-09-14 21:41 UTC (stack phase) |
+| pnpm typecheck | 8/8 tasks pass | Verified |
+| pnpm test (no local PG) | 7/7 tasks — commerce 173, db 23, auth 19, web 59, admin 13; commerce coverage 90.9% stmts / 90.62% funcs / 92.68% lines (gate 90/85 ✅) | Verified — integration suites auto-skip without local PG |
+| pnpm build (with DATABASE_URL + BETTER_AUTH_SECRET per instrumentation.ts) | 2/2 tasks — requires env per NFR-STACK-11, not a bug | Verified (prior ledger 2026-09-10) / Reasoned here |
+| pnpm test with real PG + migrate | commerce integration suites (promotions seam, rate limit, jobs, catalog) | Unverifiable here / Verified-in-CI pending (skipIf seam) |
+| pnpm e2e --project=chromium | storefront + admin gate suites | Unverifiable here / Verified-in-CI pending (needs migrated+seeded DB) |
+
+Evidence: docs/audits/2026-09-14-prd-alignment/REPORT.md (52 KB) + findings.json (118 rows, machine-readable) + evidence/inventory.txt (rg/fd sweeps, turbo.json, pnpm-workspace.yaml).
+
+Notes:
+- NFR-STACK 11/11 Pass — no regression. See REPORT.md §3.1 stack phase + §5 watchlist.
+- Data-model Partials: 7.1-timestamptz (no $onUpdate/trigger) + 7.3-enums-checks (CHECKs Zod-only, not PG) — tracked as R-DB-2.
+- Architecture Partial: IDEM-02 cart dedupe per-instance Map 5-min (upgrade to cart_request_dedupe table on horizontal scale) — R-INV-1.
+- Functional/API gaps (FR-202/203/301/307, 8.5 Tax/FX/refunds/webhook matrix, 8.8 relaxed facet CTEs + product_metrics view, 9.1 two_factor) are honest stubs — 14-slice backlog REPORT.md §6, PAD v1.5 §11.

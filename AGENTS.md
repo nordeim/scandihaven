@@ -84,6 +84,10 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - **Client-side persisted visibility derives via `useSyncExternalStore`** (R8-7): for localStorage-backed Zustand stores that affect SSR markup, use the M-3 idiom (server snapshot renders the SSR shape; client snapshot takes over after hydration) — never a `useState` initializer (freezes the SSR snapshot) or effect-body setState (lint-blocked).
 
 - **Search SQL must use the maintained `p.search_vector`** (R7-4, R-DB-1): never build an ad-hoc `to_tsvector('english', p.title)` per row — the GENERATED ALWAYS STORED column (title A / materials+desc B weights) + GIN index is the contract. New search surfaces go through `expandSearchTerms` (`commerce/src/search-terms.ts`) so synonyms stay live, and keep `listProducts`/`searchTypeahead` conditions symmetric — the typeahead and results page must never disagree. Two PG hard-won rules for generated columns: `to_tsvector('english', …)` is NOT immutable without the `::regconfig` cast, and `array_to_string` is STABLE (the `immutable_text_array_to_string` preamble in migration 0001 handles the text[] case). Trigram tolerance is `similarity(p.title, q) >= 0.5` — full-query typos match (0.87), partial two-word typos honestly don't (0.478).
+- **Faceted SEO is per-count** (FR-203 §11.1): facet index rule is 0→self, 1 curated (material/color) →self-canonical indexable, ≥2 → noindex,follow + ?page=N canonical + rel next/prev. Shop/category pages currently self-canonical regardless of filters — P0 R-SEO-1. New totals paths must keep the rule when faced UI lands. Evidence: findings.json FR-203 Fail + docs/audits/2026-09-14-prd-alignment/REPORT.md §3.4.
+- **Cart dedupe is per-instance** (IDEM-02): request-dedupe.ts Map 5-min, per-instance. Horizontal-scale upgrade is a cart_request_dedupe table with TTL sweep (backlog R-INV-1). Evidence: findings.json IDEM-02 Partial.
+- **DB CHECKs + updated_at trigger are DDL debt** (7.3-enums-checks + 7.1-timestamptz Partial): amount≥0 / qty 1..99 / rating 1..5 / alt<>'' and updated_at $onUpdate are Zod-only today, not PG CHECK (amount >= 0, quantity 1..99, rating 1..5, CHECK (amount >= 0) style) / trigger — backlog R-DB-2. Evidence: findings.json 7.3-enums-checks Partial, 7.1-timestamptz Partial.
+- **Foundational invariants audit 2026-09-14**: 118 findings, 91 Aligned 77.1%, 11/11 NFR-STACK Pass, commerce 90.9%/90.62%. 14-slice P0-P2 backlog in REPORT.md §6 + findings.json:backlog. Reference: docs/audits/2026-09-14-prd-alignment/ (evidence/inventory.txt).
 
 ## Environment
 
@@ -105,6 +109,7 @@ Order matters for a clean check: `pnpm lint typecheck test build` works without 
 - `docs/plans/2026-09-11-live-e2e-remediation-round7.md` — live E2E round 7 (`.env` 4th re-untrack + scan-red prose fix, FR-703 journal reader route + sitemap/typeahead integration, FR-704 full-dozen static pages, R-DB-1 maintained `search_vector` + R-SHOP-1 synonym/trigram search depth, PAD v1.1 drift correction).
 - `README.md` — human onboarding (setup, verification, design tokens).
 - `start_server.sh` — fresh-clone → prod bootstrapper (see README Quick Start; `docs/verification-ledger.md` §2026-09-10 Edge 8→0).
+- `docs/audits/2026-09-14-prd-alignment/` — foundational invariants audit (118 findings, 77%, 11/11 NFR-STACK, 14-slice backlog; machine-readable findings.json + evidence/inventory.txt).
 
 ---
 

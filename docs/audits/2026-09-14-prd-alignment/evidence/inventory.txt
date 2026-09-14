@@ -1,0 +1,366 @@
+=== pnpm --version ===
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+10.15.0
+
+=== cat pnpm-workspace.yaml ===
+packages:
+  - "apps/*"
+  - "packages/*"
+
+=== cat turbo.json ===
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "NEXT_PUBLIC_SITE_URL",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    "RESEND_API_KEY",
+    "EMAIL_FROM",
+    "CRON_SECRET",
+    "DISABLE_IMAGE_OPTIMIZER"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "start": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "typecheck": {},
+    "test": {},
+    "e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    }
+  }
+}
+
+=== ls -R apps packages (ignore node_modules, truncated to 300 lines) ===
+apps:
+admin
+web
+
+apps/admin:
+e2e
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package.json
+playwright.config.ts
+postcss.config.mjs
+src
+tsconfig.json
+vitest.config.ts
+
+apps/admin/e2e:
+admin-gate.spec.ts
+
+@eslint
+@playwright
+@scandihaven
+@tailwindcss
+@types
+drizzle-orm
+eslint
+eslint-config-next
+lucide-react
+next
+postcss
+react
+react-dom
+tailwindcss
+typescript
+vitest
+zod
+
+eslintrc
+
+test
+
+auth
+commerce
+config
+db
+ui
+
+postcss
+
+node
+react
+react-dom
+
+apps/admin/src:
+actions
+app
+guard.test.ts
+instrumentation.ts
+lib
+next-config.test.ts
+proxy.ts
+
+apps/admin/src/actions:
+orders.ts
+products.ts
+
+apps/admin/src/app:
+(staff)
+api
+global-error.tsx
+globals.css
+layout.tsx
+sign-in
+
+apps/admin/src/app/(staff):
+customers
+layout.tsx
+orders
+page.tsx
+products
+
+apps/admin/src/app/(staff)/customers:
+page.tsx
+
+apps/admin/src/app/(staff)/orders:
+[id]
+page.tsx
+
+apps/admin/src/app/(staff)/orders/[id]:
+actions-form.tsx
+page.tsx
+
+apps/admin/src/app/(staff)/products:
+[id]
+page.tsx
+
+apps/admin/src/app/(staff)/products/[id]:
+edit-form.tsx
+page.tsx
+
+apps/admin/src/app/api:
+auth
+health
+
+apps/admin/src/app/api/auth:
+[...all]
+
+apps/admin/src/app/api/auth/[...all]:
+route.ts
+
+apps/admin/src/app/api/health:
+route.ts
+
+apps/admin/src/app/sign-in:
+page.tsx
+sign-in-form.tsx
+
+apps/admin/src/lib:
+admin-guard.ts
+format.ts
+sign-in-paths.test.ts
+sign-in-paths.ts
+
+apps/web:
+e2e
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package.json
+playwright-report
+playwright.config.ts
+postcss.config.mjs
+public
+scripts
+src
+test-results
+tsconfig.json
+vitest.config.ts
+
+apps/web/e2e:
+cart-flows.spec.ts
+journal-flows.spec.ts
+search-flows.spec.ts
+seo-flows.spec.ts
+storefront.spec.ts
+
+@axe-core
+@eslint
+@playwright
+@scandihaven
+@stripe
+@tailwindcss
+@types
+dotenv
+drizzle-orm
+eslint
+eslint-config-next
+lucide-react
+next
+postcss
+react
+react-dom
+stripe
+tailwindcss
+tsx
+typescript
+vitest
+zod
+zustand
+
+playwright
+
+eslintrc
+
+test
+
+auth
+commerce
+config
+db
+email
+ui
+
+react-stripe-js
+stripe-js
+
+postcss
+
+node
+react
+react-dom
+
+apps/web/playwright-report:
+index.html
+
+apps/web/public:
+products
+
+apps/web/public/products:
+birch-side-table.svg
+halden-armchair-2.svg
+halden-armchair.svg
+hygge-edit.svg
+hygge-throw.svg
+kyst-vase.svg
+oresund-lamp.svg
+placeholder.svg
+woo-runner.svg
+
+apps/web/scripts:
+seed-admin.ts
+
+apps/web/src:
+actions
+app
+components
+instrumentation.ts
+lib
+proxy.ts
+stores
+
+apps/web/src/actions:
+back-in-stock.test.ts
+back-in-stock.ts
+cart.test.ts
+cart.ts
+checkout.test.ts
+checkout.ts
+newsletter.ts
+shipping.test.ts
+shipping.ts
+
+apps/web/src/app:
+[slug]
+account
+api
+cart
+checkout
+collections
+error.tsx
+global-error.tsx
+globals.css
+journal
+layout.tsx
+lookbooks
+not-found.tsx
+page.tsx
+products
+robots.ts
+search
+shop
+sign-in
+sitemap.ts
+
+apps/web/src/app/[slug]:
+page.tsx
+
+apps/web/src/app/account:
+page.tsx
+
+apps/web/src/app/api:
+auth
+health
+jobs
+search
+webhooks
+
+apps/web/src/app/api/auth:
+[...all]
+
+apps/web/src/app/api/auth/[...all]:
+route.ts
+
+apps/web/src/app/api/health:
+route.ts
+
+apps/web/src/app/api/jobs:
+run
+
+apps/web/src/app/api/jobs/run:
+route.ts
+
+apps/web/src/app/api/search:
+typeahead
+
+apps/web/src/app/api/search/typeahead:
+route.ts
+
+apps/web/src/app/api/webhooks:
+stripe
+
+apps/web/src/app/api/webhooks/stripe:
+route.ts
+
+apps/web/src/app/cart:
+page.tsx
+
+apps/web/src/app/checkout:
+page.tsx
+success
+
+=== ls -la docs/audits/2026-09-14-prd-alignment/ ===
+total 40
+drwxrwxr-x  3 pete pete  4096 Sep 14 21:25 .
+drwxrwxr-x 11 pete pete  4096 Sep 14 21:25 ..
+-rw-rw-r--  1 pete pete 18639 Sep 14 21:25 PLAN.md
+-rw-rw-r--  1 pete pete    49 Sep 14 21:25 REPORT.md
+drwxrwxr-x  2 pete pete  4096 Sep 14 21:25 evidence
+-rw-rw-r--  1 pete pete    42 Sep 14 21:25 findings.json
+
+=== ls -la docs/audits/2026-09-14-prd-alignment/evidence/ ===
+total 16
+drwxrwxr-x 2 pete pete 4096 Sep 14 21:25 .
+drwxrwxr-x 3 pete pete 4096 Sep 14 21:25 ..
+-rw-rw-r-- 1 pete pete 4877 Sep 14 21:25 inventory.txt

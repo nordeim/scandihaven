@@ -1,9 +1,9 @@
-# Scandi Haven — Master Project Architecture Document (PAD) v1.4
+# Scandi Haven — Master Project Architecture Document (PAD) v1.5
 
 > **Classification:** INTERNAL — ENGINEERING SOURCE OF TRUTH
 > **Status:** DEFINITIVE PRODUCTION-LOCKED BLUEPRINT
 > **Companion:** `PRD.md` v4.0 (Approved for build, 2026-09-08)
-> **Last Updated:** 2026-09-13 (v1.4, rounds 10–11)
+> **Last Updated:** 2026-09-14 (v1.5, foundational invariants audit)
 > **Audience:** Every engineer who ships, debugs, audits, or extends Scandi Haven — from day-one onboarding to incident response at 02:00.
 > **Rule:** If the PRD states *what* and *why*, this PAD states *how, where, and in what version* — as built, as verified, as deployed. Where they disagree, the PAD is truth for code and the PRD is truth for intent; file an ADR to reconcile.
 
@@ -18,6 +18,8 @@
 | **v1.2 Round-8 status sync** | 2026-09-11 | Product Engineering | [ADD] | **Round-8 remediation record** (`docs/plans/2026-09-11-live-e2e-remediation-round8.md`). Live audit round 8 (repo suites vs live origins 64/64 + 8/8 pre-remediation; 36-probe sweep) surfaced 8 findings; 7 fixed by TDD slices: `R8-1` checkout placeholder-key honesty + customer-safe error (client `set-me` guard mirrors server `getStripe()`, HIGH money-path fix), `R8-2` homepage journal preview links, `R8-3` PLP/category BreadcrumbList JSON-LD (FR-201), `R8-4` footer newsletter + social (FR-107), `R8-5` FR-701 §6/§7/§9 sections + 7 approved review seeds + PDP `aggregateRating`, `R8-6` back-in-stock notify flow (FR-310; capture slice — FR-914 batching stays with `R-SHOP-3`), `R8-7` dismissible announcement bar (FR-108). `R8-8` cross-sell stays queued (S; curation model undecided). New conventions recorded in AGENTS.md/CLAUDE.md: client "configured" checks mirror server placeholder rules; PLP breadcrumbs carry JSON-LD like the PDP; review seeds are existence-guarded with honest `isVerifiedPurchase`. |
 | **v1.3 Round-9 status sync** | 2026-09-12 | Product Engineering | [ADD] | **Round-9 remediation record** (`docs/plans/2026-09-12-live-e2e-remediation-round9.md`). Live audit round 9 (repo suites vs live origins 74/74 + 8/8 — the round-8 redeploy confirmed published; 23-probe sweep) surfaced 6 findings; 5 fixed by TDD slices, closing **R-CART-1 entirely**: `R9-1` promo re-validation drop inline notice (FR-404 — `CartDto.promotionNotice`, server-composed customer-safe copy), `R9-2` actionable min-spend rejection copy with amounts (FR-402 — `humanizePromotionRejection` context parameter), `R9-3` cart postcode shipping estimate (FR-402 — first `ShippingRateProvider` implementation `commerce/shipping-rates.ts`, display-only), `R9-4` PLP quick-add (FR-206 — cards CTE LEFT JOIN LATERAL first-purchasable-variant, was untracked), `R9-5` sticky mobile add-to-cart bar (FR-309, was untracked). `R9-6` wishlist (FR-305) deferred with rationale (couples to B9 merge-on-login). New conventions recorded in AGENTS.md/CLAUDE.md: cart status regions carry distinct accessible names; quick-add prices the first purchasable variant. |
 | **v1.4 Round-10/11 status sync** | 2026-09-13 | Product Engineering | [ADD] | **Round-10 live E2E + round-11 code-review/security-audit remediation records** (`docs/plans/2026-09-13-live-e2e-remediation-round10.md`, `docs/audits/2026-09-13-code-review-security-audit/`, `docs/plans/2026-09-13-code-review-remediation-round11.md`). Round 10 (47-probe storefront + 12-probe admin sweeps; storefront 77-78/79 + admin 8/8 vs live — all round-9 fixes live-verified) fixed 5 findings: `R10-2` checkout unconfigured notice made customer-safe (the R8-1 static branch had kept operator instructions — env-var names, `.env`, restart, test card — in the customer DOM), `R10-1` sticky-bar spec rewritten to assert IntersectionObserver derivation both ways (the R9-5 spec passed only via a ~50 ms hydration race; product was correct), `R10-5` back-in-stock fixture reset scoped to loopback targets, `R10-4` per-page twitter cards via `publicPageMetadata` (PRD §11.1), `R10-3` synonym-expanded search terms scoped to TITLES (lamp had surfaced the throw via description verbs). Round 11 (3-track audit: 1 Critical / 2 High / 5 Medium / 11 Low / 3 Info) fixed: `R10-6` the 5th `.env` re-exposure (`fc0379a`) untracked + `R10-6b` the scan-red prose de-markered (AGENTS.md + ledger had quoted the key-marker the CI scan hunts — the gate could never go green), `R10-7` the converted-cart double-charge path closed at four seams (getCartId resolves only active carts; createPaymentIntent refuses non-active; placement no-ops + logs for the ops refund trail; customer-safe action copy), `A-1` admin auth redirect no longer swallowed by action try/catch, `A-4` admin session-check failures logged, `A-2/A-3` product update is one transaction with FOR UPDATE inventory deltas and an in-tx audit row. Ship verdict was BLOCKED until R10-6/R10-6b/R10-7 — all landed; scan-green checkout simulation verified. New conventions in AGENTS.md/CLAUDE.md: converted carts never re-resolve through the cookie; checkout notices are customer-safe end-to-end (static branches included). |
+
+| **v1.5 Foundational synthesis** | 2026-09-14 | Product Engineering | [SYN] | **Foundational invariants audit synthesis** (docs/audits/2026-09-14-prd-alignment/ — 118 findings: 91 Aligned 77.1%, 1 Stub, 17 Drift, 9 Missing; 11/11 NFR-STACK Pass; commerce 90.9%/90.62%/92.68% coverage; 14-slice P0-P2 backlog R-SEC-1/R-SEO-1/R-SHOP-2a+b/R-DB-2/R-INV-1/R-INFRA-1/R-CHECK-1/R-TAX-1/R-SHOP-3/4/R-INFRA-2/R-DOCS-1/R-OBS-1). No new ADR — no decision reversed. |
 
 > **Tag legend:** [SYN] synthesis · [ADD] addition · [CHG] change · [DEP] deprecation · [FIX] correction of drift
 
@@ -85,6 +87,8 @@ Intent · Scope · FR/NFR              As-built · Locus · Version
 
 Definitive, audit-pinned versions — every entry is cited to the `package.json` (or `docker-compose.yml` / `tsconfig.base.json`) that enforces it. No speculative "e.g."; no floating ranges. `pnpm -r exec` resolves these exact versions from `pnpm-lock.yaml`.
 
+Pinned versions verified 2026-09-14 (pnpm 10.15.0 lockfileVersion 9.0, turbo.json globalEnv 12 vars incl. DISABLE_IMAGE_OPTIMIZER, vitest testTimeout 30_000 headroom per R5-4) — see docs/audits/2026-09-14-prd-alignment/evidence/inventory.txt.
+
 | Layer | Technology | Version (pinned) | Key Rationale (why this over alternatives) |
 |---|---|---|---|
 | **Package manager** | **pnpm** | **10.15.0** — `package.json:packageManager` | Content-addressable store + strict peer enforcement eliminates phantom deps that npm/yarn silently resolve. Required for the Turborepo task graph; the lockfile is the single source of resolved versions (NFR-STACK-2). |
@@ -130,7 +134,7 @@ Each ADR follows the canonical five-part shape: **Context → Decision → Ratio
 Scandi Haven's commerce requirements are schema-native and operationally coupled: lead-time windows per product variant (`lead_time_days_min/max` in `catalog.ts:109`), trade-customer pricing and sample workflows (FR-814…), multi-warehouse inventory with a movement ledger (`inventory_movement`), and a promotion engine whose invariants are property-tested (discount ≤ subtotal, largest-remainder). The incumbent marketing page is inert — there is no legacy commerce schema to preserve. The platform must be operable by a four-person team against a €5M GMV target with no dedicated platform-ops headcount.
 
 **Decision.**
-Build the commerce engine in-house in `packages/commerce` on Drizzle + PostgreSQL 17, sharing the single Postgres, single ORM, and single deployment pipeline with auth and the two Next apps. No hosted commerce platform is introduced. Vendor surface is limited to Stripe (payments/tax) behind explicit provider ports (`packages/commerce/src/providers.ts:SearchProvider`, `TaxProvider`, `ShippingRateProvider`, `EmailProvider`, `JobRunner`).
+Build the commerce engine in-house in `packages/commerce` on Drizzle + PostgreSQL 17, sharing the single Postgres, single ORM, and single deployment pipeline with auth and the two Next apps. No hosted commerce platform is introduced. Vendor surface is limited to Stripe (payments/tax) behind explicit provider ports (`packages/commerce/src/providers.ts:SearchProvider`, `TaxProvider`, `ShippingRateProvider`, `EmailProvider`, `JobRunner`) — TaxProvider.quote stub, FX '1' EUR-only, refunds stub, webhook matrix 3/4 stub (findings.json:apiQuality 5 Partial/3 Fail, backlog R-CHECK-1/R-TAX-1).
 
 **Rationale.**
 
@@ -271,7 +275,7 @@ Implement v1 search on **PostgreSQL FTS + `pg_trgm`** behind the `SearchProvider
 | **Locus** | `packages/commerce/src/rate-limit.ts:consumeRateLimit()`, `packages/db/src/schema/rate-limit.ts:rate_limit_hit (bucket, window_start) PK`, `apps/web/src/app/api/search/typeahead/route.ts`, `apps/web/src/actions/newsletter.ts` |
 
 **Context.**
-Five route-class limits must be enforced per §9.4 (auth 5/min/IP+email, checkout 30/min/cart, typeahead 60/min/IP, newsletter 3/hour/IP, trade 5/day/IP). Limits must survive process restarts and be shared across instances. The v1 platform has no Redis.
+Five route-class limits must be enforced per §9.4 (auth 5/min/IP+email, checkout 30/min/cart, typeahead 60/min/IP, newsletter 3/hour/IP, trade 5/day/IP). Limits must survive process restarts and be shared across instances. The v1 platform has no Redis. — typeahead 60/min/IP + newsletter 3/hour/IP wired; auth/checkout/trade = backlog.
 
 **Decision.**
 Implement a **Postgres fixed-window rate limiter** (`packages/commerce/src/rate-limit.ts`) backed by `rate_limit_hit` (PK `bucket, window_start`) with atomic upsert (`INSERT … ON CONFLICT DO UPDATE SET count = count + 1`) so concurrent requests cannot race past the limit. Pure window math (`windowStartFor`, `retryAfterSeconds`) is unit-tested; `consumeRateLimit` is DB-tested via `skipIf(!dbReady)` integration suites that run in CI. Route handlers map the decision to `429` + `Retry-After`. Redis is explicitly out of scope until the §3.2 swap trigger (lock contention under burst).
@@ -1306,7 +1310,7 @@ erDiagram
     webhook_event ||--o{ job : enqueues
 ```
 
-> Gaps flagged in audit 2026-09-10: `product.search_vector tsvector + GIN` absent, `two_factor` table absent, several `CHECK` constraints missing at DDL — see §12 Known Issues. App-layer guards exist; DDL hardening is P0 backlog `R-DB-*`.
+> Gaps flagged in audit 2026-09-10: `product.search_vector tsvector + GIN` absent, `two_factor` table absent — R-SEC-1 (P0), several `CHECK` constraints missing at DDL — see §12 Known Issues. App-layer guards exist; DDL hardening is P0 backlog `R-DB-*` — CHECK (amount≥0 / qty 1..99 / rating 1..5 / alt<>'') not materialized — Zod-only, not PG CHECK (findings.json:7.3-enums-checks Partial, R-DB-2).
 
 ### 4.2 Core Table Groups (PRD §7.3–§7.8 as deployed)
 
@@ -1318,7 +1322,7 @@ erDiagram
 | **Ops** | `audit_log`, `webhook_event`, `job`, `rate_limit_hit`, `redirect`, `newsletter_subscriber`, `fx_rate`, `shipping_zone`/`shipping_rate`, `announcement`, `nav_entry`, `static_page`, `journal_post`, `lookbook`, `analytics_event` | `webhook_event.stripe_event_id UNIQUE`, `job.idempotency_key UNIQUE`, `rate_limit_hit PK(bucket,window_start)`, `redirect.source_path UNIQUE` | `packages/db/src/schema/ops.ts:24-148` + `content.ts` |
 | **Auth** | `user`, `session`, `account`, `verification` (Better-Auth owned, `role`/`banned` extensions) | `user.email citext UNIQUE`, `session.token UNIQUE`, `verification_identifier_value_idx UNIQUE(identifier,value)` | `packages/db/src/schema/auth.ts:50-74` |
 
-Money is `integer` minor units everywhere (`amount`, `total`, `tax`, `shipping` — never floats, ADR-001). Timestamps are `timestamptz` UTC (`created_at`, `updated_at`).
+Money is `integer` minor units everywhere (`amount`, `total`, `tax`, `shipping` — never floats, ADR-001). Timestamps are `timestamptz` UTC (`created_at`, `updated_at`) — no $onUpdate/trigger in schema; updated_at set via db.update().set({updatedAt}) in app (findings.json:7.1-timestamptz Partial, backlog R-DB-2).
 
 ### 4.3 Persistence Strategy
 
@@ -1420,6 +1424,8 @@ Radii: `--radius-card 2px` (cards) · `--radius-image 0px` (sharp editorial imag
 | **Methods** | Email/password `minPasswordLength 10` via Better-Auth; session via Drizzle adapter; `admin` plugin adds `role`/`banned`/`banReason` | `zxcvbn-lite ≥3` breached-check + 15-min magic-link + Google/Apple OAuth allow-list are stubs — Phase 1 `R-AUTH-1`. |
 | **Sessions** | DB-backed `session` table — admin revocation immediate; `expiresIn 2592000` (30d) `updateAge 86400` per-request rotation (Better-Auth secure default); cookies `HttpOnly; Secure; SameSite=Lax`; guest carts survive via signed cookies independent of sessions. Revoke-all `DELETE session WHERE userId` wired but without `list active sessions` UI. | List/revoke UI `R-AUTH-1`. |
 | **2FA** | `two_factor` table **absent** (see §4.1 gap), Better-Auth twoFactor plugin not mounted, proxy gate on `/admin` not enforced — Owner/Admin remain password-only. | **P1 `R-SEC-1`** — do not launch admin without. |
+
+Admin 2FA TOTP — two_factor table + Better-Auth twoFactor plugin + proxy second-factor claim — absent (findings.json:9.1-2fa-proxy Fail, P0 R-SEC-1). Owns the Foundational audit's sole Blocking security gap.
 | **RBAC** | Typed matrix `packages/auth/src/rbac.ts`: `ROLES 7` (`user`, `readonly`, `warehouse`, `customer_service`, `merchandiser`, `admin`, `owner`) × `PERMISSIONS 15` (`orders:view/refund_small ≤€500/refund_large/fulfill/cancel`, `catalog:*`, `inventory:adjust`, `content:edit`, `promotions:manage`, `customers:*`, `settings:manage`, `trade:review`); `can(role,permission)` / `canAny()`; every Server Action calls `requirePermission()` (`apps/admin/src/lib/admin-guard.ts`) and writes `audit_log` (actor, action, before/after digest, `ip_hash` not raw IP). No inline checks. Least privilege: `customer_service` can `refund_small` without second approval; >€500 requires `admin`. | — |
 | **Origin trust** | Per-request header-derived origin via `trusted-origins.ts` + native `BETTER_AUTH_TRUSTED_ORIGINS` comma allow-list; `BETTER_AUTH_URL` must be public origin (live H-AUTH post-mortem documented in `security-headers.ts` comment). | — |
 
@@ -1500,7 +1506,7 @@ Stripe API  payment_intent.succeeded
 
 | Category | Files | Tests | Location | Framework | Gate |
 |---|---|---|---|---|---|
-| **Unit — pure domain** | 17 | 120 | `packages/commerce/src/*.test.ts` (`money`, `pricing` (+ property), `promotions`, `order-state`, `placement-outcome`, `request-dedupe`, `rich-text`, `providers`) | Vitest 5 + fast-check | **PR-blocking** — coverage `90% lines / 85% funcs` on `packages/commerce` (actual `Statements 90.90% Lines 92.81% Funcs 90.32% Branches 81.96%` ledger 2026-09-10) |
+| **Unit — pure domain** | 17 | 120 | `packages/commerce/src/*.test.ts` (`money`, `pricing` (+ property), `promotions`, `order-state`, `placement-outcome`, `request-dedupe`, `rich-text`, `providers`) | Vitest 5 + fast-check | **PR-blocking** — coverage 90.9% stmts / 90.62% funcs / 92.68% lines (gate 90/85 ✅) — verified 2026-09-14 (commerce 173 tests) — vitest testTimeout 30_000 headroom per R5-4 |
 | **Unit — auth** | 4 | 19 | `packages/auth/src/*.test.ts` (`rbac`, `trusted-origins` 7, `server-origin` 19, `auth-route`) | Vitest | PR-blocking |
 | **Unit — config** | 5 | 39 | `packages/config/src/*.test.ts` (`flags 22` including unknown-flag fail-fast, `security-headers`, `redirect-path`, `chunk-recovery`, `site-url`) | Vitest | PR-blocking |
 | **Unit — web/admin** | 3+3 | 16+11 | `apps/web/src/{actions/cart,lib/*}.test.ts` + `apps/admin/src/*.test.ts` (`guard`, `sign-in-paths`, `next-config`) | Vitest | PR-blocking for touched |
@@ -1513,6 +1519,8 @@ Stripe API  payment_intent.succeeded
 - **Factories:** `getMockX(overrides)` — `packages/db/src/testing/index.ts:aProduct/aCart(anOrder)` produce valid entity graphs with deterministic IDs for property tests.
 - **Property tests:** `fc.assert(fc.property(...))` **inside** `it()` — not `test.prop` (per AGENTS.md). Money-heavy: `discount≤subtotal` invariants for fixed/percent>100%/tiered; `sum(lines)+shipping+tax−discount=total`; FX monotonic.
 - **Dedupe pinning:** same `(cartId, requestId)` within 5 min is no-op (`request-dedupe.test.ts:1` — `createRequestDedupe(5*60_000)` + `addLineDedupe`).
+
+Cart dedupe is per-instance Map 5-min (packages/commerce/src/request-dedupe.ts:1, cart-service.ts:14) — horizontal-scale upgrade is a cart_request_dedupe table with TTL sweep (findings.json:IDEM-02 Partial, backlog R-INV-1). PRD §8.3 5-min matrix satisfied per server.
 - **Re-validation pinning:** `filterEligiblePromotions` per-read (`promotions.test.ts` + `checkout-promotions.integration.test.ts` — minSpend re-validated on every `getCartDto`/placement TX — E2E-3).
 - **Placement outcome:** 4 pure decisions for `resolvePlacementOutcome` (`placement-outcome.test.ts` — `AMOUNT_MISMATCH→review`, `OUT_OF_STOCK→review` with `ops.payment_orphan`, advisory lock order-number, no silent swallow).
 - **State machine:** every `transition(current, event)` illegal move tested → `InvalidOrderTransition` (`order-state.test.ts`).
@@ -1520,7 +1528,7 @@ Stripe API  payment_intent.succeeded
 ### 8.3 Coverage & Thresholds
 
 - **Floor:** `90% lines / 85% funcs` on pure domain (`packages/commerce/vitest.config.ts`) — enforced in CI via `vitest run --coverage` (v8). `result.ts` (typed union, no branches) excluded by design — no false warning.
-- **Actual (2026-09-10):** `Statements 90.90% (150/165) Branches 81.96% Lines 92.81% Funcs 90.32%` — threshold met.
+- **Actual (2026-09-14):** 90.9% stmts / 90.62% funcs / 92.68% lines (gate 90/85 ✅) — verified 2026-09-14 (commerce 173 tests) — threshold met. vitest testTimeout 30_000 headroom per R5-4.
 
 ### 8.4 Pre-PR / Pre-Deploy Checklist
 
@@ -1679,6 +1687,24 @@ Order matters: `pnpm lint typecheck test build` works without DB; with local PG 
 
 > Priority reflects pre-launch blocking vs post-launch debt. Source: `docs/audits/2026-09-10-prd-alignment/REPORT.md §4 Top 10 Risks` + `docs/audits/2026-09-09-code-review-security-audit` + `docs/plans/2026-09-10-live-e2e-remediation*`. Every row names its FR/NFR so nothing is silently missing — stubs per `PRD §12.2` traceability.
 
+| Slice | Severity | Title | Locus | Effort |
+| R-SEC-1 | P0 Blocking | Admin 2FA TOTP | auth/server.ts + db/schema/auth.ts + admin/proxy.ts | M |
+| R-SEO-1 | P0 Blocking | Facet + pagination SEO (≥2 facets noindex, ?page=N canonical + rel next/prev) | apps/web/shop/page.tsx + lib/seo.ts + sitemap.ts | M |
+| R-SHOP-2a | P0 Blocking | Relaxed facet CTEs (per-facet relaxed aggregation) | catalog.ts:110-200 | L |
+| R-DB-2 | P0 Blocking | Harden DDL CHECKs + updated_at trigger | db/schema/** + drizzle/ | M |
+| R-INV-1 | P1 High | Make cart dedupe & reservation concurrency-safe | request-dedupe.ts + checkout-service.ts | M |
+| R-SHOP-2b | P1 High | product_metrics view for bestselling | db/schema/ops.ts + jobs.ts + catalog.ts:60 | M |
+| R-INFRA-1 | P1 High | Wire deploy topology (Vercel preview + tagged releases) | .github/workflows/ci.yml | M |
+| R-CHECK-1 | P1 High | Complete webhook matrix (payment_failed/charge.*) + stripe.refunds.create | api/webhooks/stripe/route.ts:38 + admin/actions/orders.ts | M |
+| R-TAX-1 | P1 High | Bind Stripe Tax (TaxProvider.quote → Stripe Tax) | providers.ts:86 + checkout-service.ts | S |
+| R-SHOP-3 | P2 Medium | PDP completeness (zoom/swipe/video + cross-sell 4-up) | products/[slug]/page.tsx | M |
+| R-SHOP-4 | P2 Medium | Wishlist surfacing on PDP | products/[slug]/page.tsx | S |
+| R-INFRA-2 | P2 Medium | DR runbook (PITR + 30d snapshots + drill) | docker-compose.yml | L |
+| R-DOCS-1 | P2 Medium | History secret rotation (5 exposures) | .git history | S |
+| R-OBS-1 | P2 Medium | Observability (Sentry + burn alerts + stub hygiene) | instrumentation | M |
+
+Evidence: docs/audits/2026-09-14-prd-alignment/REPORT.md §6 + findings.json:backlog
+
 | Priority | Issue | Impact | Status | FR / NFR | Remediation slice |
 |---|---|---|---|---|---|
 | **RESOLVED** | `sitemap.ts` + `robots.ts` absent (daily weights + image entries, disallow `/admin,/account,/cart,/checkout,/search,/api`) | ~~Indexability — crawlers miss catalog or index blocked surfaces~~ | **Resolved — round 4 (`180cc54`), live-verified round 6 (2026-09-11): sitemap 20 absolute URLs all 200, robots app rules + Sitemap line present** | §11.1, §11-sitemap, §11-robots | `R-SEO-1` (closed) |
@@ -1719,6 +1745,8 @@ Order matters: `pnpm lint typecheck test build` works without DB; with local PG 
 | **LOW (batched)** | Round-11 audit Low/Info findings: webhook signature catch unlogged; estimator stale-response on <3-char guard; error boundaries claim logging but never log; cleared SEO fields persist as "" (empty PDP title); admin form errors use role=status; dead cart-store fields; pricing tie-break comment; `webhook_event.processedAt` never written; jobs `failed` bucket structurally 0; shipping bands closed not half-open; cart image/order nondeterminism; rating stats capped at newest 50; per-variant price flattening; `noValidate={false}`; unknown@ fallback email | Quality debt — none release-blocking | **Open — batched for the next scheduled round with per-item rationale in the audit findings.json (bundling them into rounds 10–11 would mix severities in one commit chain)** | various | audit `A-5..A-10, B-7..B-13` (batched) |
 
 > **Deferred-by-design (not a gap, Phase 5 per PRD §11):** Gift cards / Net-30 invoicing / bulk pad (trade), subscriptions/Q+2-3, AR — schema-ready (`variant_price.tradeAmount`, `gift_card`, `payment_terms`) but UI deferred with `FEATURE_GIFT_CARDS=off FEATURE_TRADE=off`. Link to `docs/traceability.md` for FR-level status.
+
+Last synced: 2026-09-14 — see docs/traceability.md (Last synced banner) + docs/verification-ledger.md#2026-09-14 + findings.json (machine-readable) — 118 findings
 
 ---
 
@@ -1781,5 +1809,7 @@ Order matters: `pnpm lint typecheck test build` works without DB; with local PG 
 | **`pg_advisory_xact_lock`** | Transaction-scoped advisory lock (`hashtext('seed')` / `hashtext('order_number:YYYY')`) — serializes `ensureSeeded` and `order.number` without table locks. |
 | **PITR / RTO / RPO** | Point-in-time recovery / Recovery Time/Point Objective (PITR + daily snapshots, 30-day, `RTO 4h / RPO 15m`, quarterly drill — PRD §11.4). |
 
-> **End of PAD v1.0 — Definitive, Production-Locked Blueprint (2026-09-10).**
+> **End of PAD v1.5 — Definitive, Production-Locked Blueprint (2026-09-14).**
 > This document is **as-built**. Propose changes as versioned revisions with `[TAG]` entries. A change without an ADR cannot ship.
+
+Docs front door (README.md:Documentation) now points to 2026-09-14 audit (77.1%, 11/11).

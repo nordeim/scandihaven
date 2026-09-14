@@ -2,7 +2,7 @@
 IMPORTANT: File is read fresh for every conversation. Be brief and practical.
 project_type: nextjs-monorepo
 version: 1.0.0
-last_updated: 2026-09-13
+last_updated: 2026-09-14
 ---
 
 # Scandi Haven — E-Commerce Monorepo
@@ -21,6 +21,8 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 4. **IMPLEMENT** — Modular, typed, test-backed increments. Domain logic in `packages/commerce` (pure), UI in `packages/ui`, app wiring in `apps/*`.
 5. **VERIFY** — Run the full gate: `pnpm lint typecheck test build`; migrate+seed a fresh DB; `pnpm e2e`. Claims of "works" require executed evidence.
 6. **DELIVER** — Note what was verified, what was not, and any deferred work.
+
+> Foundational invariants audit 2026-09-14: 77.1% Aligned (91/118; 11/11 NFR-STACK Pass; commerce 90.9%/90.62%); 14-slice P0-P2 backlog — see docs/audits/2026-09-14-prd-alignment/REPORT.md.
 
 ### Project-specific principles
 
@@ -59,6 +61,10 @@ Direct-to-consumer e-commerce platform for a Scandinavian furniture/textiles bra
 - Page files export only `default` + `metadata`/`generateMetadata`/`revalidate`/`dynamic`. Extra exports break the build.
 - Server Components by default; `"use client"` only for interactive leaves. Mutations via Server Actions in `src/actions/`, not route handlers.
 - Caching: PLP/PDP ISR `revalidate: 300` + tag invalidation; cart/checkout/account/admin `force-dynamic`.
+
+- **Faceted SEO is per-count** (FR-203 §11.1: 0→self, 1 curated→self, ≥2→noindex,follow — not yet wired; P0 R-SEO-1).
+- **Cart dedupe is per-instance** (request-dedupe.ts Map 5-min; upgrade to cart_request_dedupe table on horizontal scale — findings.json IDEM-02 Partial, R-INV-1).
+- **DB CHECKs + updated_at trigger are DDL debt** (7.3-enums-checks + 7.1-timestamptz Partial — Zod-only, not PG CHECK/$onUpdate; R-DB-2).
 
 ### Tailwind v4 (CSS-first — no tailwind.config.js)
 
