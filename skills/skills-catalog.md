@@ -1,6 +1,6 @@
 # Skills Catalog
 
-> **233 skills** organized into 10 categories. Each entry shows the skill name and a concise description of what it does and when to use it.
+> **236 skills** organized into 10 categories. Each entry shows the skill name and a concise description of what it does and when to use it.
 
 ---
 
@@ -21,6 +21,7 @@
 | **clone-app-pat-pro** | Clones any web app pixel-for-pixel from a URL. Runs as an IN-CONVERSATION workflow — the live Claude orchestrates Task sub-agents and drives the Claude Chrome extension to recon (every view), extract (computed styles = ground truth), design-spec, build, QA (computed-style assertions), and extend. Guided check-ins, custom features, and an MCP server so an agent can operate the app. Use when cloning a site, replicating a web app, building a clone, copying a website, recreating a UI, or when told "clone this", "replicate this app", "copy this site", "build a clone of", "make a copy of this web... |
 | **cloudflare-tunnel** | Add new local services to an existing Cloudflare Tunnel for secure public access. Use when you need to expose a local development server, web application, or service running on localhost to the public internet via Cloudflare's tunnel infrastructure. Prerequisites: cloudflared installed and authenticated, existing tunnel created. Triggers: "add tunnel", "expose local service", "cloudflare tunnel", "port forward", "public access to localhost", "expose localhost". |
 | **design** | Route design-related HTML artifact tasks to the right artifact skill, reference, design system generation, or export skill. |
+| **e-commerce-nextjs16-monorepo** | Production-grade reference for building DTC e-commerce and storefront platforms on Next.js 16 + React 19 + Tailwind CSS v4 (CSS-first @theme) + Drizzle ORM + PostgreSQL 17 in a pnpm + Turborepo monorepo with TypeScript strict. Covers App Router RSC/Server Actions, proxy.ts, Better Auth with RBAC, Stripe SAQ-A payments and webhooks, Zod validation, Zustand client islands, shadcn/Radix UI, and end-to-end commerce engine (catalog, cart, pricing, promotions, inventory, orders, shipping, tax, search FTS, jobs). Includes reusable patterns for monorepo layering (transpilePackages), security hardening, WCAG AAA, editorial design tokens, and operational workflows. Applicable to any full-stack TypeScript e-commerce, marketplace, booking, or content-driven SaaS using this stack. |
 | **finance** | Comprehensive Finance API integration skill for real-time and historical financial data analysis, market research, and investment decision-making. Priority use cases: stock price queries, market data analysis, company financial information, portfolio tracking, market news retrieval, stock screening, technical analysis, and any financial market-related requests. This skill should be the primary choice for all Finance API interactions and financial data needs. |
 | **flutter** | Flutter (Dart 3) cross-platform UI toolkit workflow skill — build iOS, Android, web, and desktop apps from a single codebase. Covers the widget-tree mental model (StatelessWidget vs StatefulWidget vs InheritedWidget), BuildContext and rebuilds, layout primitives (Row, Column, Stack, Container, Flex family, Expanded/Flexible), the state management decision tree (setState → InheritedWidget → Provider → Riverpod → Bloc → GetX), Navigation 2.0 router vs Navigation 1.0 (Navigator.push), pubspec.yaml and the pub.dev ecosystem, HTTP & JSON (http package + json_serializable codegen), forms and vali... |
 | **frontend-design** | Design thinking and decision-making for web UI. Use when designing components, layouts, color schemes, typography, or creating aesthetic interfaces. Teaches principles, not fixed values. |
@@ -33,6 +34,7 @@
 | **image-search** | ZAI in-house image search service, exposed through the z-ai-web-dev-sdk CLI. Retrieve real images from the web for any text query, with optional short captions, and get back OSS-hosted direct URLs that are guaranteed reachable. Use when the user wants to find, fetch, illustrate, or embed images — e.g. "search for images of X", "find a picture of Y", "I need cover art for Z", "give me reference photos of W", "插图", "配图", "找图", "找张图", "搜张图", "搜图". |
 | **keystonejs-6** | KeystoneJS 6 (TypeScript, Node.js 20+) schema-as-code headless CMS + admin panel generator + GraphQL API workflow skill. Covers the schema-as-code paradigm (define lists with fields in keystone.ts → Keystone auto-generates the admin UI, GraphQL schema, and Prisma schema — no manual CRUD, no manual admin, no manual GraphQL resolvers), the list system (list(fields: { name: text(), email: text({ isUnique: true }), posts: relationship({ ref: 'Post.author', many: true }) }) — each list becomes a GraphQL type with auto-generated CRUD queries/mutations), the field types (text, select, integer, flo... |
 | **laravel-12** | Laravel 12 (PHP 8.3+) full-stack workflow skill. Covers the streamlined 11+/12 app structure (no Kernel.php, bootstrap/app.php config), Eloquent ORM with factories/seeders, Artisan CLI, Blade + Livewire + Inertia frontend options, Sanctum API tokens, Breeze/Jetstream auth scaffolding, Queues with Redis/database, Pest testing, Vite asset build, Filament admin, Forge/Vapor deployment. Use when building any PHP web application, API, or console workload on Laravel 12 — especially when the task involves migrations, Eloquent queries, queued jobs, or auth flows where idiomatic Laravel differs from... |
+| **nextjs-postgresql-single-app** | Production-grade reference for building content-driven marketing sites and transactional funnel apps on Next.js 16 + React 19 + Tailwind CSS v4 (CSS-first @theme) + Drizzle ORM + PostgreSQL 17 in a single-app (npm, no monorepo) with TypeScript strict. Covers App Router RSC (force-dynamic), file corpus → catalog → idempotent ensureSeeded() projection → Pool singleton (globalThis), Drizzle pgTable migrations, 43 static/dynamic pages, lead-capture funnel (validate → match → persist), rate limiting, health/sitemap/redirects, editorial design tokens, and WCAG AAA. Includes reusable patterns for single-Pool persistence, file-backed seeding, content ingestion, and pre-ship gates (lint/typecheck/test/build/e2e). Applicable to any full-stack TypeScript marketing, funnel, lead-gen, or content-driven SaaS using this stack. |
 | **nextjs-react-expert** | React 19 and Next.js 16 performance optimization from Vercel Engineering. 57 rules prioritized by impact - eliminate waterfalls, reduce bundle size, server/client-side optimizations. Covers App Router, Server Components, RSC streaming, Turbopack, React Compiler, Core Web Vitals (LCP/INP/CLS), bundle analysis. Use when profiling, reviewing code for perf issues, or optimizing production React/Next.js apps. |
 | **nextjs-typescript-patterns** | Monorepo web projects using pnpm, Turborepo, TypeScript, Next.js, React, ESLint, Prettier, Drizzle ORM, Postgres, and third-party SDKs (tRPC, Trigger.dev, Stripe, Better Auth, Sanity, React Email, Vitest) |
 | **nextjs16-full-stack** | IRONFORGE Fitness Studio — Brutalist/Raw + Retro-Futuristic Design System & Next.js 16 Full-Stack Engineering Reference Production-grade skill for building IRONFORGE Fitness Studio from any AI agent. Covers - Avant-garde brutalist/raw design system with neon orange (#FF5400) on pure black (#0a0a0a) - Tailwind CSS v4 CSS-first @theme block, custom utilities, and v3→v4 migration rules - Anti-generic UI, typography scale (Bebas Neue / Oswald / Archivo / JetBrains Mono), and motion standards - Next.js 16 + React 19 App Router, Server Components, and 5-layer architecture (proxy → app → features ... |
@@ -318,6 +320,7 @@
 | **how-to-git-push-using-ssh-wrapper** | Push commits to a GitHub remote via a Paramiko-based SSH wrapper when OpenSSH (`ssh`) is not installed. Use this skill when `git push` fails with "git@github.com: Permission denied (publickey)" or when the environment lacks `openssh-client` (minimal containers, distroless images, restricted sandboxes, or Python-only environments). Prerequisites: Python 3.10+, a GitHub SSH private key file, and the `paramiko` Python package. Triggers: "git push", "push to github", "ssh wrapper", "paramiko git", "no openssh", "GIT_SSH_COMMAND", "permission denied publickey", "git push without ssh". |
 | **luxeverse-architect** | LuxeVerse Architect Skill Comprehensive Architectural & Execution Framework for Cinematic, Production-Grade, Anti-Generic Web Platforms |
 | **multi-search-engine** | Multi search engine integration with 8 domestic (CN) search engines. Supports advanced search operators, time filters, site search, and WeChat article search. No API keys required. |
+| **rootless-postgresql** | Install, initialize, and run a PostgreSQL server and client locally without root on Debian (trixie/sid), for a non-root user with a writable `/home/project` directory. Use when asked to install or start PostgreSQL without sudo, without systemd, or when `apt install` fails with permission errors. Resolves the major version dynamically, extracts `.deb`s into a user-owned prefix, and provides idempotent `start`/`stop`/`status` scripts. |
 | **skill-finder-cn** | Skill 查找器 \| Skill Finder. 帮助发现和安装 ClawHub Skills \| Discover and install ClawHub Skills. 回答'有什么技能可以X'、'找一个技能' \| Answers 'what skill can X', 'find a skill'. 触发词：找 skill、find skill、搜索 skill. |
 | **task-review** | 当用户指令为高复杂度任务时触发，用于将刚完成的任务路径保存为可复用技能，生成相关的SKILL.md文档。 |
 | **template-skill** | Replace with description of the skill and when Claude should use it. |
@@ -331,7 +334,7 @@
 
 | # | Category | Count |
 |---|----------|-------|
-| 1 | Frontend Development & UI Engineering | 58 |
+| 1 | Frontend Development & UI Engineering | 60 |
 | 2 | Design Artifacts & Visual Creation | 18 |
 | 3 | Full-Stack & Backend Development | 22 |
 | 4 | AI / ML / Multimodal SDK Skills | 15 |
@@ -340,8 +343,8 @@
 | 7 | Planning, Workflow & Project Management | 33 |
 | 8 | Documentation & Content Creation | 20 |
 | 9 | Career, Learning & Personal Development | 12 |
-| 10 | DevOps, Infrastructure & External Integrations | 9 |
-| | **Total** | **233** |
+| 10 | DevOps, Infrastructure & External Integrations | 10 |
+| | **Total** | **236** |
 
 ---
 
